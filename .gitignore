@@ -1,0 +1,29 @@
+# Dependencias
+/node_modules
+/.pnp
+.pnp.js
+
+# Entorno de pruebas y build
+/coverage
+/.next/
+/out/
+/build
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Variables de entorno
+.env*.local
+.env
+
+# Editor y sistema operativo
+.vscode/
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
