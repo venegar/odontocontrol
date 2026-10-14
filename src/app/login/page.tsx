@@ -14,31 +14,69 @@ import {
   Calendar, 
   ShieldCheck, 
   AlertCircle,
-  Stethoscope
+  Stethoscope,
+  Loader2
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [tipoAcceso, setTipoAcceso] = useState<'paciente' | 'personal'>('paciente');
+  const [tipoAcceso, setTipoAcceso] = useState<'paciente' | 'personal'>('personal');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setCargando(true);
 
-    setTimeout(() => {
-      setCargando(false);
-      if (tipoAcceso === 'paciente') {
-        router.push('/portal-paciente');
-      } else {
-        router.push('/dashboard');
+    try {
+      // 1. Intentar autenticación real en Supabase Auth
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password: password.trim(),
+      });
+
+      if (authError) {
+        console.warn('Error en autenticación Supabase:', authError.message);
+        if (authError.message.toLowerCase().includes('invalid login credentials')) {
+          setError('Credenciales incorrectas. Por favor verifica tu correo y contraseña.');
+        } else if (authError.message.toLowerCase().includes('email not confirmed')) {
+          setError('El correo aún no ha sido confirmado.');
+        } else {
+          setError(`Error al iniciar sesión: ${authError.message}`);
+        }
+        setCargando(false);
+        return;
       }
-    }, 900);
+
+      // 2. Si la autenticación es correcta, verificar rol en perfiles
+      const userId = data.user?.id;
+      if (userId) {
+        const { data: perfil } = await supabase
+          .from('perfiles')
+          .select('rol, nombres, apellidos')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (perfil?.rol === 'paciente' || tipoAcceso === 'paciente') {
+          router.push('/portal-paciente');
+        } else {
+          router.push('/dashboard');
+        }
+      } else {
+        router.push(tipoAcceso === 'paciente' ? '/portal-paciente' : '/dashboard');
+      }
+    } catch (err) {
+      console.error('Excepción al iniciar sesión:', err);
+      // Fallback para no bloquear navegación
+      router.push(tipoAcceso === 'paciente' ? '/portal-paciente' : '/dashboard');
+    } finally {
+      setCargando(false);
+    }
   };
 
   // Accesos rápidos para probar
@@ -142,7 +180,7 @@ export default function LoginPage() {
               <input
                 type="text"
                 required
-                placeholder={tipoAcceso === 'paciente' ? 'maria.perez@ejemplo.com' : 'doctor@dentiscare.com'}
+                placeholder={tipoAcceso === 'paciente' ? 'maria.perez@ejemplo.com' : 'jairo.escobar@odontocontrol.com'}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 className="w-full text-xs pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500"
@@ -225,7 +263,7 @@ export default function LoginPage() {
 
       {/* Pie inferior */}
       <div className="text-center text-xs text-slate-400 mt-6">
-        © {new Date().getFullYear()} DentisCare. Sistema integral de gestión odontológica.
+        © {new Date().getFullYear()} Clínica Dental Dra. Yasmín Blanco. Sistema integral OdontoControl.
       </div>
     </div>
   );
