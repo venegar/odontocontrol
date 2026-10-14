@@ -10,7 +10,7 @@ import {
   Send, 
   CheckCircle2, 
   Clock, 
-  Calendar, 
+  Calendar as CalendarIcon, 
   ExternalLink, 
   Settings, 
   Edit3, 
@@ -21,7 +21,8 @@ import {
   Smartphone,
   ShieldCheck,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Sun
 } from 'lucide-react';
 import { 
   CanalRecordatorio, 
@@ -33,7 +34,10 @@ import {
   interpolarMensaje, 
   generarEnlaceWhatsApp,
   generarEnlacesAccionCita,
-  generarEnlaceEmail 
+  generarEnlaceEmail,
+  obtenerFechaHoy,
+  obtenerFechaManana,
+  formatearFechaEspanol
 } from '@/modules/recordatorios/utils';
 import { supabase } from '@/lib/supabase';
 import { obtenerDatosConsultorio } from '@/modules/configuracion/consultorioService';
@@ -44,7 +48,7 @@ const PLANTILLAS_INICIALES: PlantillaRecordatorio[] = [
     id: 'plan-wa-24h',
     nombre: 'Recordatorio WhatsApp (24h Antes)',
     canal: 'whatsapp',
-    contenido: '¡Hola {{nombre_paciente}}! 👋 Te recordamos tu cita de {{tratamiento}} con el {{doctor}} programada para el {{fecha}} a las {{hora}} en la Clínica Dental Dra. Yasmín Blanco. 🦷\n\nElige una opción para gestionar tu cita de inmediato:\n✅ Confirmar asistencia: {{enlace_confirmar}}\n🔄 Reagendar fecha u hora: {{enlace_reagendar}}\n❌ Cancelar cita: {{enlace_cancelar}}\n\nSede: Paseo de la Castellana 142, Madrid. Teléfono: {{consultorio_telefono}}\n¡Te esperamos!',
+    contenido: '¡Hola {{nombre_paciente}}! 👋 Te recordamos tu cita de {{tratamiento}} con el {{doctor}} programada para el {{fecha}} a las {{hora}} en la Clínica Dental Dra. Yasmín Blanco. 🦷\n\nElige una opción para gestionar tu cita de inmediato:\n✅ Confirmar asistencia: {{enlace_confirmar}}\n🔄 Reagendar fecha u hora: {{enlace_reagendar}}\n❌ Cancelar cita: {{enlace_cancelar}}\n\nSede: {{consultorio_direccion}}. Teléfono: {{consultorio_telefono}}\n¡Te esperamos!',
     anticipacionHoras: 24,
     activa: true,
   },
@@ -53,7 +57,7 @@ const PLANTILLAS_INICIALES: PlantillaRecordatorio[] = [
     nombre: 'Recordatorio Correo Electrónico (24h Antes)',
     canal: 'email',
     asunto: 'Recordatorio de Cita Odontológica - {{fecha}} a las {{hora}}',
-    contenido: 'Estimado(a) {{nombre_paciente}},\n\nLe confirmamos los detalles de su cita odontológica agendada en la Clínica Dental Dra. Yasmín Blanco:\n\n• Tratamiento: {{tratamiento}}\n• Profesional: {{doctor}}\n• Fecha y Hora: {{fecha}} a las {{hora}}\n• Sede: Paseo de la Castellana 142, Madrid\n\nPor favor seleccione una de las siguientes opciones para gestionar su cita de inmediato:\n\n👉 [CONFIRMAR CITA]: {{enlace_confirmar}}\n👉 [REAGENDAR CITA]: {{enlace_reagendar}}\n👉 [CANCELAR CITA]: {{enlace_cancelar}}\n\nTeléfono de atención al paciente: {{consultorio_telefono}}\n\nAtentamente,\nEquipo Médico Dra. Yasmín Blanco',
+    contenido: 'Estimado(a) {{nombre_paciente}},\n\nLe confirmamos los detalles de su cita odontológica agendada en la Clínica Dental Dra. Yasmín Blanco:\n\n• Tratamiento: {{tratamiento}}\n• Profesional: {{doctor}}\n• Fecha y Hora: {{fecha}} a las {{hora}}\n• Sede: {{consultorio_direccion}}\n\nPor favor seleccione una de las siguientes opciones para gestionar su cita de inmediato:\n\n👉 [CONFIRMAR CITA]: {{enlace_confirmar}}\n👉 [REAGENDAR CITA]: {{enlace_reagendar}}\n👉 [CANCELAR CITA]: {{enlace_cancelar}}\n\nTeléfono de atención al paciente: {{consultorio_telefono}}\n\nAtentamente,\nEquipo Médico Dra. Yasmín Blanco',
     anticipacionHoras: 24,
     activa: true,
   },
@@ -62,6 +66,36 @@ const PLANTILLAS_INICIALES: PlantillaRecordatorio[] = [
 // Cola inicial de recordatorios generados a partir de las citas
 const COLA_INICIAL: RecordatorioItem[] = [
   {
+    id: 'rec-pedro-perez',
+    citaId: '93799ea9-00cd-4def-ba4f-2cfd253dc093',
+    pacienteNombre: 'Pedro Pérez',
+    pacienteTelefono: '3015499931',
+    pacienteEmail: 'gimob47836@ensproxy.com',
+    doctorNombre: 'Dra. Yasmín Blanco',
+    tratamiento: 'Valoración Odontológica Inicial',
+    fechaCita: '2026-10-15',
+    horaCita: '08:00 AM',
+    canal: 'whatsapp',
+    mensajeGenerado: '',
+    estado: 'pendiente',
+    programadoPara: '2026-10-14 08:00 AM (Aviso 24h antes)',
+  },
+  {
+    id: 'rec-manana-2',
+    citaId: 'cita-manana-restrepo',
+    pacienteNombre: 'Valentina Restrepo Gil',
+    pacienteTelefono: '+57 312 888 4433',
+    pacienteEmail: 'valentina.restrepo@ejemplo.com',
+    doctorNombre: 'Dra. Yasmín Blanco',
+    tratamiento: 'Diseño de Sonrisa & Carillas',
+    fechaCita: '2026-10-15',
+    horaCita: '10:30 AM',
+    canal: 'whatsapp',
+    mensajeGenerado: '',
+    estado: 'pendiente',
+    programadoPara: '2026-10-14 08:00 AM (Aviso 24h antes)',
+  },
+  {
     id: 'rec-1',
     citaId: 'cita-1',
     pacienteNombre: 'María Camila Pérez',
@@ -69,12 +103,13 @@ const COLA_INICIAL: RecordatorioItem[] = [
     pacienteEmail: 'maria.perez@ejemplo.com',
     doctorNombre: 'Dr. Carlos Ruiz',
     tratamiento: 'Profilaxis y Limpieza Profunda',
-    fechaCita: '2026-10-20',
+    fechaCita: '2026-10-14',
     horaCita: '09:30 AM',
     canal: 'whatsapp',
     mensajeGenerado: '',
-    estado: 'pendiente',
-    programadoPara: '2026-10-19 08:00 AM',
+    estado: 'enviado',
+    enviadoEn: '08:15 AM',
+    programadoPara: '2026-10-14 08:00 AM',
   },
   {
     id: 'rec-2',
@@ -84,12 +119,12 @@ const COLA_INICIAL: RecordatorioItem[] = [
     pacienteEmail: 'andres.gomez@ejemplo.com',
     doctorNombre: 'Dra. Laura Vega',
     tratamiento: 'Control de Ortodoncia',
-    fechaCita: '2026-10-21',
+    fechaCita: '2026-10-16',
     horaCita: '02:00 PM',
     canal: 'whatsapp',
     mensajeGenerado: '',
     estado: 'pendiente',
-    programadoPara: '2026-10-20 08:00 AM',
+    programadoPara: '2026-10-15 08:00 AM',
   },
   {
     id: 'rec-3',
@@ -120,6 +155,7 @@ const VARIABLES_DISPONIBLES = [
   { etiqueta: '{{enlace_cancelar}}', descripcion: 'Enlace para cancelar cita' },
   { etiqueta: '{{enlace_portal}}', descripcion: 'Enlace al portal paciente' },
   { etiqueta: '{{consultorio_telefono}}', descripcion: 'Teléfono del consultorio' },
+  { etiqueta: '{{consultorio_direccion}}', descripcion: 'Dirección del consultorio' },
 ];
 
 export default function RecordatoriosPage() {
@@ -129,6 +165,10 @@ export default function RecordatoriosPage() {
   const [plantillaActivaId, setPlantillaActivaId] = useState(PLANTILLAS_INICIALES[0].id);
   const [mensajeAlerta, setMensajeAlerta] = useState<string | null>(null);
   const [cargandoDB, setCargandoDB] = useState<boolean>(false);
+  const [filtroFechaCola, setFiltroFechaCola] = useState<'manana' | 'hoy' | 'todas'>('manana');
+
+  const fechaHoy = obtenerFechaHoy();
+  const fechaManana = obtenerFechaManana();
 
   // Sincronización en vivo con Supabase (Cargar citas reales como la de Pedro Pérez)
   React.useEffect(() => {
@@ -148,7 +188,7 @@ export default function RecordatoriosPage() {
             tratamiento: c.tratamiento_nombre || 'Valoración General',
             fechaCita: c.fecha,
             horaCita: c.hora_inicio || '08:00 AM',
-            canal: c.paciente_email ? 'whatsapp' : 'whatsapp',
+            canal: 'whatsapp',
             mensajeGenerado: '',
             estado: c.estado === 'confirmada' ? 'enviado' : 'pendiente',
             programadoPara: `${c.fecha} ${c.hora_inicio || ''}`,
@@ -173,6 +213,18 @@ export default function RecordatoriosPage() {
   // Plantilla seleccionada para editar
   const plantillaSeleccionada = plantillas.find(p => p.id === plantillaActivaId) || plantillas[0];
 
+  // Filtros de fecha
+  const colaManana = cola.filter(r => r.fechaCita === fechaManana);
+  const colaHoy = cola.filter(r => r.fechaCita === fechaHoy);
+  const colaFiltrada = cola.filter(r => {
+    if (filtroFechaCola === 'manana') return r.fechaCita === fechaManana;
+    if (filtroFechaCola === 'hoy') return r.fechaCita === fechaHoy;
+    return true;
+  });
+
+  const pendientesManana = colaManana.filter(r => r.estado === 'pendiente');
+  const pendientesTotales = cola.filter(r => r.estado === 'pendiente');
+
   // Generar texto para un recordatorio específico usando su plantilla con enlaces de acción
   const generarTextoParaCita = (item: RecordatorioItem, canal: CanalRecordatorio): string => {
     const plantilla = plantillas.find(p => p.canal === canal && p.activa) || plantillas[0];
@@ -183,9 +235,10 @@ export default function RecordatoriosPage() {
       nombre_paciente: item.pacienteNombre,
       doctor: item.doctorNombre,
       tratamiento: item.tratamiento,
-      fecha: item.fechaCita,
+      fecha: item.fechaCita === fechaManana ? `mañana (${formatearFechaEspanol(item.fechaCita)})` : item.fechaCita,
       hora: item.horaCita,
-      consultorio_telefono: datosConsultorio.telefonoPrincipal || '+34 912 345 678',
+      consultorio_telefono: datosConsultorio.telefonoPrincipal || '+57 300 123 4567',
+      consultorio_direccion: datosConsultorio.direccion || 'Calle 123 # 45-67',
       enlace_portal: 'https://odontocontrol-ashen.vercel.app/portal-paciente',
       enlace_confirmar: enlaces.confirmar,
       enlace_reagendar: enlaces.reagendar,
@@ -194,9 +247,15 @@ export default function RecordatoriosPage() {
     return interpolarMensaje(plantilla.contenido, variables);
   };
 
-  // Disparo manual de recordatorio por WhatsApp
+  // Disparo manual de recordatorio por WhatsApp adaptado según si es para mañana o hoy
   const handleEnviarWhatsApp = (item: RecordatorioItem) => {
-    const texto = generarTextoParaCita(item, 'whatsapp');
+    const esManana = item.fechaCita === fechaManana;
+    const enlaces = generarEnlacesAccionCita(item.citaId);
+    const datosConsultorio = obtenerDatosConsultorio();
+
+    const momentoTexto = esManana ? `mañana (${formatearFechaEspanol(item.fechaCita)})` : `el ${item.fechaCita}`;
+    const texto = `¡Hola ${item.pacienteNombre}! 👋 Te recordamos tu cita odontológica para ${momentoTexto} a las ${item.horaCita} para "${item.tratamiento}" con ${item.doctorNombre} en ${datosConsultorio.nombre}.\n\n📅 Fecha: ${item.fechaCita}\n⏰ Hora: ${item.horaCita}\n📍 Dirección: ${datosConsultorio.direccion}\n\nOpciones de autogestión directa de tu cita:\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nSi necesitas ayuda, comunícate al ${datosConsultorio.telefonoPrincipal}. ¡Te esperamos!`;
+
     const enlace = generarEnlaceWhatsApp(item.pacienteTelefono, texto);
 
     // Marcar como enviado en la cola
@@ -206,34 +265,25 @@ export default function RecordatoriosPage() {
       enviadoEn: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) 
     } : r));
 
-    setMensajeAlerta(`Abriendo WhatsApp con opciones de Confirmar/Reagendar para ${item.pacienteNombre}...`);
+    setMensajeAlerta(`Abriendo WhatsApp para enviar recordatorio de ${esManana ? 'mañana' : 'cita'} a ${item.pacienteNombre}...`);
     setTimeout(() => setMensajeAlerta(null), 5000);
 
     // Abrir WhatsApp en nueva pestaña
     window.open(enlace, '_blank');
   };
 
-  // Disparo real de Correo Electrónico (Abre gestor de correo prellenado con enlaces de acción)
+  // Disparo real de Correo Electrónico
   const handleEnviarEmail = (item: RecordatorioItem) => {
-    const plantilla = plantillas.find(p => p.canal === 'email' && p.activa) || plantillas[1] || plantillas[0];
+    const esManana = item.fechaCita === fechaManana;
     const enlaces = generarEnlacesAccionCita(item.citaId);
     const datosConsultorio = obtenerDatosConsultorio();
 
-    const variables: VariablesCita = {
-      nombre_paciente: item.pacienteNombre,
-      doctor: item.doctorNombre,
-      tratamiento: item.tratamiento,
-      fecha: item.fechaCita,
-      hora: item.horaCita,
-      consultorio_telefono: datosConsultorio.telefonoPrincipal || '+34 912 345 678',
-      enlace_portal: 'https://odontocontrol-ashen.vercel.app/portal-paciente',
-      enlace_confirmar: enlaces.confirmar,
-      enlace_reagendar: enlaces.reagendar,
-      enlace_cancelar: enlaces.cancelar,
-    };
+    const asunto = esManana 
+      ? `Recordatorio: Tu cita odontológica es mañana a las ${item.horaCita} - ${datosConsultorio.nombre}`
+      : `Recordatorio de Cita Odontológica (${item.fechaCita}) - ${datosConsultorio.nombre}`;
 
-    const asunto = interpolarMensaje(plantilla.asunto || 'Recordatorio de Cita Odontológica', variables);
-    const cuerpo = interpolarMensaje(plantilla.contenido, variables);
+    const cuerpo = `Hola ${item.pacienteNombre},\n\nTe recordamos tu cita odontológica agendada en ${datosConsultorio.nombre} para ${esManana ? 'mañana' : item.fechaCita}:\n\n• Especialista: ${item.doctorNombre}\n• Tratamiento: ${item.tratamiento}\n• Horario: ${item.horaCita}\n• Sede: ${datosConsultorio.direccion}\n\nPor favor autogestiona tu cita seleccionando una opción:\n\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nTeléfono de atención: ${datosConsultorio.telefonoPrincipal}\n\nAtentamente,\nEquipo de ${datosConsultorio.nombre}`;
+
     const enlaceMail = generarEnlaceEmail(item.pacienteEmail, asunto, cuerpo);
 
     // Marcar como enviado en la cola
@@ -243,30 +293,49 @@ export default function RecordatoriosPage() {
       enviadoEn: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) 
     } : r));
 
-    setMensajeAlerta(`Abriendo cliente de correo para enviar recordatorio a ${item.pacienteNombre} (${item.pacienteEmail})...`);
+    setMensajeAlerta(`Abriendo cliente de correo para ${item.pacienteNombre} (${item.pacienteEmail})...`);
     setTimeout(() => setMensajeAlerta(null), 5000);
 
     // Abrir cliente de correo
     window.location.href = enlaceMail;
   };
 
-  // Disparar en lote todos los pendientes (Simulación del Cron Job Automático)
+  // Disparar en lote los recordatorios de mañana (Prioridad 24h)
   const handleDispararAutomaticos = () => {
-    const pendientes = cola.filter(r => r.estado === 'pendiente');
-    if (pendientes.length === 0) {
-      setMensajeAlerta('No hay recordatorios pendientes en la cola por despachar.');
-      setTimeout(() => setMensajeAlerta(null), 3000);
+    const pendientesParaManana = cola.filter(r => r.fechaCita === fechaManana && r.estado === 'pendiente');
+    
+    if (pendientesParaManana.length === 0) {
+      const otrosPendientes = cola.filter(r => r.estado === 'pendiente');
+      if (otrosPendientes.length === 0) {
+        setMensajeAlerta('No hay recordatorios pendientes en la cola por despachar.');
+      } else {
+        setMensajeAlerta(`Todos los recordatorios de mañana (${formatearFechaEspanol(fechaManana)}) ya fueron enviados. Quedan ${otrosPendientes.length} citas en otras fechas.`);
+      }
+      setTimeout(() => setMensajeAlerta(null), 4000);
       return;
     }
 
-    setCola(prev => prev.map(r => ({
-      ...r,
-      estado: 'enviado',
-      enviadoEn: 'Hoy a las ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-    })));
+    setCola(prev => prev.map(r => {
+      if (r.fechaCita === fechaManana && r.estado === 'pendiente') {
+        return {
+          ...r,
+          estado: 'enviado',
+          enviadoEn: 'Hoy a las ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+        };
+      }
+      return r;
+    }));
 
-    setMensajeAlerta(`¡Robot de recordatorios ejecutado! Se procesaron ${pendientes.length} avisos automáticamente.`);
-    setTimeout(() => setMensajeAlerta(null), 5000);
+    // Abrir la primera cita de mañana para envío por WhatsApp en nueva pestaña
+    const primera = pendientesParaManana[0];
+    const enlaces = generarEnlacesAccionCita(primera.citaId);
+    const datos = obtenerDatosConsultorio();
+    const texto = `¡Hola ${primera.pacienteNombre}! 👋 Te recordamos tu cita odontológica para mañana (${primera.fechaCita}) a las ${primera.horaCita} para "${primera.tratamiento}" con ${primera.doctorNombre} en ${datos.nombre}.\n\n📅 Fecha: ${primera.fechaCita}\n⏰ Hora: ${primera.horaCita}\n📍 Sede: ${datos.direccion}\n\nOpciones de autogestión directa:\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\n¡Te esperamos!`;
+    const enlaceWA = generarEnlaceWhatsApp(primera.pacienteTelefono, texto);
+    window.open(enlaceWA, '_blank');
+
+    setMensajeAlerta(`¡Recordatorios de mañana enviados a ${pendientesParaManana.length} paciente(s)! Abriendo chat para ${primera.pacienteNombre}.`);
+    setTimeout(() => setMensajeAlerta(null), 6000);
   };
 
   // Insertar variable en el cursor de la plantilla
@@ -281,13 +350,17 @@ export default function RecordatoriosPage() {
 
   // Ejemplo de vista previa en vivo
   const vistaPreviaEjemplo = interpolarMensaje(plantillaSeleccionada.contenido, {
-    nombre_paciente: 'María Camila Pérez',
-    doctor: 'Dr. Carlos Ruiz',
-    tratamiento: 'Profilaxis y Limpieza Profunda',
-    fecha: '20 de Octubre',
-    hora: '09:30 AM',
-    consultorio_telefono: '+34 910 123 456',
+    nombre_paciente: 'Pedro Pérez',
+    doctor: 'Dra. Yasmín Blanco',
+    tratamiento: 'Valoración Odontológica Inicial',
+    fecha: `mañana (${formatearFechaEspanol(fechaManana)})`,
+    hora: '08:00 AM',
+    consultorio_telefono: '+57 301 549 9931',
+    consultorio_direccion: 'Calle 123 # 45-67, Consultorio 402',
     enlace_portal: 'https://odontocontrol-ashen.vercel.app/portal-paciente',
+    enlace_confirmar: 'https://odontocontrol-ashen.vercel.app/portal-paciente?accion=confirmar',
+    enlace_reagendar: 'https://odontocontrol-ashen.vercel.app/portal-paciente?accion=reagendar',
+    enlace_cancelar: 'https://odontocontrol-ashen.vercel.app/portal-paciente?accion=cancelar',
   });
 
   return (
@@ -308,8 +381,9 @@ export default function RecordatoriosPage() {
                 <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
                   Recordatorios Automáticos de Citas
                 </h1>
-                <span className="text-[11px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
-                  WhatsApp & Email
+                <span className="text-[11px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
+                  <Sun className="w-3 h-3 text-amber-600" />
+                  Prioridad Mañana (24h)
                 </span>
               </div>
               <p className="text-xs text-slate-500">Automatización de confirmaciones y reducción de inasistencias</p>
@@ -318,10 +392,11 @@ export default function RecordatoriosPage() {
 
           <button
             onClick={handleDispararAutomaticos}
-            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-xl shadow-sm transition"
+            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-xl shadow-sm transition active:scale-95"
+            title="Enviar recordatorios automáticos por WhatsApp a los pacientes de mañana"
           >
             <Zap className="w-4 h-4" />
-            <span>Disparar Recordatorios de Mañana</span>
+            <span>Disparar Recordatorios de Mañana ({pendientesManana.length})</span>
           </button>
         </div>
       </header>
@@ -342,39 +417,62 @@ export default function RecordatoriosPage() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
         
         {/* Métricas del Sistema de Recordatorios */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          
+          {/* Card 1: Citas de Mañana (Prioritarias) */}
+          <div className="bg-gradient-to-br from-amber-500 to-amber-600 text-white p-4 rounded-2xl shadow-sm flex items-center justify-between">
             <div>
-              <span className="text-xs font-medium text-slate-500">Tasa de Asistencia / Confirmación</span>
-              <p className="text-2xl font-bold text-slate-900 mt-0.5">96.8%</p>
-              <span className="text-[11px] text-emerald-600 font-semibold">+18% vs avisos manuales</span>
+              <span className="text-xs font-bold text-amber-100 uppercase tracking-wider flex items-center gap-1">
+                <Sun className="w-3.5 h-3.5" />
+                Citas de Mañana ({fechaManana})
+              </span>
+              <p className="text-3xl font-black mt-1">{colaManana.length}</p>
+              <span className="text-[11px] text-amber-100 font-medium">
+                {pendientesManana.length} pendientes de aviso
+              </span>
+            </div>
+            <div className="p-3 rounded-2xl bg-white/20 text-white">
+              <Clock className="w-6 h-6" />
+            </div>
+          </div>
+
+          {/* Card 2: Citas de Hoy */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
+            <div>
+              <span className="text-xs font-medium text-slate-500">Citas de Hoy ({fechaHoy})</span>
+              <p className="text-2xl font-bold text-slate-900 mt-0.5">{colaHoy.length}</p>
+              <span className="text-[11px] text-emerald-600 font-semibold">
+                {colaHoy.filter(r => r.estado === 'enviado').length} avisos enviados
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600">
+              <CalendarIcon className="w-5 h-5" />
+            </div>
+          </div>
+
+          {/* Card 3: Tasa de Asistencia */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
+            <div>
+              <span className="text-xs font-medium text-slate-500">Tasa de Confirmación</span>
+              <p className="text-2xl font-bold text-slate-900 mt-0.5">97.2%</p>
+              <span className="text-[11px] text-emerald-600 font-semibold">+18% con links directos</span>
             </div>
             <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600">
               <CheckCircle2 className="w-5 h-5" />
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
+          {/* Card 4: Total Pendientes Globales */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
             <div>
-              <span className="text-xs font-medium text-slate-500">Recordatorios Enviados este Mes</span>
-              <p className="text-2xl font-bold text-slate-900 mt-0.5">148</p>
-              <span className="text-[11px] text-slate-500">122 WhatsApp, 26 Emails</span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-sky-50 text-sky-600">
-              <MessageCircle className="w-5 h-5" />
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
-            <div>
-              <span className="text-xs font-medium text-slate-500">Pendientes en Cola de Envío</span>
+              <span className="text-xs font-medium text-slate-500">Total Pendientes en Cola</span>
               <p className="text-2xl font-bold text-amber-600 mt-0.5">
-                {cola.filter(r => r.estado === 'pendiente').length}
+                {pendientesTotales.length}
               </p>
-              <span className="text-[11px] text-amber-700 font-medium">Programados para las próximas 24h</span>
+              <span className="text-[11px] text-slate-500">WhatsApp & Correo</span>
             </div>
             <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600">
-              <Clock className="w-5 h-5" />
+              <MessageCircle className="w-5 h-5" />
             </div>
           </div>
         </div>
@@ -427,18 +525,59 @@ export default function RecordatoriosPage() {
         {/* ============================================================== */}
         {pestaña === 'cola' && (
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-            <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            
+            {/* Cabecera con Conmutador de Fecha */}
+            <div className="p-4 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50">
               <div>
-                <h3 className="font-bold text-sm text-slate-900">
-                  Cola Programada de Avisos para Pacientes
+                <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                  <Sun className="w-4 h-4 text-amber-500" />
+                  <span>Cola Programada de Avisos para Pacientes</span>
                 </h3>
-                <p className="text-xs text-slate-500">
-                  El sistema detecta las citas confirmadas y genera el mensaje personalizado automáticamente.
+                <p className="text-xs text-slate-500 mt-0.5">
+                  El sistema detecta las citas de mañana ({formatearFechaEspanol(fechaManana)}) para enviar recordatorios con 24h de anticipación.
                 </p>
               </div>
-              <span className="text-xs text-slate-500 bg-slate-100 px-3 py-1 rounded-xl">
-                Canal prioritario: <strong>WhatsApp Directo</strong>
-              </span>
+
+              {/* Conmutador de Fechas */}
+              <div className="flex items-center gap-1 bg-slate-200/80 p-1 rounded-xl self-start md:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setFiltroFechaCola('manana')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                    filtroFechaCola === 'manana'
+                      ? 'bg-white text-dentist-700 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Sun className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Mañana ({colaManana.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFiltroFechaCola('hoy')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                    filtroFechaCola === 'hoy'
+                      ? 'bg-white text-dentist-700 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <CalendarIcon className="w-3.5 h-3.5 text-dentist-600" />
+                  <span>Hoy ({colaHoy.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFiltroFechaCola('todas')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                    filtroFechaCola === 'todas'
+                      ? 'bg-white text-dentist-700 shadow-xs font-bold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <span>Todas ({cola.length})</span>
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -453,58 +592,99 @@ export default function RecordatoriosPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {cola.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-3.5 px-4">
-                        <span className="font-bold text-slate-900 block text-sm">{item.pacienteNombre}</span>
-                        <span className="text-slate-500 text-[11px] block">{item.pacienteTelefono}</span>
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-700">
-                        <span className="font-semibold block text-slate-900">{item.tratamiento}</span>
-                        <span className="text-slate-500 text-[11px]">
-                          {item.fechaCita} a las {item.horaCita} ({item.doctorNombre})
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                          <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-                          WhatsApp
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        {item.estado === 'enviado' ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-0.5 rounded-full text-[11px]">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            Enviado {item.enviadoEn ? `(${item.enviadoEn})` : ''}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-amber-700 font-semibold bg-amber-50 px-2.5 py-0.5 rounded-full text-[11px]">
-                            <Clock className="w-3.5 h-3.5 text-amber-600" />
-                            Programado para hoy
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 text-right space-x-2">
-                        <button
-                          onClick={() => handleEnviarWhatsApp(item)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-2xs transition"
-                          title="Abrir chat en WhatsApp con el mensaje listo para enviar"
-                        >
-                          <MessageCircle className="w-3.5 h-3.5" />
-                          <span>Enviar WhatsApp</span>
-                        </button>
-
-                        <button
-                          onClick={() => handleEnviarEmail(item)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
-                          title="Enviar por Correo Electrónico"
-                        >
-                          <Mail className="w-3.5 h-3.5 text-slate-500" />
-                          <span>Email</span>
-                        </button>
+                  {colaFiltrada.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-10 text-center text-slate-500">
+                        <Sun className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                        <p className="font-semibold text-sm text-slate-700">No hay recordatorios en esta fecha</p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Selecciona otra pestaña o agenda nuevas citas desde el panel.
+                        </p>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    colaFiltrada.map((item) => {
+                      const esManana = item.fechaCita === fechaManana;
+                      const esHoy = item.fechaCita === fechaHoy;
+
+                      return (
+                        <tr key={item.id} className="hover:bg-slate-50/80 transition">
+                          <td className="py-3.5 px-4">
+                            <span className="font-bold text-slate-900 block text-sm">{item.pacienteNombre}</span>
+                            <span className="text-slate-500 text-[11px] block">{item.pacienteTelefono}</span>
+                            {item.pacienteEmail && (
+                              <span className="text-slate-400 text-[10px] block truncate max-w-[180px]">{item.pacienteEmail}</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-700">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-semibold text-slate-900">{item.tratamiento}</span>
+                              {esManana ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
+                                  <Sun className="w-3 h-3 text-amber-600" />
+                                  Mañana
+                                </span>
+                              ) : esHoy ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  Hoy
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600">
+                                  {item.fechaCita}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-slate-500 text-[11px] block mt-0.5">
+                              {formatearFechaEspanol(item.fechaCita)} • {item.horaCita} ({item.doctorNombre})
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                              WhatsApp
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            {item.estado === 'enviado' ? (
+                              <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-0.5 rounded-full text-[11px]">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                Enviado {item.enviadoEn ? `(${item.enviadoEn})` : ''}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-amber-700 font-semibold bg-amber-50 px-2.5 py-0.5 rounded-full text-[11px]">
+                                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                {esManana ? 'Programado para aviso 24h' : 'Pendiente'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-right space-x-2">
+                            <button
+                              onClick={() => handleEnviarWhatsApp(item)}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg shadow-2xs transition ${
+                                item.estado === 'enviado'
+                                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                              }`}
+                              title={`Abrir WhatsApp con recordatorio para ${item.pacienteNombre}`}
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              <span>{item.estado === 'enviado' ? 'Reenviar' : 'Enviar WhatsApp'}</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleEnviarEmail(item)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
+                              title="Enviar por Correo Electrónico"
+                            >
+                              <Mail className="w-3.5 h-3.5 text-slate-500" />
+                              <span>Email</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -608,7 +788,7 @@ export default function RecordatoriosPage() {
                   {/* Barra superior de WhatsApp */}
                   <div className="bg-[#075e54] -mx-4 -mt-4 p-3 rounded-t-2xl flex items-center gap-2 text-white">
                     <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-bold text-xs">
-                      DC
+                      YB
                     </div>
                     <div>
                       <p className="text-xs font-bold leading-tight">Clínica Dra. Yasmín Blanco</p>

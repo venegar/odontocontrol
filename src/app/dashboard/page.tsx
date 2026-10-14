@@ -41,12 +41,17 @@ import {
   Save,
   MapPin,
   Mail,
-  FileCheck
+  FileCheck,
+  Sun,
+  CalendarDays
 } from 'lucide-react';
 import { 
   generarEnlaceWhatsApp, 
   generarEnlacesAccionCita, 
-  generarEnlaceEmail 
+  generarEnlaceEmail,
+  obtenerFechaHoy,
+  obtenerFechaManana,
+  formatearFechaEspanol
 } from '@/modules/recordatorios/utils';
 import { supabase } from '@/lib/supabase';
 import {
@@ -64,6 +69,7 @@ type RolDashboard = 'recepcionista' | 'odontologo' | 'admin';
 
 interface PacienteDia {
   id: string;
+  fecha?: string;
   hora: string;
   nombre: string;
   telefono: string;
@@ -260,6 +266,37 @@ const PACIENTES_INICIALES: PacienteDia[] = [
       horaEnvio: '09:15 AM',
     },
   },
+  // Citas agendadas para el día siguiente (Mañana: 2026-10-15)
+  {
+    id: '93799ea9-00cd-4def-ba4f-2cfd253dc093',
+    fecha: '2026-10-15',
+    hora: '08:00 AM',
+    nombre: 'Pedro Pérez',
+    telefono: '3015499931',
+    email: 'gimob47836@ensproxy.com',
+    tratamiento: 'Valoración Odontológica Inicial',
+    doctor: 'Dra. Yasmín Blanco',
+    sillon: 'Sillón 1',
+    estadoCita: 'por_atender',
+    notificacion: {
+      estado: 'pendiente',
+    },
+  },
+  {
+    id: 'pac-manana-2',
+    fecha: '2026-10-15',
+    hora: '10:30 AM',
+    nombre: 'Valentina Restrepo Gil',
+    telefono: '+57 312 888 4433',
+    email: 'valentina.restrepo@ejemplo.com',
+    tratamiento: 'Diseño de Sonrisa & Carillas',
+    doctor: 'Dra. Yasmín Blanco',
+    sillon: 'Sillón 2',
+    estadoCita: 'por_atender',
+    notificacion: {
+      estado: 'pendiente',
+    },
+  },
 ];
 
 const BITACORA_INICIAL: BitacoraEnvio[] = [
@@ -450,6 +487,10 @@ export default function DashboardPrincipalPage() {
   const [bitacora, setBitacora] = useState<BitacoraEnvio[]>(BITACORA_INICIAL);
   const [alertaExito, setAlertaExito] = useState<string | null>(null);
   const [filtroEstado, setFiltroEstado] = useState<string>('todos');
+  const [jornadaActiva, setJornadaActiva] = useState<'hoy' | 'manana' | 'todas'>('hoy');
+
+  const fechaHoy = obtenerFechaHoy();
+  const fechaManana = obtenerFechaManana();
 
   // Estados para datos corporativos del consultorio y permisos por rol
   const [datosConsultorio, setDatosConsultorio] = useState<DatosConsultorio>(DATOS_CONSULTORIO_DEFAULT);
@@ -488,6 +529,7 @@ export default function DashboardPrincipalPage() {
 
             return {
               id: c.id,
+              fecha: c.fecha || fechaHoy,
               hora: c.hora_inicio || '08:00 AM',
               nombre: c.paciente_nombre || 'Paciente',
               telefono: c.paciente_telefono || '',
@@ -514,7 +556,7 @@ export default function DashboardPrincipalPage() {
     }
     sincronizarCitasDB();
     return () => { montado = false; };
-  }, []);
+  }, [fechaHoy]);
 
   const handleGuardarConsultorio = (e: React.FormEvent) => {
     e.preventDefault();
@@ -539,18 +581,34 @@ export default function DashboardPrincipalPage() {
     }, 5000);
   };
 
-  // Cálculos de métricas del día para Recepción
-  const totalCitasHoy = pacientes.length;
-  const citasCompletadas = pacientes.filter(p => p.estadoCita === 'completada').length;
-  const citasEnEspera = pacientes.filter(p => p.estadoCita === 'en_espera').length;
-  const citasPorAtender = pacientes.filter(p => p.estadoCita === 'por_atender').length;
-  const citasEnAtencion = pacientes.filter(p => p.estadoCita === 'en_atencion').length;
+  // Filtrado de pacientes por jornada
+  const pacientesHoy = pacientes.filter(p => !p.fecha || p.fecha === fechaHoy);
+  const pacientesManana = pacientes.filter(p => p.fecha === fechaManana);
+
+  // Cálculos de métricas del día para Recepción (Hoy)
+  const totalCitasHoy = pacientesHoy.length;
+  const citasCompletadas = pacientesHoy.filter(p => p.estadoCita === 'completada').length;
+  const citasEnEspera = pacientesHoy.filter(p => p.estadoCita === 'en_espera').length;
+  const citasPorAtender = pacientesHoy.filter(p => p.estadoCita === 'por_atender').length;
+  const citasEnAtencion = pacientesHoy.filter(p => p.estadoCita === 'en_atencion').length;
   const totalPendientesAtencion = citasEnEspera + citasPorAtender + citasEnAtencion;
-  const totalNotificados = pacientes.filter(p => p.notificacion.estado === 'notificado').length;
-  const totalPendientesNotificacion = pacientes.filter(p => p.notificacion.estado === 'pendiente').length;
+  const totalNotificados = pacientesHoy.filter(p => p.notificacion.estado === 'notificado').length;
+  const totalPendientesNotificacion = pacientesHoy.filter(p => p.notificacion.estado === 'pendiente').length;
+
+  // Métricas de la jornada de mañana
+  const totalCitasManana = pacientesManana.length;
+  const totalNotificadosManana = pacientesManana.filter(p => p.notificacion.estado === 'notificado').length;
+  const totalPendientesNotificacionManana = pacientesManana.filter(p => p.notificacion.estado === 'pendiente').length;
+
+  // Pacientes según la jornada seleccionada en la tabla
+  const pacientesSegunJornada = jornadaActiva === 'hoy' 
+    ? pacientesHoy 
+    : jornadaActiva === 'manana' 
+    ? pacientesManana 
+    : pacientes;
 
   // Filtrado de pacientes de recepción
-  const pacientesFiltrados = pacientes.filter(p => {
+  const pacientesFiltrados = pacientesSegunJornada.filter(p => {
     if (filtroEstado === 'todos') return true;
     if (filtroEstado === 'notificados') return p.notificacion.estado === 'notificado';
     if (filtroEstado === 'pendientes_notificacion') return p.notificacion.estado === 'pendiente';
@@ -567,8 +625,10 @@ export default function DashboardPrincipalPage() {
       hour12: true 
     });
 
+    const esManana = paciente.fecha === fechaManana;
+    const momentoTexto = esManana ? `mañana (${formatearFechaEspanol(paciente.fecha || fechaManana)})` : `hoy`;
     const enlaces = generarEnlacesAccionCita(paciente.id);
-    const mensajeWhatsApp = `¡Hola ${paciente.nombre}! 👋 Te recordamos tu cita odontológica para "${paciente.tratamiento}" con ${paciente.doctor} en ${datosConsultorio.nombre}.\n\n📅 Hora: ${paciente.hora}\n📍 Lugar: ${datosConsultorio.direccion} (${paciente.sillon})\n\nPuedes autogestionar tu cita fácilmente:\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nSi necesitas ayuda adicional, contáctanos al ${datosConsultorio.telefonoPrincipal}. ¡Te esperamos!`;
+    const mensajeWhatsApp = `¡Hola ${paciente.nombre}! 👋 Te recordamos tu cita odontológica para ${momentoTexto} a las ${paciente.hora} para "${paciente.tratamiento}" con ${paciente.doctor} en ${datosConsultorio.nombre}.\n\n📅 Fecha: ${paciente.fecha || fechaHoy}\n⏰ Hora: ${paciente.hora}\n📍 Lugar: ${datosConsultorio.direccion} (${paciente.sillon})\n\nPuedes autogestionar tu cita fácilmente:\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nSi necesitas ayuda adicional, contáctanos al ${datosConsultorio.telefonoPrincipal}. ¡Te esperamos!`;
 
     // Generar enlace oficial funcional
     const urlEnlace = generarEnlaceWhatsApp(paciente.telefono, mensajeWhatsApp);
@@ -609,6 +669,45 @@ export default function DashboardPrincipalPage() {
     setTimeout(() => {
       setAlertaExito(null);
     }, 5000);
+  };
+
+  // Función para enviar notificación a TODOS los pendientes de mañana
+  const handleEnviarTodosLosPendientesManana = () => {
+    const pendientes = pacientesManana.filter(p => p.notificacion.estado === 'pendiente');
+    if (pendientes.length === 0) {
+      setAlertaExito(`Todos los pacientes de mañana (${formatearFechaEspanol(fechaManana)}) ya han sido notificados.`);
+      setTimeout(() => setAlertaExito(null), 4000);
+      return;
+    }
+
+    const horaActual = new Date().toLocaleTimeString('es-CO', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      hour12: true 
+    });
+
+    setPacientes(prev => prev.map(p => {
+      if (p.fecha === fechaManana && p.notificacion.estado === 'pendiente') {
+        return {
+          ...p,
+          notificacion: {
+            estado: 'notificado',
+            horaEnvio: horaActual,
+          },
+        };
+      }
+      return p;
+    }));
+
+    // Abrir WhatsApp con el primer paciente de mañana
+    const primerPaciente = pendientes[0];
+    const enlaces = generarEnlacesAccionCita(primerPaciente.id);
+    const mensaje = `¡Hola ${primerPaciente.nombre}! 👋 Te recordamos tu cita odontológica para mañana (${formatearFechaEspanol(primerPaciente.fecha || fechaManana)}) a las ${primerPaciente.hora} para "${primerPaciente.tratamiento}" con ${primerPaciente.doctor} en ${datosConsultorio.nombre}.\n\n📅 Fecha: ${primerPaciente.fecha || fechaManana}\n⏰ Hora: ${primerPaciente.hora}\n📍 Lugar: ${datosConsultorio.direccion}\n\nOpciones de autogestión directa:\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\n¡Te esperamos!`;
+    const urlWA = generarEnlaceWhatsApp(primerPaciente.telefono, mensaje);
+    window.open(urlWA, '_blank');
+
+    setAlertaExito(`¡Recordatorios de mañana enviados a ${pendientes.length} paciente(s)! Abriendo chat de ${primerPaciente.nombre}.`);
+    setTimeout(() => setAlertaExito(null), 5000);
   };
 
   // Función para enviar recordatorio por Correo Electrónico con opciones de autogestión
@@ -1412,7 +1511,12 @@ export default function DashboardPrincipalPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 
                 {/* 1. Total Citas Hoy */}
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs hover:shadow-xs transition">
+                <div 
+                  onClick={() => setJornadaActiva('hoy')}
+                  className={`bg-white rounded-2xl p-5 border shadow-2xs hover:shadow-xs transition cursor-pointer ${
+                    jornadaActiva === 'hoy' ? 'border-dentist-500 ring-2 ring-dentist-200' : 'border-slate-200'
+                  }`}
+                >
                   <div className="flex items-center justify-between text-slate-500 mb-2">
                     <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Total Citas Hoy</span>
                     <div className="w-8 h-8 rounded-lg bg-sky-50 text-dentist-600 flex items-center justify-center">
@@ -1421,53 +1525,54 @@ export default function DashboardPrincipalPage() {
                   </div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-3xl font-black text-slate-900">{totalCitasHoy}</span>
-                    <span className="text-xs text-slate-500 font-medium">programadas</span>
+                    <span className="text-xs text-slate-500 font-medium">hoy ({fechaHoy})</span>
                   </div>
                   <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 pt-3 border-t border-slate-100">
-                    <span>Sillón 1: 6 | Sillón 2: 4</span>
-                    <span className="text-emerald-600 font-bold">100% cap.</span>
+                    <span>{citasCompletadas} completadas</span>
+                    <span className="text-dentist-700 font-bold">Ver agenda hoy →</span>
                   </div>
                 </div>
 
-                {/* 2. Citas Ya Realizadas / Completadas */}
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs hover:shadow-xs transition">
+                {/* 2. Citas del Día Siguiente (Mañana) */}
+                <div 
+                  onClick={() => setJornadaActiva('manana')}
+                  className={`bg-white rounded-2xl p-5 border shadow-2xs hover:shadow-xs transition cursor-pointer ${
+                    jornadaActiva === 'manana' ? 'border-amber-500 ring-2 ring-amber-200' : 'border-slate-200'
+                  }`}
+                >
                   <div className="flex items-center justify-between text-slate-500 mb-2">
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Citas Completadas</span>
-                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                      <CheckCircle2 className="w-4 h-4" />
+                    <span className="text-xs font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1">
+                      <Sun className="w-3.5 h-3.5 text-amber-500" />
+                      Citas de Mañana
+                    </span>
+                    <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                      <Sun className="w-4 h-4" />
                     </div>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-emerald-600">{citasCompletadas}</span>
-                    <span className="text-xs text-slate-500 font-medium">atendidas con éxito</span>
+                    <span className="text-3xl font-black text-amber-600">{totalCitasManana}</span>
+                    <span className="text-xs text-slate-500 font-medium">para mañana ({fechaManana})</span>
                   </div>
-                  <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 pt-3 border-t border-slate-100">
-                    <div className="w-24 bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                      <div 
-                        className="bg-emerald-500 h-1.5 rounded-full" 
-                        style={{ width: `${Math.round((citasCompletadas / totalCitasHoy) * 100)}%` }} 
-                      />
-                    </div>
-                    <span className="font-semibold text-slate-700">
-                      {Math.round((citasCompletadas / totalCitasHoy) * 100)}% de la agenda
-                    </span>
+                  <div className="mt-3 flex items-center justify-between text-[11px] pt-3 border-t border-slate-100">
+                    <span className="text-amber-700 font-bold">{totalPendientesNotificacionManana} pendientes de aviso</span>
+                    <span className="text-amber-800 font-bold">Ver mañana →</span>
                   </div>
                 </div>
 
-                {/* 3. Citas Pendientes (En Espera + Por Llegar) */}
+                {/* 3. Citas Pendientes de Atención (Hoy) */}
                 <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs hover:shadow-xs transition">
                   <div className="flex items-center justify-between text-slate-500 mb-2">
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Citas Pendientes</span>
-                    <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Citas Pendientes Hoy</span>
+                    <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
                       <Clock className="w-4 h-4" />
                     </div>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-amber-600">{totalPendientesAtencion}</span>
+                    <span className="text-3xl font-black text-sky-600">{totalPendientesAtencion}</span>
                     <span className="text-xs text-slate-500 font-medium">por atender</span>
                   </div>
                   <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 pt-3 border-t border-slate-100">
-                    <span className="text-amber-700 font-semibold">{citasEnEspera} en sala de espera</span>
+                    <span className="text-sky-700 font-semibold">{citasEnEspera} en sala</span>
                     <span className="text-slate-400">• {citasPorAtender} turno tarde</span>
                   </div>
                 </div>
@@ -1486,11 +1591,137 @@ export default function DashboardPrincipalPage() {
                   </div>
                   <div className="mt-3 flex items-center justify-between text-[11px] pt-3 border-t border-slate-100">
                     <span className="text-emerald-600 font-semibold">
-                      {Math.round((totalNotificados / totalCitasHoy) * 100)}% confirmados
+                      {totalCitasHoy > 0 ? Math.round((totalNotificados / totalCitasHoy) * 100) : 100}% de hoy
                     </span>
-                    <span className="text-amber-700 font-bold">{totalPendientesNotificacion} pendientes</span>
+                    <span className="text-amber-700 font-bold">{totalPendientesNotificacion} pendientes hoy</span>
                   </div>
                 </div>
+              </div>
+
+              {/* ============================================================== */}
+              {/* SECCIÓN DESTACADA: CITAS DEL DÍA SIGUIENTE (MAÑANA) */}
+              {/* ============================================================== */}
+              <div className="bg-gradient-to-br from-amber-50/70 via-white to-sky-50/40 rounded-3xl p-6 border border-amber-200/80 shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-amber-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-sm shrink-0">
+                      <Sun className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-base font-bold text-slate-900">
+                          Citas del Día Siguiente (Mañana • {formatearFechaEspanol(fechaManana)})
+                        </h2>
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                          {totalCitasManana} paciente(s)
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 mt-0.5">
+                        Envía los recordatorios preventivos con 24 horas de antelación para asegurar la asistencia de los pacientes.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={handleEnviarTodosLosPendientesManana}
+                      disabled={totalPendientesNotificacionManana === 0}
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs shadow-sm transition active:scale-95"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Despachar Todos los Recordatorios de Mañana ({totalPendientesNotificacionManana})</span>
+                    </button>
+                    <Link
+                      href="/dashboard/recordatorios"
+                      className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs border border-slate-200 shadow-2xs transition"
+                    >
+                      <span>Ver Centro de Envíos →</span>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Listado de Pacientes de Mañana */}
+                {pacientesManana.length === 0 ? (
+                  <div className="bg-white/80 rounded-2xl p-6 text-center border border-dashed border-slate-200">
+                    <Sun className="w-8 h-8 text-amber-300 mx-auto mb-2" />
+                    <p className="font-semibold text-xs text-slate-700">No hay citas agendadas para mañana aún</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Las nuevas citas que los pacientes soliciten desde el portal web o que agendes en recepción aparecerán aquí automáticamente.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    {pacientesManana.map((p) => {
+                      const yaNotificado = p.notificacion.estado === 'notificado';
+                      return (
+                        <div
+                          key={p.id}
+                          className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs hover:shadow-xs transition space-y-3 flex flex-col justify-between"
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="inline-flex items-center gap-1 font-black text-xs text-dentist-700 bg-dentist-50 px-2.5 py-1 rounded-lg border border-dentist-200">
+                                <Clock className="w-3.5 h-3.5" />
+                                {p.hora}
+                              </span>
+                              {yaNotificado ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  Notificado
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
+                                  <AlertTriangle className="w-3 h-3 text-amber-600" />
+                                  Pendiente Recordatorio
+                                </span>
+                              )}
+                            </div>
+
+                            <div>
+                              <h4 className="font-bold text-sm text-slate-900 leading-tight">{p.nombre}</h4>
+                              <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                                <Phone className="w-3 h-3 text-slate-400" />
+                                <span>{p.telefono}</span>
+                              </p>
+                            </div>
+
+                            <div className="text-xs text-slate-600 space-y-0.5 pt-1 border-t border-slate-100">
+                              <p className="font-medium text-slate-800 truncate">{p.tratamiento}</p>
+                              <p className="text-[11px] text-dentist-700 font-semibold">{p.doctor} • {p.sillon}</p>
+                            </div>
+                          </div>
+
+                          {/* Botones de Envío Inmediato */}
+                          <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleEnviarRecordatorioWhatsApp(p)}
+                              className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition shadow-2xs ${
+                                yaNotificado
+                                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                              }`}
+                              title={`Enviar recordatorio de WhatsApp para mañana a ${p.nombre}`}
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              <span>{yaNotificado ? 'Reenviar WA' : 'Enviar WhatsApp'}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleEnviarRecordatorioEmail(p)}
+                              className="px-2.5 py-2 rounded-xl text-xs font-semibold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition"
+                              title="Enviar por Correo Electrónico"
+                            >
+                              <Mail className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* SECCIÓN COMPARATIVA DE TIEMPOS PROMEDIO DE ATENCIÓN POR TRATAMIENTO */}
@@ -1571,29 +1802,71 @@ export default function DashboardPrincipalPage() {
                 {/* 1. LISTA / TABLA DE PACIENTES DEL DÍA CON ACCIONES WHATSAPP (2 COLUMNAS) */}
                 <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col justify-between">
                   <div>
-                    {/* Encabezado y Filtros */}
-                    <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    {/* Encabezado y Filtros con Selector de Jornada */}
+                    <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/50">
                       <div>
                         <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                           <Send className="w-4 h-4 text-emerald-600" />
                           <span>Control y Envío de Recordatorios de Citas</span>
                         </h2>
                         <p className="text-xs text-slate-500 mt-0.5">
-                          Envía recordatorios inmediatos por WhatsApp con mensaje precargado personalizado.
+                          Monitorea la agenda y envía recordatorios inmediatos por WhatsApp o Correo con enlaces interactivos.
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Selector de Jornada: Hoy vs Mañana vs Todas */}
+                        <div className="flex items-center bg-slate-200/80 p-1 rounded-xl text-xs font-semibold">
+                          <button
+                            type="button"
+                            onClick={() => setJornadaActiva('hoy')}
+                            className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
+                              jornadaActiva === 'hoy'
+                                ? 'bg-white text-dentist-700 shadow-xs font-bold'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            <CalendarIcon className="w-3.5 h-3.5 text-dentist-600" />
+                            <span>Hoy ({totalCitasHoy})</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setJornadaActiva('manana')}
+                            className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
+                              jornadaActiva === 'manana'
+                                ? 'bg-white text-dentist-700 shadow-xs font-bold'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            <Sun className="w-3.5 h-3.5 text-amber-500" />
+                            <span>Mañana ({totalCitasManana})</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setJornadaActiva('todas')}
+                            className={`px-3 py-1.5 rounded-lg transition ${
+                              jornadaActiva === 'todas'
+                                ? 'bg-white text-dentist-700 shadow-xs font-bold'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            <span>Todas ({pacientes.length})</span>
+                          </button>
+                        </div>
+
+                        {/* Filtro por Estado de Cita */}
                         <select
                           value={filtroEstado}
                           onChange={(e) => setFiltroEstado(e.target.value)}
-                          className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 font-medium focus:outline-none focus:border-dentist-600"
+                          className="text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 font-medium focus:outline-none focus:border-dentist-600 shadow-2xs"
                         >
-                          <option value="todos">Todos los pacientes ({pacientes.length})</option>
-                          <option value="pendientes_notificacion">Pendientes de WhatsApp ({totalPendientesNotificacion})</option>
-                          <option value="notificados">Notificados ({totalNotificados})</option>
-                          <option value="en_espera">En Sala de Espera ({citasEnEspera})</option>
-                          <option value="completadas">Completadas ({citasCompletadas})</option>
+                          <option value="todos">Todos los estados</option>
+                          <option value="pendientes_notificacion">Pendientes de WhatsApp</option>
+                          <option value="notificados">Notificados</option>
+                          <option value="en_espera">En Sala de Espera</option>
+                          <option value="completadas">Completadas</option>
                         </select>
                       </div>
                     </div>
@@ -1603,7 +1876,7 @@ export default function DashboardPrincipalPage() {
                       <table className="w-full text-left text-xs text-slate-600">
                         <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider text-[10px] font-bold border-b border-slate-200">
                           <tr>
-                            <th className="py-3 px-4">Hora</th>
+                            <th className="py-3 px-4">Hora y Fecha</th>
                             <th className="py-3 px-4">Paciente y Contacto</th>
                             <th className="py-3 px-4">Tratamiento & Sillón</th>
                             <th className="py-3 px-4">Estado Cita</th>
@@ -1614,11 +1887,21 @@ export default function DashboardPrincipalPage() {
                         <tbody className="divide-y divide-slate-100">
                           {pacientesFiltrados.map((paciente) => {
                             const yaNotificado = paciente.notificacion.estado === 'notificado';
+                            const esManana = paciente.fecha === fechaManana;
                             return (
                               <tr key={paciente.id} className="hover:bg-slate-50/80 transition-colors">
-                                {/* Hora */}
-                                <td className="py-3 px-4 whitespace-nowrap font-bold text-slate-900">
-                                  {paciente.hora}
+                                {/* Hora y Fecha */}
+                                <td className="py-3 px-4 whitespace-nowrap">
+                                  <div className="font-bold text-slate-900">{paciente.hora}</div>
+                                  {esManana ? (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-md mt-0.5">
+                                      <Sun className="w-2.5 h-2.5 text-amber-600" /> Mañana
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                                      {paciente.fecha || fechaHoy}
+                                    </span>
+                                  )}
                                 </td>
 
                                 {/* Paciente */}

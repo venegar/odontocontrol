@@ -59,3 +59,41 @@ export function generarEnlaceEmail(destinatario: string, asunto: string, cuerpo:
   return `mailto:${dest}?subject=${asu}&body=${cue}`;
 }
 
+/**
+ * Obtiene la fecha actual en formato YYYY-MM-DD según la zona horaria local.
+ */
+export function obtenerFechaHoy(): string {
+  const d = new Date();
+  const anio = d.getFullYear();
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${anio}-${mes}-${dia}`;
+}
+
+/**
+ * Obtiene la fecha del día siguiente (mañana) en formato YYYY-MM-DD.
+ */
+export function obtenerFechaManana(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const anio = d.getFullYear();
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${anio}-${mes}-${dia}`;
+}
+
+/**
+ * Formatea una fecha YYYY-MM-DD a texto legible en español (ej. "Jueves, 15 de octubre").
+ */
+export function formatearFechaEspanol(fechaStr: string): string {
+  if (!fechaStr) return '';
+  const partes = fechaStr.split('-');
+  if (partes.length !== 3) return fechaStr;
+  const fecha = new Date(parseInt(partes[0], 10), parseInt(partes[1], 10) - 1, parseInt(partes[2], 10));
+  return fecha.toLocaleDateString('es-CO', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
+

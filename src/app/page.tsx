@@ -12,6 +12,7 @@ import {
 
 export default function HomePage() {
   const [datosConsultorio, setDatosConsultorio] = useState<DatosConsultorio>(DATOS_CONSULTORIO_DEFAULT);
+  const [menuMovilAbierto, setMenuMovilAbierto] = useState<boolean>(false);
 
   useEffect(() => {
     setDatosConsultorio(obtenerDatosConsultorio());
@@ -46,13 +47,13 @@ export default function HomePage() {
             </div>
           </Link>
 
-          {/* Enlaces de Navegación de Escritorio: Menú Principal con las 5 opciones solicitadas */}
+          {/* Enlaces de Navegación de Escritorio: Orden exacto solicitado */}
           <nav className="hidden lg:flex items-center space-x-6 xl:space-x-8 text-sm font-semibold">
             <Link 
               href="/portal-paciente" 
               className="text-on-surface-variant hover:text-primary transition-colors duration-200 py-1"
             >
-              Portal paciente
+              portal paciente
             </Link>
             <Link 
               href="#tratamientos" 
@@ -64,7 +65,7 @@ export default function HomePage() {
               href="#casos" 
               className="text-on-surface-variant hover:text-primary transition-colors duration-200 py-1"
             >
-              Casos de éxito
+              casos de exito
             </Link>
             <Link 
               href="#blog" 
@@ -73,15 +74,22 @@ export default function HomePage() {
               Blog
             </Link>
             <Link 
-              href="/login" 
+              href="#contacto" 
               className="text-on-surface-variant hover:text-primary transition-colors duration-200 py-1"
             >
-              Iniciar sesión
+              contacto
             </Link>
           </nav>
 
-          {/* Botón de Conversión Primario (Agendar Cita) */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Accesos a la Plataforma y Botón Primario */}
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Link
+              href="/login"
+              className="hidden sm:inline-flex text-xs sm:text-sm font-bold text-on-surface-variant hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-surface-container"
+            >
+              Iniciar sesión
+            </Link>
+
             <Link
               href="#agendar"
               className="inline-flex items-center justify-center h-11 px-4 sm:px-6 rounded-lg bg-primary hover:bg-secondary text-on-primary text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] shadow-sm hover:shadow-md custom-teal-shadow"
@@ -89,8 +97,70 @@ export default function HomePage() {
               <span className="material-symbols-outlined mr-2 text-[20px]">calendar_month</span>
               <span>Agendar Cita</span>
             </Link>
+
+            {/* Botón Menú Móvil */}
+            <button
+              type="button"
+              onClick={() => setMenuMovilAbierto(!menuMovilAbierto)}
+              className="lg:hidden p-2 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors"
+              aria-label="Abrir o cerrar menú"
+            >
+              <span className="material-symbols-outlined text-[26px]">
+                {menuMovilAbierto ? 'close' : 'menu'}
+              </span>
+            </button>
           </div>
         </div>
+
+        {/* Menú Desplegable Móvil */}
+        {menuMovilAbierto && (
+          <div className="lg:hidden border-t border-outline-variant/30 bg-surface-container-lowest/98 px-6 py-4 space-y-3 animate-in fade-in slide-in-from-top-2 shadow-md">
+            <nav className="flex flex-col space-y-3 text-sm font-semibold">
+              <Link 
+                href="/portal-paciente" 
+                onClick={() => setMenuMovilAbierto(false)}
+                className="text-on-surface-variant hover:text-primary transition-colors py-1 border-b border-outline-variant/20"
+              >
+                portal paciente
+              </Link>
+              <Link 
+                href="#tratamientos" 
+                onClick={() => setMenuMovilAbierto(false)}
+                className="text-on-surface-variant hover:text-primary transition-colors py-1 border-b border-outline-variant/20"
+              >
+                Tratamientos
+              </Link>
+              <Link 
+                href="#casos" 
+                onClick={() => setMenuMovilAbierto(false)}
+                className="text-on-surface-variant hover:text-primary transition-colors py-1 border-b border-outline-variant/20"
+              >
+                casos de exito
+              </Link>
+              <Link 
+                href="#blog" 
+                onClick={() => setMenuMovilAbierto(false)}
+                className="text-on-surface-variant hover:text-primary transition-colors py-1 border-b border-outline-variant/20"
+              >
+                Blog
+              </Link>
+              <Link 
+                href="#contacto" 
+                onClick={() => setMenuMovilAbierto(false)}
+                className="text-on-surface-variant hover:text-primary transition-colors py-1 border-b border-outline-variant/20"
+              >
+                contacto
+              </Link>
+              <Link 
+                href="/login" 
+                onClick={() => setMenuMovilAbierto(false)}
+                className="text-primary font-bold transition-colors py-1"
+              >
+                Iniciar sesión
+              </Link>
+            </nav>
+          </div>
+        )}
       </header>
 
       {/* ========================================================================= */}
@@ -908,14 +978,14 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* Enlaces Legales y Módulos del Sistema */}
+          {/* Enlaces y Módulos del Sistema */}
           <div className="flex flex-wrap justify-center md:justify-end gap-x-6 gap-y-2.5 text-xs font-semibold text-on-surface-variant">
+            <Link href="/portal-paciente" className="hover:text-primary transition-colors">Portal paciente</Link>
             <Link href="#tratamientos" className="hover:text-primary transition-colors">Tratamientos</Link>
-            <Link href="#equipo" className="hover:text-primary transition-colors">Dra. Yasmín</Link>
-            <Link href="/blog" className="hover:text-primary transition-colors">Blog Dental</Link>
-            <Link href="/portal-paciente" className="hover:text-primary transition-colors">Portal del Paciente</Link>
+            <Link href="#casos" className="hover:text-primary transition-colors">Casos de éxito</Link>
+            <Link href="/blog" className="hover:text-primary transition-colors">Blog</Link>
+            <Link href="#contacto" className="hover:text-primary transition-colors">Contacto</Link>
             <Link href="/dashboard" className="hover:text-primary transition-colors">Panel Administrativo</Link>
-            <Link href="#contacto" className="hover:text-primary transition-colors">Ubicación y Contacto</Link>
           </div>
         </div>
       </footer>
