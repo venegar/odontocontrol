@@ -75,6 +75,7 @@ function convertirHoraA24(horaStr: string): string {
     setErrorEnvio(null);
 
     try {
+      console.log('[Formulario] Iniciando envío de cita...', formData);
       // 1. Intento directo por Supabase RPC (inmediato, sin intermediarios)
       const hora24 = convertirHoraA24(formData.horaSugerida);
       const { data: rpcData, error: rpcError } = await supabase.rpc('solicitar_cita_publica', {
@@ -92,6 +93,8 @@ function convertirHoraA24(horaStr: string): string {
         p_fecha_nacimiento: null,
       });
 
+      console.log('[Formulario] Respuesta RPC Supabase:', { rpcData, rpcError });
+
       if (!rpcError && rpcData && typeof rpcData === 'object' && (rpcData as { exito?: boolean }).exito) {
         const respuesta = rpcData as { cita_id?: string; estado?: string };
         setCitaConfirmada({
@@ -103,6 +106,7 @@ function convertirHoraA24(horaStr: string): string {
       }
 
       // 2. Si el RPC directo devolvió error, intentar a través de Server Action
+      console.log('[Formulario] Intentando vía Server Action...');
       const resultado = await crearSolicitudCitaPublica({
         nombres: formData.nombres,
         apellidos: formData.apellidos,
@@ -118,6 +122,8 @@ function convertirHoraA24(horaStr: string): string {
         motivo: formData.motivo,
       });
 
+      console.log('[Formulario] Respuesta Server Action:', resultado);
+
       if (resultado.exito) {
         setCitaConfirmada({
           id: resultado.datos?.citaId,
@@ -128,11 +134,11 @@ function convertirHoraA24(horaStr: string): string {
       }
 
       const mensajeError = rpcError?.message || resultado.error || resultado.mensaje || 'No fue posible registrar la solicitud.';
-      setErrorEnvio(mensajeError);
+      setErrorEnvio(`Detalle del servidor: ${mensajeError}`);
     } catch (err) {
-      console.error('Error al enviar la solicitud de cita a Supabase:', err);
-      const detalle = err instanceof Error ? err.message : 'Error de conectividad';
-      setErrorEnvio(`Error al procesar la cita: ${detalle}. Por favor intenta de nuevo o comunícate vía WhatsApp.`);
+      console.error('[Formulario] Excepción capturada:', err);
+      const detalle = err instanceof Error ? err.message : String(err);
+      setErrorEnvio(`Error de conexión [v2.1]: ${detalle}. Por favor intenta de nuevo.`);
     } finally {
       setCargando(false);
     }
@@ -171,7 +177,10 @@ function convertirHoraA24(horaStr: string): string {
         <div className="bg-gradient-to-r from-secondary via-primary to-primary px-6 sm:px-10 py-8 text-white">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-xs font-semibold mb-3 border border-white/20">
             <Sparkles className="w-3.5 h-3.5" />
-            Valoración 3D y Agendamiento en Línea 24/7
+            <span>Valoración 3D y Agendamiento en Línea 24/7</span>
+            <span className="text-[10px] bg-emerald-400/30 text-emerald-100 px-2 py-0.5 rounded-full font-mono border border-emerald-300/40">
+              v2.1 Supabase Activo
+            </span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             Solicita tu Cita con la Dra. Yasmín Blanco
