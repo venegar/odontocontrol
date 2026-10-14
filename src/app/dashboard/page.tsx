@@ -43,8 +43,10 @@ import {
   Mail,
   FileCheck,
   Sun,
-  CalendarDays
+  CalendarDays,
+  FlaskConical
 } from 'lucide-react';
+import ModalCrearCitasPrueba, { CitaPruebaGenerada } from '@/modules/citas/components/ModalCrearCitasPrueba';
 import { 
   generarEnlaceWhatsApp, 
   generarEnlacesAccionCita, 
@@ -488,9 +490,50 @@ export default function DashboardPrincipalPage() {
   const [alertaExito, setAlertaExito] = useState<string | null>(null);
   const [filtroEstado, setFiltroEstado] = useState<string>('todos');
   const [jornadaActiva, setJornadaActiva] = useState<'hoy' | 'manana' | 'todas'>('hoy');
+  const [modalPruebaAbierto, setModalPruebaAbierto] = useState<boolean>(false);
 
   const fechaHoy = obtenerFechaHoy();
   const fechaManana = obtenerFechaManana();
+
+  const handleCitasPruebaCreadas = ({
+    citaHoy,
+    citaManana,
+  }: {
+    citaHoy: CitaPruebaGenerada;
+    citaManana: CitaPruebaGenerada;
+  }) => {
+    setPacientes((prev) => [
+      {
+        id: citaHoy.id,
+        fecha: citaHoy.fecha,
+        hora: citaHoy.hora,
+        nombre: citaHoy.nombre,
+        telefono: citaHoy.telefono,
+        email: citaHoy.email,
+        tratamiento: citaHoy.tratamiento,
+        doctor: citaHoy.doctor,
+        sillon: citaHoy.sillon,
+        estadoCita: citaHoy.estadoCita,
+        notificacion: citaHoy.notificacion,
+      },
+      {
+        id: citaManana.id,
+        fecha: citaManana.fecha,
+        hora: citaManana.hora,
+        nombre: citaManana.nombre,
+        telefono: citaManana.telefono,
+        email: citaManana.email,
+        tratamiento: citaManana.tratamiento,
+        doctor: citaManana.doctor,
+        sillon: citaManana.sillon,
+        estadoCita: citaManana.estadoCita,
+        notificacion: citaManana.notificacion,
+      },
+      ...prev,
+    ]);
+    setAlertaExito('¡Citas de prueba creadas con éxito! 1 para Hoy y 1 para Mañana registradas en el panel.');
+    setTimeout(() => setAlertaExito(null), 6000);
+  };
 
   // Estados para datos corporativos del consultorio y permisos por rol
   const [datosConsultorio, setDatosConsultorio] = useState<DatosConsultorio>(DATOS_CONSULTORIO_DEFAULT);
@@ -1489,6 +1532,15 @@ export default function DashboardPrincipalPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setModalPruebaAbierto(true)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs shadow-sm transition active:scale-95"
+                    title="Crear citas de prueba para hoy y mañana con tu teléfono y correo"
+                  >
+                    <FlaskConical className="w-4 h-4 text-slate-900" />
+                    <span>🧪 Probar Recordatorios (Hoy y Mañana)</span>
+                  </button>
                   <button
                     type="button"
                     onClick={handleEnviarTodosLosPendientes}
@@ -2618,6 +2670,12 @@ export default function DashboardPrincipalPage() {
         </main>
       </div>
 
+      {/* Modal para Crear Citas de Prueba (Hoy y Mañana) */}
+      <ModalCrearCitasPrueba
+        abierto={modalPruebaAbierto}
+        onCerrar={() => setModalPruebaAbierto(false)}
+        onCitasCreadas={handleCitasPruebaCreadas}
+      />
     </div>
   );
 }

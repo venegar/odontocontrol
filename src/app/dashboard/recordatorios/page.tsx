@@ -22,8 +22,10 @@ import {
   ShieldCheck,
   AlertCircle,
   RefreshCw,
-  Sun
+  Sun,
+  FlaskConical
 } from 'lucide-react';
+import ModalCrearCitasPrueba, { CitaPruebaGenerada } from '@/modules/citas/components/ModalCrearCitasPrueba';
 import { 
   CanalRecordatorio, 
   PlantillaRecordatorio, 
@@ -166,9 +168,54 @@ export default function RecordatoriosPage() {
   const [mensajeAlerta, setMensajeAlerta] = useState<string | null>(null);
   const [cargandoDB, setCargandoDB] = useState<boolean>(false);
   const [filtroFechaCola, setFiltroFechaCola] = useState<'manana' | 'hoy' | 'todas'>('manana');
+  const [modalPruebaAbierto, setModalPruebaAbierto] = useState<boolean>(false);
 
   const fechaHoy = obtenerFechaHoy();
   const fechaManana = obtenerFechaManana();
+
+  const handleCitasPruebaCreadas = ({
+    citaHoy,
+    citaManana,
+  }: {
+    citaHoy: CitaPruebaGenerada;
+    citaManana: CitaPruebaGenerada;
+  }) => {
+    const itemHoy: RecordatorioItem = {
+      id: `rec-${citaHoy.id}`,
+      citaId: citaHoy.id,
+      pacienteNombre: citaHoy.nombre,
+      pacienteTelefono: citaHoy.telefono,
+      pacienteEmail: citaHoy.email,
+      doctorNombre: citaHoy.doctor,
+      tratamiento: citaHoy.tratamiento,
+      fechaCita: citaHoy.fecha,
+      horaCita: citaHoy.hora,
+      canal: 'whatsapp',
+      mensajeGenerado: '',
+      estado: 'pendiente',
+      programadoPara: `${citaHoy.fecha} ${citaHoy.hora}`,
+    };
+
+    const itemManana: RecordatorioItem = {
+      id: `rec-${citaManana.id}`,
+      citaId: citaManana.id,
+      pacienteNombre: citaManana.nombre,
+      pacienteTelefono: citaManana.telefono,
+      pacienteEmail: citaManana.email,
+      doctorNombre: citaManana.doctor,
+      tratamiento: citaManana.tratamiento,
+      fechaCita: citaManana.fecha,
+      horaCita: citaManana.hora,
+      canal: 'whatsapp',
+      mensajeGenerado: '',
+      estado: 'pendiente',
+      programadoPara: `${citaManana.fecha} ${citaManana.hora} (Aviso 24h antes)`,
+    };
+
+    setCola((prev) => [itemManana, itemHoy, ...prev]);
+    setMensajeAlerta('¡Citas de prueba creadas! 1 para Hoy y 1 para Mañana agregadas a tu lista de envíos.');
+    setTimeout(() => setMensajeAlerta(null), 6000);
+  };
 
   // Sincronización en vivo con Supabase (Cargar citas reales como la de Pedro Pérez)
   React.useEffect(() => {
@@ -390,14 +437,26 @@ export default function RecordatoriosPage() {
             </div>
           </div>
 
-          <button
-            onClick={handleDispararAutomaticos}
-            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-xl shadow-sm transition active:scale-95"
-            title="Enviar recordatorios automáticos por WhatsApp a los pacientes de mañana"
-          >
-            <Zap className="w-4 h-4" />
-            <span>Disparar Recordatorios de Mañana ({pendientesManana.length})</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setModalPruebaAbierto(true)}
+              className="inline-flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs sm:text-sm font-bold px-3.5 py-2 rounded-xl shadow-xs transition active:scale-95"
+              title="Crear 2 citas de prueba para hoy y mañana con tus datos"
+            >
+              <FlaskConical className="w-4 h-4 text-slate-900" />
+              <span>🧪 Crear Citas de Prueba</span>
+            </button>
+
+            <button
+              onClick={handleDispararAutomaticos}
+              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-xl shadow-sm transition active:scale-95"
+              title="Enviar recordatorios automáticos por WhatsApp a los pacientes de mañana"
+            >
+              <Zap className="w-4 h-4" />
+              <span>Disparar Recordatorios de Mañana ({pendientesManana.length})</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -882,6 +941,13 @@ export default function RecordatoriosPage() {
           </div>
         )}
       </main>
+
+      {/* Modal para Crear Citas de Prueba (Hoy y Mañana) */}
+      <ModalCrearCitasPrueba
+        abierto={modalPruebaAbierto}
+        onCerrar={() => setModalPruebaAbierto(false)}
+        onCitasCreadas={handleCitasPruebaCreadas}
+      />
     </div>
   );
 }
