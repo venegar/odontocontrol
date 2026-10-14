@@ -40,7 +40,7 @@ const PLANTILLAS_INICIALES: PlantillaRecordatorio[] = [
     id: 'plan-wa-24h',
     nombre: 'Recordatorio WhatsApp (24h Antes)',
     canal: 'whatsapp',
-    contenido: '¡Hola {{nombre_paciente}}! 👋 Te recordamos que tienes una cita de {{tratamiento}} con el {{doctor}} programada para mañana {{fecha}} a las {{hora}} en DentisCare. 🦷\n\nSi necesitas reagendar o cancelar con anticipación, puedes hacerlo desde tu portal: {{enlace_portal}}\n\n¡Te esperamos!',
+    contenido: '¡Hola {{nombre_paciente}}! 👋 Te recordamos que tienes una cita de {{tratamiento}} con el {{doctor}} programada para mañana {{fecha}} a las {{hora}} en la Clínica Dental Dra. Yasmín Blanco. 🦷\n\nSi necesitas reagendar o confirmar con anticipación, puedes hacerlo desde tu portal: {{enlace_portal}}\n\n¡Te esperamos!',
     anticipacionHoras: 24,
     activa: true,
   },
@@ -49,7 +49,7 @@ const PLANTILLAS_INICIALES: PlantillaRecordatorio[] = [
     nombre: 'Recordatorio Correo Electrónico (24h Antes)',
     canal: 'email',
     asunto: 'Recordatorio de Cita Odontológica - {{fecha}} a las {{hora}}',
-    contenido: 'Estimado(a) {{nombre_paciente}},\n\nLe confirmamos que su cita para {{tratamiento}} con el {{doctor}} se llevará a cabo el día {{fecha}} a las {{hora}}.\n\nDirección: Calle 127 # 19-45, Consultorio 302, Bogotá.\nTeléfono: {{consultorio_telefono}}\n\nPuede gestionar sus citas en línea ingresando a: {{enlace_portal}}\n\nAtentamente,\nEquipo DentisCare',
+    contenido: 'Estimado(a) {{nombre_paciente}},\n\nLe confirmamos que su cita para {{tratamiento}} con el {{doctor}} se llevará a cabo el día {{fecha}} a las {{hora}}.\n\nSede: Paseo de la Castellana 142, Madrid.\nTeléfono de atención: {{consultorio_telefono}}\n\nPuede consultar sus citas en línea ingresando a: {{enlace_portal}}\n\nAtentamente,\nEquipo Dra. Yasmín Blanco',
     anticipacionHoras: 24,
     activa: true,
   },
@@ -207,8 +207,8 @@ export default function RecordatoriosPage() {
     tratamiento: 'Profilaxis y Limpieza Profunda',
     fecha: '20 de Octubre',
     hora: '09:30 AM',
-    consultorio_telefono: '+57 (300) 123-4567',
-    enlace_portal: 'https://dentiscare.com/portal-paciente',
+    consultorio_telefono: '+34 910 123 456',
+    enlace_portal: 'https://odontocontrol-ashen.vercel.app/portal-paciente',
   });
 
   return (
@@ -532,7 +532,7 @@ export default function RecordatoriosPage() {
                       DC
                     </div>
                     <div>
-                      <p className="text-xs font-bold leading-tight">DentisCare Consultorio</p>
+                      <p className="text-xs font-bold leading-tight">Clínica Dra. Yasmín Blanco</p>
                       <p className="text-[10px] text-emerald-200">Cuenta de empresa oficial</p>
                     </div>
                   </div>
