@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { TipoDocumento } from '@/modules/pacientes/types';
 import { crearSolicitudCitaPublica } from '@/modules/citas/actions';
+import { supabase } from '@/lib/supabase';
 
 const TRATAMIENTOS_PUBLICOS = [
   { id: '1', nombre: 'Primera Valoración General y Diagnóstico 3D', duracion: '30 min', descripcion: 'Escaneo intraoral, diagnóstico integral y plan sin dolor' },
@@ -56,12 +57,52 @@ export default function FormularioSolicitudCita() {
     motivo: '',
   });
 
+function convertirHoraA24(horaStr: string): string {
+  const limpia = (horaStr || '').trim();
+  const match = limpia.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (!match) return '09:00:00';
+  let horas = parseInt(match[1], 10);
+  const minutos = match[2];
+  const ampm = match[3] ? match[3].toUpperCase() : null;
+  if (ampm === 'PM' && horas < 12) horas += 12;
+  else if (ampm === 'AM' && horas === 12) horas = 0;
+  return `${horas.toString().padStart(2, '0')}:${minutos}:00`;
+}
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setCargando(true);
     setErrorEnvio(null);
 
     try {
+      // 1. Intento directo por Supabase RPC (inmediato, sin intermediarios)
+      const hora24 = convertirHoraA24(formData.horaSugerida);
+      const { data: rpcData, error: rpcError } = await supabase.rpc('solicitar_cita_publica', {
+        p_nombres: formData.nombres.trim(),
+        p_apellidos: formData.apellidos.trim(),
+        p_tipo_documento: formData.tipoDocumento.toUpperCase(),
+        p_numero_documento: formData.numeroDocumento.trim(),
+        p_telefono: formData.telefono.trim(),
+        p_email: formData.email.trim() || null,
+        p_fecha: formData.fechaDeseada,
+        p_hora_inicio: hora24,
+        p_motivo: formData.motivo.trim() || `Solicitud para ${formData.tratamiento}`,
+        p_tratamiento_nombre: formData.tratamiento,
+        p_especialista_nombre: formData.especialista || null,
+        p_fecha_nacimiento: null,
+      });
+
+      if (!rpcError && rpcData && typeof rpcData === 'object' && (rpcData as { exito?: boolean }).exito) {
+        const respuesta = rpcData as { cita_id?: string; estado?: string };
+        setCitaConfirmada({
+          id: respuesta.cita_id,
+          estado: respuesta.estado || 'solicitada',
+        });
+        setEnviado(true);
+        return;
+      }
+
+      // 2. Si el RPC directo devolvió error, intentar a través de Server Action
       const resultado = await crearSolicitudCitaPublica({
         nombres: formData.nombres,
         apellidos: formData.apellidos,
@@ -77,23 +118,21 @@ export default function FormularioSolicitudCita() {
         motivo: formData.motivo,
       });
 
-      if (!resultado.exito) {
-        setErrorEnvio(
-          resultado.error || 
-          resultado.mensaje || 
-          'No se pudo registrar la solicitud. Por favor valida tus datos e intenta nuevamente.'
-        );
+      if (resultado.exito) {
+        setCitaConfirmada({
+          id: resultado.datos?.citaId,
+          estado: resultado.datos?.estado || 'solicitada',
+        });
+        setEnviado(true);
         return;
       }
 
-      setCitaConfirmada({
-        id: resultado.datos?.citaId,
-        estado: resultado.datos?.estado || 'solicitada',
-      });
-      setEnviado(true);
+      const mensajeError = rpcError?.message || resultado.error || resultado.mensaje || 'No fue posible registrar la solicitud.';
+      setErrorEnvio(mensajeError);
     } catch (err) {
       console.error('Error al enviar la solicitud de cita a Supabase:', err);
-      setErrorEnvio('Ocurrió un problema de conectividad al enviar la solicitud. Por favor intenta de nuevo o comunícate vía WhatsApp.');
+      const detalle = err instanceof Error ? err.message : 'Error de conectividad';
+      setErrorEnvio(`Error al procesar la cita: ${detalle}. Por favor intenta de nuevo o comunícate vía WhatsApp.`);
     } finally {
       setCargando(false);
     }
