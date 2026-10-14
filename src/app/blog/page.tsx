@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowLeft, BookOpen, Clock, Tag } from "lucide-react";
 import { ArticuloBlog } from "@/modules/blog/types";
 
@@ -10,14 +11,14 @@ const articulosDemo: ArticuloBlog[] = [
     extracto: "El esmalte es la capa protectora externa de tus dientes. Descubre cómo mantenerlo fuerte frente al desgaste diario y los ácidos.",
     contenido: "",
     categoria: "Higiene",
-    autor: "Dr. Carlos Ruiz",
+    autor: "Dra. Yasmín Blanco",
     fechaPublicacion: "12 de Octubre, 2026",
   },
   {
     id: "2",
     slug: "mitos-comunes-sobre-la-ortodoncia",
-    titulo: "Mitos y realidades sobre los tratamientos de ortodoncia",
-    extracto: "¿Duele ponerse brackets? ¿Solo sirven para niños? Respondemos las dudas más frecuentes sobre la alineación dental moderna.",
+    titulo: "Mitos y realidades sobre los tratamientos de ortodoncia invisible",
+    extracto: "¿Duele ponerse alineadores transparentes? ¿A qué edad se recomienda? Respondemos las dudas más frecuentes sobre la alineación digital.",
     contenido: "",
     categoria: "Ortodoncia",
     autor: "Dra. Laura Vega",
@@ -27,10 +28,10 @@ const articulosDemo: ArticuloBlog[] = [
     id: "3",
     slug: "importancia-de-la-limpieza-dental-periodica",
     titulo: "¿Por qué debes realizarte una profilaxis dental cada 6 meses?",
-    extracto: "Incluso con un cepillado riguroso, el sarro acumulado requiere atención profesional para prevenir la gingivitis.",
+    extracto: "Incluso con un cepillado riguroso, el sarro acumulado requiere atención profesional con ultrasonido para prevenir la gingivitis.",
     contenido: "",
     categoria: "Salud General",
-    autor: "Dr. Carlos Ruiz",
+    autor: "Dra. Yasmín Blanco",
     fechaPublicacion: "28 de Septiembre, 2026",
   },
 ];
@@ -38,13 +39,21 @@ const articulosDemo: ArticuloBlog[] = [
 export default function BlogPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between">
-      <header className="bg-white border-b py-4 px-6">
+      <header className="bg-white border-b py-3 px-6 shadow-xs sticky top-0 z-30">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Link href="/" className="text-sm text-slate-600 hover:text-slate-900 flex items-center gap-1 font-medium">
+          <Link href="/" className="text-sm text-slate-600 hover:text-primary flex items-center gap-1 font-medium transition-colors">
             <ArrowLeft className="h-4 w-4" />
             <span>Volver a Inicio</span>
           </Link>
-          <span className="font-bold text-slate-800">Blog de Salud Oral</span>
+          
+          <Link href="/" className="relative h-10 w-44">
+            <Image
+              src="/brand/logo-yasmin-blanco.png"
+              alt="Dra. Yasmín Blanco"
+              fill
+              className="object-contain object-right"
+            />
+          </Link>
         </div>
       </header>
 
@@ -97,7 +106,7 @@ export default function BlogPage() {
       </main>
 
       <footer className="bg-white border-t py-6 text-center text-xs text-slate-500">
-        © {new Date().getFullYear()} Consultorio Odontológico. Artículos informativos con fines educativos.
+        © {new Date().getFullYear()} Clínica Dental Dra. Yasmín Blanco. Artículos y recomendaciones con fines informativos y educativos.
       </footer>
     </div>
   );

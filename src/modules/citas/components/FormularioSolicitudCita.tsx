@@ -4,38 +4,42 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { 
   Calendar as CalendarIcon, 
-  Clock, 
   Send, 
   CheckCircle2, 
   User, 
-  Phone, 
-  Mail, 
-  FileText, 
   Sparkles, 
   ShieldCheck, 
-  MessageSquare,
-  ArrowRight
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { TipoDocumento } from '@/modules/pacientes/types';
+import { crearSolicitudCitaPublica } from '@/modules/citas/actions';
 
 const TRATAMIENTOS_PUBLICOS = [
-  { id: '1', nombre: 'Valoración Odontológica Inicial', duracion: '30 min', descripcion: 'Diagnóstico general y plan de tratamiento' },
-  { id: '2', nombre: 'Profilaxis y Limpieza Profunda', duracion: '45 min', descripcion: 'Eliminación de sarro, placa y pulido' },
-  { id: '3', nombre: 'Control de Ortodoncia', duracion: '30 min', descripcion: 'Revisión periódica de brackets o alineadores' },
-  { id: '4', nombre: 'Resina Estética / Calzas', duracion: '40 min', descripcion: 'Restauración por caries o fractura' },
-  { id: '5', nombre: 'Blanqueamiento Dental LED', duracion: '60 min', descripcion: 'Aclaramiento en consultorio' },
-  { id: '6', nombre: 'Urgencia Dental / Dolor Agudo', duracion: '30 min', descripcion: 'Atención prioritaria para alivio del dolor' },
+  { id: '1', nombre: 'Primera Valoración General y Diagnóstico 3D', duracion: '30 min', descripcion: 'Escaneo intraoral, diagnóstico integral y plan sin dolor' },
+  { id: '2', nombre: 'Ortodoncia Invisible e Invisalign', duracion: '45 min', descripcion: 'Alineadores invisibles diseñados digitalmente' },
+  { id: '3', nombre: 'Implantología y Cirugía Oral Guiada', duracion: '60 min', descripcion: 'Reposición con titanio biocompatible de carga inmediata' },
+  { id: '4', nombre: 'Estética Dental y Carillas de Porcelana', duracion: '45 min', descripcion: 'Diseño de sonrisa mínimamente invasivo' },
+  { id: '5', nombre: 'Odontología Preventiva / Limpieza Airflow', duracion: '40 min', descripcion: 'Ultrasonido y micropartículas sin desgaste' },
+  { id: '6', nombre: 'Blanqueamiento Dental Láser', duracion: '50 min', descripcion: 'Aclaramiento en sesión clínica sin sensibilidad' },
+  { id: '7', nombre: 'Periodoncia y Cuidado de Encías', duracion: '45 min', descripcion: 'Descontaminación láser y regeneración tisular' },
 ];
 
 const ESPECIALISTAS = [
-  'Cualquier odontólogo disponible',
-  'Dr. Carlos Ruiz (Odontología General y Estética)',
-  'Dra. Laura Vega (Ortodoncia y Ortopedia)',
+  'Dra. Yasmín Blanco (Directora Médica & Cirugía/Estética)',
+  'Dr. Carlos Ruiz (Odontología General y Rehabilitación)',
+  'Dra. Laura Vega (Ortodoncia y Ortopedia Maxilofacial)',
+  'Cualquier especialista disponible para la fecha',
 ];
 
 export default function FormularioSolicitudCita() {
   const [enviado, setEnviado] = useState(false);
   const [cargando, setCargando] = useState(false);
+  const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
+  const [citaConfirmada, setCitaConfirmada] = useState<{
+    id?: string;
+    estado?: string;
+  } | null>(null);
 
   const [formData, setFormData] = useState({
     nombres: '',
@@ -52,19 +56,53 @@ export default function FormularioSolicitudCita() {
     motivo: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setCargando(true);
+    setErrorEnvio(null);
 
-    // Simulación de envío a Supabase y bandeja de recepción
-    setTimeout(() => {
-      setCargando(false);
+    try {
+      const resultado = await crearSolicitudCitaPublica({
+        nombres: formData.nombres,
+        apellidos: formData.apellidos,
+        tipoDocumento: formData.tipoDocumento,
+        numeroDocumento: formData.numeroDocumento,
+        telefono: formData.telefono,
+        email: formData.email,
+        tratamiento: formData.tratamiento,
+        especialista: formData.especialista,
+        fechaDeseada: formData.fechaDeseada,
+        jornada: formData.jornada,
+        horaSugerida: formData.horaSugerida,
+        motivo: formData.motivo,
+      });
+
+      if (!resultado.exito) {
+        setErrorEnvio(
+          resultado.error || 
+          resultado.mensaje || 
+          'No se pudo registrar la solicitud. Por favor valida tus datos e intenta nuevamente.'
+        );
+        return;
+      }
+
+      setCitaConfirmada({
+        id: resultado.datos?.citaId,
+        estado: resultado.datos?.estado || 'solicitada',
+      });
       setEnviado(true);
-    }, 900);
+    } catch (err) {
+      console.error('Error al enviar la solicitud de cita a Supabase:', err);
+      setErrorEnvio('Ocurrió un problema de conectividad al enviar la solicitud. Por favor intenta de nuevo o comunícate vía WhatsApp.');
+    } finally {
+      setCargando(false);
+    }
   };
 
   const handleReset = () => {
     setEnviado(false);
+    setErrorEnvio(null);
+    setCitaConfirmada(null);
     setFormData({
       nombres: '',
       apellidos: '',
@@ -81,7 +119,7 @@ export default function FormularioSolicitudCita() {
     });
   };
 
-  // Fecha mínima: mañana
+  // Fecha mínima permitida: mañana
   const manana = new Date();
   manana.setDate(manana.getDate() + 1);
   const minFecha = manana.toISOString().split('T')[0];
@@ -91,16 +129,16 @@ export default function FormularioSolicitudCita() {
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
         
         {/* Cabecera del formulario */}
-        <div className="bg-gradient-to-r from-dentist-700 via-dentist-600 to-sky-600 px-6 sm:px-10 py-8 text-white">
+        <div className="bg-gradient-to-r from-secondary via-primary to-primary px-6 sm:px-10 py-8 text-white">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-xs font-semibold mb-3 border border-white/20">
             <Sparkles className="w-3.5 h-3.5" />
-            Agendamiento en Línea 24/7
+            Valoración 3D y Agendamiento en Línea 24/7
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Solicita tu Cita Odontológica
+            Solicita tu Cita con la Dra. Yasmín Blanco
           </h2>
-          <p className="text-sky-100 text-sm mt-1.5 max-w-2xl leading-relaxed">
-            Diligencia el formulario y nuestro equipo revisará la agenda. Recibirás confirmación automática o por WhatsApp en minutos.
+          <p className="text-secondary-fixed text-sm mt-1.5 max-w-2xl leading-relaxed">
+            Diligencia el formulario y nuestro equipo revisará la agenda. Recibirás confirmación médica inmediata por WhatsApp y correo electrónico.
           </p>
         </div>
 
@@ -115,10 +153,23 @@ export default function FormularioSolicitudCita() {
                 ¡Solicitud de Cita Recibida con Éxito!
               </h3>
               <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-                Gracias, <strong className="text-slate-800">{formData.nombres}</strong>. Tu solicitud para <strong>{formData.tratamiento}</strong> el día <strong>{formData.fechaDeseada} ({formData.horaSugerida})</strong> ha ingresado a nuestra <strong>bandeja de recepción</strong>.
+                Gracias, <strong className="text-slate-800">{formData.nombres}</strong>. Tu solicitud para <strong>{formData.tratamiento}</strong> el día <strong>{formData.fechaDeseada} ({formData.horaSugerida})</strong> ha ingresado a nuestra <strong>bandeja de recepción</strong> en Supabase.
               </p>
 
+              {citaConfirmada?.id && (
+                <div className="mt-4 inline-flex items-center gap-2 px-3.5 py-1.5 bg-sky-50 text-sky-800 border border-sky-200 rounded-full text-xs font-mono">
+                  <span>Radicado ID:</span>
+                  <span className="font-bold">{citaConfirmada.id}</span>
+                </div>
+              )}
+
               <div className="mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-left space-y-2 text-slate-700">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Estado:</span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full font-semibold text-[11px] bg-amber-100 text-amber-800">
+                    Solicitada (Pendiente de aprobación clínica)
+                  </span>
+                </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Paciente:</span>
                   <span className="font-semibold">{formData.nombres} {formData.apellidos}</span>
@@ -156,6 +207,17 @@ export default function FormularioSolicitudCita() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
               
+              {/* Mensaje de error amigable */}
+              {errorEnvio && (
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3 text-rose-800 text-xs">
+                  <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-bold">No fue posible radicar la solicitud</h4>
+                    <p className="mt-0.5 text-rose-700">{errorEnvio}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Sección 1: Datos Personales */}
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-3 flex items-center gap-2">
@@ -227,7 +289,7 @@ export default function FormularioSolicitudCita() {
                 </div>
 
                 <div className="mt-4">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Correo Electrónico (Para recordatorio)</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Correo Electrónico (Para confirmación)</label>
                   <input
                     type="email"
                     placeholder="correo@ejemplo.com"
@@ -360,7 +422,7 @@ export default function FormularioSolicitudCita() {
               <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <span className="text-xs text-slate-500 flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  Tus datos se manejan de forma segura y confidencial.
+                  Tus datos se manejan de forma segura y confidencial bajo RLS médico.
                 </span>
 
                 <button
@@ -368,8 +430,17 @@ export default function FormularioSolicitudCita() {
                   disabled={cargando}
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-dentist-600 hover:bg-dentist-700 disabled:opacity-50 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all"
                 >
-                  <Send className="w-4 h-4" />
-                  <span>{cargando ? 'Enviando solicitud...' : 'Enviar Solicitud de Cita'}</span>
+                  {cargando ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Registrando solicitud...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>Enviar Solicitud de Cita</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

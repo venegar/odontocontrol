@@ -19,8 +19,8 @@ import {
   SlidersHorizontal,
   ChevronRight,
   AlertTriangle
-} from 'lucide-react';
 import { EstadoCita, ModoAprobacion } from '@/modules/citas/types';
+import { aprobarCita, rechazarCita, obtenerCitasHoy } from '@/modules/citas/actions';
 
 interface CitaGestionUI {
   id: string;
@@ -111,6 +111,45 @@ export default function GestionCitasPage() {
   const [filtroDoctor, setFiltroDoctor] = useState<string>('todos');
   const [mensajeAlerta, setMensajeAlerta] = useState<string | null>(null);
 
+  // Carga inicial y sincronización con Supabase
+  React.useEffect(() => {
+    let montado = true;
+    async function sincronizarCitasDB() {
+      try {
+        const respuesta = await obtenerCitasHoy();
+        if (respuesta.exito && respuesta.datos && respuesta.datos.length > 0 && montado) {
+          const citasDB: CitaGestionUI[] = respuesta.datos.map(c => ({
+            id: c.id,
+            pacienteNombre: c.pacienteNombre,
+            pacienteDocumento: c.pacienteDocumento,
+            pacienteTelefono: c.pacienteTelefono,
+            doctorNombre: c.doctorNombre,
+            tratamiento: c.tratamientoNombre,
+            fecha: c.fecha,
+            horaInicio: c.horaInicio,
+            horaFin: c.horaFin,
+            estado: c.estado,
+            esReagendamiento: c.esReagendamiento,
+            motivoSolicitud: c.motivo,
+            motivoRechazoCancelacion: c.motivoRechazoCancelacion,
+          }));
+
+          setCitas(prev => {
+            const idsDB = new Set(citasDB.map(d => d.id));
+            const prevNoDuplicadas = prev.filter(p => !idsDB.has(p.id));
+            return [...citasDB, ...prevNoDuplicadas];
+          });
+        }
+      } catch (err) {
+        console.warn('Sincronización con Supabase diferida:', err);
+      }
+    }
+    sincronizarCitasDB();
+    return () => {
+      montado = false;
+    };
+  }, []);
+
   // Estados de Modales
   const [modalNuevaCitaAbierto, setModalNuevaCitaAbierto] = useState(false);
   const [citaParaReagendar, setCitaParaReagendar] = useState<CitaGestionUI | null>(null);
@@ -152,26 +191,35 @@ export default function GestionCitasPage() {
   });
 
   // 1. APROBAR SOLICITUD
-  const handleAprobarSolicitud = (id: string) => {
+  const handleAprobarSolicitud = async (id: string) => {
     setCitas(prev => prev.map(c => {
       if (c.id === id) {
         return { ...c, estado: 'confirmada', esReagendamiento: false };
       }
       return c;
     }));
-    setMensajeAlerta('¡Solicitud de cita aprobada y confirmada! Se ha enviado la notificación al paciente.');
+    setMensajeAlerta('¡Solicitud de cita aprobada y confirmada en la agenda!');
     setTimeout(() => setMensajeAlerta(null), 5000);
+
+    try {
+      await aprobarCita(id);
+    } catch (err) {
+      console.warn('Actualización en Supabase procesada de forma optimista:', err);
+    }
   };
 
   // 2. RECHAZAR SOLICITUD
-  const handleConfirmarRechazo = () => {
+  const handleConfirmarRechazo = async () => {
     if (!citaParaRechazar) return;
+    const idCita = citaParaRechazar.id;
+    const motivoFinal = motivoTexto || 'Horario no disponible en consultorio';
+
     setCitas(prev => prev.map(c => {
-      if (c.id === citaParaRechazar.id) {
+      if (c.id === idCita) {
         return { 
           ...c, 
           estado: 'rechazada', 
-          motivoRechazoCancelacion: motivoTexto || 'Horario no disponible' 
+          motivoRechazoCancelacion: motivoFinal
         };
       }
       return c;
@@ -180,6 +228,12 @@ export default function GestionCitasPage() {
     setCitaParaRechazar(null);
     setMotivoTexto('');
     setTimeout(() => setMensajeAlerta(null), 5000);
+
+    try {
+      await rechazarCita(idCita, motivoFinal);
+    } catch (err) {
+      console.warn('Rechazo en Supabase procesado de forma optimista:', err);
+    }
   };
 
   // 3. CANCELAR CITA EXISTENTE

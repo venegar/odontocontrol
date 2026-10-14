@@ -1,335 +1,933 @@
+import React from "react";
 import Link from "next/link";
-import { 
-  Calendar, 
-  Sparkles, 
-  ShieldCheck, 
-  Clock, 
-  PhoneCall, 
-  BookOpen, 
-  ArrowRight,
-  UserCheck,
-  CheckCircle2,
-  MapPin,
-  Smile,
-  Award,
-  Stethoscope,
-  HeartHandshake
-} from "lucide-react";
+import Image from "next/image";
 import FormularioSolicitudCita from "@/modules/citas/components/FormularioSolicitudCita";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex flex-col justify-between bg-white text-slate-800">
+    <div className="min-h-screen bg-background text-on-surface antialiased font-sans selection:bg-secondary-fixed selection:text-on-secondary-fixed flex flex-col justify-between">
       
-      {/* 1. BARRA DE NAVEGACIÓN SUPERIOR */}
-      <header className="border-b bg-white/90 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="bg-dentist-600 text-white p-2 rounded-xl shadow-sm">
-              <Sparkles className="h-6 w-6" />
+      {/* ========================================================================= */}
+      {/* 1. BARRA DE NAVEGACIÓN SUPERIOR / TOP APP BAR */}
+      {/* ========================================================================= */}
+      <header className="sticky top-0 z-50 w-full bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant/30 shadow-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between py-2.5">
+          
+          {/* Logotipo Oficial Dra. Yasmín Blanco */}
+          <Link href="/" className="flex items-center gap-3 group focus:outline-none">
+            {/* Usamos el logotipo oficial proporcionado guardado en public/brand */}
+            <div className="relative h-14 md:h-16 w-52 md:w-64 transition-transform duration-200 group-hover:scale-[1.02]">
+              <Image
+                src="/brand/logo-yasmin-blanco.png"
+                alt="Logotipo Dra. Yasmín Blanco | Odontología Avanzada y Estética Dental"
+                fill
+                priority
+                className="object-contain object-left"
+              />
             </div>
-            <div>
-              <span className="text-xl font-bold text-slate-900 tracking-tight">DentisCare</span>
-              <span className="text-xs block text-slate-500 font-medium">Consultorio Odontológico</span>
-            </div>
-          </div>
+          </Link>
 
-          <nav className="hidden md:flex items-center space-x-8 text-sm font-medium text-slate-600">
-            <Link href="#servicios" className="hover:text-dentist-600 transition-colors">Servicios</Link>
-            <Link href="#equipo" className="hover:text-dentist-600 transition-colors">Especialistas</Link>
-            <Link href="/blog" className="hover:text-dentist-600 transition-colors">Blog Dental</Link>
-            <Link href="#contacto" className="hover:text-dentist-600 transition-colors">Contacto</Link>
+          {/* Enlaces de Navegación de Escritorio */}
+          <nav className="hidden lg:flex items-center space-x-7 text-sm font-semibold">
+            <Link 
+              href="#tratamientos" 
+              className="text-on-surface hover:text-primary transition-colors duration-200 py-1"
+            >
+              Tratamientos
+            </Link>
+            <Link 
+              href="#equipo" 
+              className="text-on-surface-variant hover:text-primary transition-colors duration-200 py-1"
+            >
+              Dra. Yasmín
+            </Link>
+            <Link 
+              href="#tecnologia" 
+              className="text-on-surface-variant hover:text-primary transition-colors duration-200 py-1"
+            >
+              Tecnología 3D
+            </Link>
+            <Link 
+              href="#casos" 
+              className="text-on-surface-variant hover:text-primary transition-colors duration-200 py-1"
+            >
+              Casos de Éxito
+            </Link>
+            <Link 
+              href="#blog" 
+              className="text-on-surface-variant hover:text-primary transition-colors duration-200 py-1"
+            >
+              Blog Dental
+            </Link>
+            <Link 
+              href="#contacto" 
+              className="text-on-surface-variant hover:text-primary transition-colors duration-200 py-1"
+            >
+              Contacto
+            </Link>
           </nav>
 
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            <Link 
-              href="/login" 
-              className="text-xs sm:text-sm font-semibold text-slate-700 hover:text-dentist-600 px-2.5 py-1.5 transition-colors rounded-lg hover:bg-slate-50"
+          {/* Accesos a la Plataforma y Botón Primario */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href="/portal-paciente"
+              className="hidden xl:inline-flex text-xs font-bold text-on-surface-variant hover:text-primary transition-colors px-2.5 py-1.5 rounded-lg hover:bg-surface-container"
+            >
+              Portal Paciente
+            </Link>
+            
+            <Link
+              href="/login"
+              className="hidden sm:inline-flex text-xs font-bold text-on-surface-variant hover:text-primary transition-colors px-2.5 py-1.5 rounded-lg hover:bg-surface-container"
             >
               Iniciar Sesión
             </Link>
-            <Link 
-              href="/registro" 
-              className="text-xs sm:text-sm font-semibold text-dentist-700 bg-dentist-50 hover:bg-dentist-100 border border-dentist-200 px-3 py-1.5 rounded-xl transition-all"
+
+            <Link
+              href="/registro"
+              className="hidden md:inline-flex text-xs font-bold text-primary bg-secondary-container/50 hover:bg-secondary-container px-3 py-1.5 rounded-lg transition-colors border border-outline-variant/40"
             >
               Registrarse
             </Link>
-            <Link 
-              href="#agendar" 
-              className="text-xs sm:text-sm font-semibold bg-dentist-600 hover:bg-dentist-700 text-white px-3.5 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+
+            <Link
+              href="#agendar"
+              className="inline-flex items-center justify-center h-11 px-4 sm:px-6 rounded-lg bg-primary hover:bg-secondary text-on-primary text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] shadow-sm hover:shadow-md custom-teal-shadow"
             >
-              <Calendar className="h-4 w-4" />
+              <span className="material-symbols-outlined mr-2 text-[20px]">calendar_month</span>
               <span>Agendar Cita</span>
             </Link>
           </div>
         </div>
       </header>
 
+      {/* ========================================================================= */}
       {/* 2. CONTENIDO PRINCIPAL */}
+      {/* ========================================================================= */}
       <main className="flex-1">
-        
+
         {/* HERO SECTION */}
-        <section className="relative overflow-hidden pt-12 pb-16 lg:pt-20 lg:pb-24 bg-gradient-to-b from-sky-50/50 via-white to-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-dentist-50 text-dentist-700 text-xs font-semibold mb-6 border border-dentist-200">
-                  <ShieldCheck className="h-4 w-4" />
-                  Atención Odontológica Especializada y Segura
+        <section className="relative pt-8 pb-16 lg:pt-14 lg:pb-24 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-secondary-fixed/20 via-surface to-background pointer-events-none -z-10" />
+          
+          <div className="max-w-7xl mx-auto px-6 lg:px-12">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+              
+              {/* Hero Text & CTA */}
+              <div className="lg:col-span-7 flex flex-col justify-center space-y-6">
+                
+                {/* Badge de Vanguardia */}
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-secondary-container/50 border border-outline-variant/60 w-fit">
+                  <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse" />
+                  <span className="text-primary text-xs font-bold tracking-wide">
+                    Clínica Odontológica de Alta Precisión
+                  </span>
                 </div>
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 leading-tight">
-                  Tu sonrisa saludable en las mejores manos.
+
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-on-surface tracking-tight leading-[1.12]">
+                  Sonrisas saludables, <br />
+                  <span className="text-primary font-black">atención de vanguardia.</span>
                 </h1>
-                <p className="mt-6 text-lg text-slate-600 leading-relaxed max-w-xl">
-                  Brindamos tratamientos odontológicos de vanguardia con calidez humana. Agenda tu cita en segundos y gestiona tus controles desde nuestra plataforma digital.
+
+                <p className="text-base sm:text-lg text-on-surface-variant max-w-2xl leading-relaxed">
+                  Experimenta una odontología humana, empática y completamente digital. En la clínica de la{" "}
+                  <strong className="font-bold text-primary">Dra. Yasmín Blanco</strong> transformamos tu salud bucal mediante diagnósticos 3D indoloros, armonización estética y excelencia médica.
                 </p>
 
-                <div className="mt-8 flex flex-col sm:flex-row gap-4">
+                <div className="flex flex-wrap items-center gap-4 pt-2">
                   <Link
                     href="#agendar"
-                    className="inline-flex justify-center items-center gap-2 px-6 py-3.5 rounded-xl bg-dentist-600 hover:bg-dentist-700 text-white font-semibold shadow-md hover:shadow-lg transition-all"
+                    className="inline-flex items-center justify-center h-12 px-7 rounded-lg bg-primary hover:bg-secondary text-on-primary text-sm font-bold transition-all duration-200 active:scale-[0.98] custom-teal-shadow hover:shadow-lg"
                   >
-                    <span>Solicitar Consulta en Línea</span>
-                    <ArrowRight className="h-4 w-4" />
+                    <span>Solicitar Valoración</span>
+                    <span className="material-symbols-outlined ml-2 text-[20px]">arrow_forward</span>
                   </Link>
+
                   <Link
-                    href="/blog"
-                    className="inline-flex justify-center items-center gap-2 px-6 py-3.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white text-slate-700 font-semibold transition-all"
+                    href="#tratamientos"
+                    className="inline-flex items-center justify-center h-12 px-7 rounded-lg bg-surface-container-lowest border border-outline-variant text-primary text-sm font-bold hover:bg-secondary-container/20 transition-all duration-200"
                   >
-                    <BookOpen className="h-4 w-4 text-slate-500" />
-                    <span>Leer Nuestro Blog</span>
+                    <span>Ver Tratamientos</span>
                   </Link>
                 </div>
 
-                <div className="mt-12 grid grid-cols-3 gap-6 pt-8 border-t border-slate-200 text-slate-600">
+                {/* Trust Badges / Estadísticas */}
+                <div className="grid grid-cols-3 gap-6 pt-6 border-t border-outline-variant/40 mt-4">
                   <div>
-                    <span className="block text-2xl font-bold text-slate-900">+10</span>
-                    <span className="text-xs">Años de experiencia</span>
+                    <p className="text-3xl sm:text-4xl font-extrabold text-primary">+15</p>
+                    <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">Años de experiencia médica</p>
                   </div>
                   <div>
-                    <span className="block text-2xl font-bold text-slate-900">+3,500</span>
-                    <span className="text-xs">Pacientes sonrientes</span>
+                    <p className="text-3xl sm:text-4xl font-extrabold text-primary">+10.000</p>
+                    <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">Sonrisas restauradas</p>
                   </div>
                   <div>
-                    <span className="block text-2xl font-bold text-slate-900">100%</span>
-                    <span className="text-xs">Atención digitalizada</span>
+                    <p className="text-3xl sm:text-4xl font-extrabold text-primary">99%</p>
+                    <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">Satisfacción sin dolor</p>
                   </div>
                 </div>
               </div>
 
-              {/* Tarjeta ilustrativa / Preview del sistema */}
-              <div className="relative">
-                <div className="bg-gradient-to-tr from-dentist-100 to-sky-50 rounded-3xl p-8 border border-dentist-200 shadow-xl">
-                  <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                    <div className="flex items-center justify-between pb-4 border-b">
-                      <div>
-                        <h2 className="font-bold text-slate-900">Próximas Citas Médicas</h2>
-                        <p className="text-xs text-slate-500">Módulo de gestión en tiempo real</p>
-                      </div>
-                      <span className="bg-green-100 text-green-700 text-xs px-2.5 py-1 rounded-full font-semibold">
-                        En línea
+              {/* Hero Visual / Atmosphere Card */}
+              <div className="lg:col-span-5 relative">
+                <div className="relative rounded-2xl overflow-hidden custom-teal-elevated border border-outline-variant/40 bg-surface-container-lowest">
+                  {/* Imagen de la Dra. Yasmín Blanco */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuCW9drWZjVToaRAZ5ajH75whwxmMzVGY1rL8qGgXk7PZCYy72hmBfmAXkPDv2rz4VRATBi1tDasaeqaIpW3U_8LdjoVgFpd9EjQ-6C5-vGtcdFPBkImjQfEuxQuabWTAFgZN7W3zWM4HRkqjl9mVUFfEg9hLkx4PJwQoEMdhSBef9TXQ6U6iccQYNPL_09v4y2RmhI_2ACDG8Aywz5HvqHIEIgnTbWCDWChDXo0HjhzWGPMs3Wnx5Xq"
+                    alt="Dra. Yasmín Blanco en suite clínica con tecnología dental digital"
+                    className="w-full h-[460px] object-cover object-center transform hover:scale-105 transition-transform duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
+
+                  {/* Floating Clinical Reassurance Badge */}
+                  <div className="absolute bottom-5 left-5 right-5 p-4 bg-surface-container-lowest/95 backdrop-blur-md rounded-xl border border-outline-variant/50 shadow-md flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-lg bg-secondary-container/60 flex items-center justify-center text-primary shrink-0">
+                      <span className="material-symbols-outlined text-[26px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                        verified
                       </span>
                     </div>
-
-                    <div className="space-y-3 mt-4">
-                      <div className="p-3 bg-slate-50 rounded-xl flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-9 h-9 rounded-full bg-dentist-500 text-white flex items-center justify-center font-bold text-xs">
-                            MC
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-800">María Camila Pérez</p>
-                            <p className="text-xs text-slate-500">Limpieza y profilaxis profunda</p>
-                          </div>
-                        </div>
-                        <div className="text-right text-xs">
-                          <span className="font-semibold text-slate-700 flex items-center gap-1 justify-end">
-                            <Clock className="h-3 w-3" /> 09:30 AM
-                          </span>
-                          <span className="text-dentist-600 font-medium">Dr. Carlos Ruiz</span>
-                        </div>
-                      </div>
-
-                      <div className="p-3 bg-slate-50 rounded-xl flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-9 h-9 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold text-xs">
-                            JG
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-800">Juan Gómez</p>
-                            <p className="text-xs text-slate-500">Control de ortodoncia</p>
-                          </div>
-                        </div>
-                        <div className="text-right text-xs">
-                          <span className="font-semibold text-slate-700 flex items-center gap-1 justify-end">
-                            <Clock className="h-3 w-3" /> 11:00 AM
-                          </span>
-                          <span className="text-dentist-600 font-medium">Dra. Laura Vega</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 pt-4 border-t flex items-center justify-between text-xs text-slate-500">
-                      <span>Recordatorios automáticos activos</span>
-                      <span className="font-semibold text-slate-700">WhatsApp / Email</span>
+                    <div>
+                      <h2 className="font-bold text-on-surface text-[15px] leading-tight">
+                        Garantía Clínica y Protocolo Guiado
+                      </h2>
+                      <p className="text-on-surface-variant text-xs mt-0.5">
+                        Instalaciones certificadas con biocompatibilidad total
+                      </p>
                     </div>
                   </div>
                 </div>
               </div>
+
             </div>
           </div>
         </section>
 
-        {/* 3. SECCIÓN DE SERVICIOS */}
-        <section id="servicios" className="py-20 bg-slate-50/70 border-t border-slate-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center max-w-2xl mx-auto mb-14">
-              <span className="text-xs font-bold uppercase tracking-wider text-dentist-700 bg-dentist-100 px-3 py-1 rounded-full">
-                Especialidades Odontológicas
+        {/* ========================================================================= */}
+        {/* 3. TRATAMIENTOS / ESPECIALIDADES (BENTO GRID STYLE) */}
+        {/* ========================================================================= */}
+        <section className="py-20 bg-surface-container-low border-y border-outline-variant/30" id="tratamientos">
+          <div className="max-w-7xl mx-auto px-6 lg:px-12">
+            
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <span className="inline-block px-3.5 py-1 rounded-full bg-secondary-container/40 text-primary text-xs font-bold uppercase tracking-wider mb-3">
+                Áreas de Especialidad
               </span>
-              <h2 className="text-3xl font-extrabold text-slate-900 mt-3">
-                Tratamientos integrales para toda la familia
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-on-surface tracking-tight">
+                Tratamientos odontológicos de alta precisión
               </h2>
-              <p className="text-slate-600 text-sm mt-2">
-                Equipos modernos de diagnóstico y materiales de última generación para garantizar resultados estéticos y duraderos.
+              <p className="text-base text-on-surface-variant mt-3 leading-relaxed">
+                Combinamos biotecnología avanzada, materiales cerámicos de última generación y un enfoque conservador para cuidar tu salud bucal.
               </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              
+              {/* 1. Ortodoncia Invisible */}
+              <div className="bg-surface-container-lowest rounded-xl p-8 border border-outline-variant/50 custom-teal-shadow hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group">
+                <div>
+                  <div className="w-14 h-14 rounded-xl bg-secondary-container/40 text-primary flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-on-primary transition-colors duration-300">
+                    <span className="material-symbols-outlined text-[30px]">health_and_safety</span>
+                  </div>
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-secondary-container/30 text-primary text-xs font-bold mb-3">
+                    Ortodoncia Digital
+                  </span>
+                  <h3 className="text-xl font-bold text-on-surface mb-2 leading-snug">
+                    Ortodoncia Invisible e Invisalign
+                  </h3>
+                  <p className="text-sm text-on-surface-variant leading-relaxed">
+                    Alineadores transparentes imperceptibles diseñados digitalmente para armonizar tu mordida sin alambres ni molestias metálicas.
+                  </p>
+                </div>
+                <div className="pt-6 mt-6 border-t border-outline-variant/30 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-primary">Diagnóstico 3D incluido</span>
+                  <Link href="#contacto" className="text-primary hover:text-secondary inline-flex items-center font-bold">
+                    <span>Consultar</span>
+                    <span className="material-symbols-outlined ml-1 text-[18px]">chevron_right</span>
+                  </Link>
+                </div>
+              </div>
+
+              {/* 2. Implantología */}
+              <div className="bg-surface-container-lowest rounded-xl p-8 border border-outline-variant/50 custom-teal-shadow hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group">
+                <div>
+                  <div className="w-14 h-14 rounded-xl bg-secondary-container/40 text-primary flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-on-primary transition-colors duration-300">
+                    <span className="material-symbols-outlined text-[30px]">dentistry</span>
+                  </div>
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-secondary-container/30 text-primary text-xs font-bold mb-3">
+                    Cirugía Guiada
+                  </span>
+                  <h3 className="text-xl font-bold text-on-surface mb-2 leading-snug">
+                    Implantología y Cirugía Oral
+                  </h3>
+                  <p className="text-sm text-on-surface-variant leading-relaxed">
+                    Reposición de piezas dentales con implantes de titanio biocompatible de osteointegración acelerada y carga inmediata en el mismo día.
+                  </p>
+                </div>
+                <div className="pt-6 mt-6 border-t border-outline-variant/30 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-primary">Carga en 24h</span>
+                  <Link href="#contacto" className="text-primary hover:text-secondary inline-flex items-center font-bold">
+                    <span>Consultar</span>
+                    <span className="material-symbols-outlined ml-1 text-[18px]">chevron_right</span>
+                  </Link>
+                </div>
+              </div>
+
+              {/* 3. Estética Dental */}
+              <div className="bg-surface-container-lowest rounded-xl p-8 border border-outline-variant/50 custom-teal-shadow hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group">
+                <div>
+                  <div className="w-14 h-14 rounded-xl bg-secondary-container/40 text-primary flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-on-primary transition-colors duration-300">
+                    <span className="material-symbols-outlined text-[30px]">auto_fix_high</span>
+                  </div>
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-secondary-container/30 text-primary text-xs font-bold mb-3">
+                    Diseño de Sonrisa
+                  </span>
+                  <h3 className="text-xl font-bold text-on-surface mb-2 leading-snug">
+                    Estética Dental y Carillas
+                  </h3>
+                  <p className="text-sm text-on-surface-variant leading-relaxed">
+                    Carillas de disilicato de litio y porcelana ultrafina mínimamente invasivas para una simetría luminosa y natural sin tallado agresivo.
+                  </p>
+                </div>
+                <div className="pt-6 mt-6 border-t border-outline-variant/30 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-primary">Acabado Natural</span>
+                  <Link href="#contacto" className="text-primary hover:text-secondary inline-flex items-center font-bold">
+                    <span>Consultar</span>
+                    <span className="material-symbols-outlined ml-1 text-[18px]">chevron_right</span>
+                  </Link>
+                </div>
+              </div>
+
+              {/* 4. Odontología Preventiva */}
+              <div className="bg-surface-container-lowest rounded-xl p-8 border border-outline-variant/50 custom-teal-shadow hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group">
+                <div>
+                  <div className="w-14 h-14 rounded-xl bg-secondary-container/40 text-primary flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-on-primary transition-colors duration-300">
+                    <span className="material-symbols-outlined text-[30px]">clean_hands</span>
+                  </div>
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-secondary-container/30 text-primary text-xs font-bold mb-3">
+                    Profilaxis Guiada
+                  </span>
+                  <h3 className="text-xl font-bold text-on-surface mb-2 leading-snug">
+                    Odontología Preventiva
+                  </h3>
+                  <p className="text-sm text-on-surface-variant leading-relaxed">
+                    Higiene dental mediante ultrasonido y tecnología de aeropulido con micropartículas de glicina, eliminando manchas y sarro sin agredir el esmalte.
+                  </p>
+                </div>
+                <div className="pt-6 mt-6 border-t border-outline-variant/30 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-primary">Tecnología Airflow</span>
+                  <Link href="#contacto" className="text-primary hover:text-secondary inline-flex items-center font-bold">
+                    <span>Consultar</span>
+                    <span className="material-symbols-outlined ml-1 text-[18px]">chevron_right</span>
+                  </Link>
+                </div>
+              </div>
+
+              {/* 5. Blanqueamiento Láser */}
+              <div className="bg-surface-container-lowest rounded-xl p-8 border border-outline-variant/50 custom-teal-shadow hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group">
+                <div>
+                  <div className="w-14 h-14 rounded-xl bg-secondary-container/40 text-primary flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-on-primary transition-colors duration-300">
+                    <span className="material-symbols-outlined text-[30px]">wb_sunny</span>
+                  </div>
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-secondary-container/30 text-primary text-xs font-bold mb-3">
+                    Brillo Instantáneo
+                  </span>
+                  <h3 className="text-xl font-bold text-on-surface mb-2 leading-snug">
+                    Blanqueamiento Dental Láser
+                  </h3>
+                  <p className="text-sm text-on-surface-variant leading-relaxed">
+                    Aclaramiento de hasta 6 tonos en una sola sesión clínica bajo activación lumínica LED de luz fría, protegiendo la sensibilidad de la dentina.
+                  </p>
+                </div>
+                <div className="pt-6 mt-6 border-t border-outline-variant/30 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-primary">Cero Sensibilidad</span>
+                  <Link href="#contacto" className="text-primary hover:text-secondary inline-flex items-center font-bold">
+                    <span>Consultar</span>
+                    <span className="material-symbols-outlined ml-1 text-[18px]">chevron_right</span>
+                  </Link>
+                </div>
+              </div>
+
+              {/* 6. Periodoncia */}
+              <div className="bg-surface-container-lowest rounded-xl p-8 border border-outline-variant/50 custom-teal-shadow hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group">
+                <div>
+                  <div className="w-14 h-14 rounded-xl bg-secondary-container/40 text-primary flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-on-primary transition-colors duration-300">
+                    <span className="material-symbols-outlined text-[30px]">healing</span>
+                  </div>
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-secondary-container/30 text-primary text-xs font-bold mb-3">
+                    Salud Gingival
+                  </span>
+                  <h3 className="text-xl font-bold text-on-surface mb-2 leading-snug">
+                    Periodoncia y Cuidado de Encías
+                  </h3>
+                  <p className="text-sm text-on-surface-variant leading-relaxed">
+                    Tratamiento integral de gingivitis y periodontitis con descontaminación láser y regeneración tisular guiada para preservar tus dientes naturales.
+                  </p>
+                </div>
+                <div className="pt-6 mt-6 border-t border-outline-variant/30 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-primary">Micro-cirugía Plástica</span>
+                  <Link href="#contacto" className="text-primary hover:text-secondary inline-flex items-center font-bold">
+                    <span>Consultar</span>
+                    <span className="material-symbols-outlined ml-1 text-[18px]">chevron_right</span>
+                  </Link>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* 4. SOBRE LA DRA. YASMIN BLANCO Y SU EQUIPO */}
+        {/* ========================================================================= */}
+        <section className="py-24 bg-surface-container-lowest" id="equipo">
+          <div className="max-w-7xl mx-auto px-6 lg:px-12">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+              
+              {/* Doctor Profile Card with Accent Frame */}
+              <div className="lg:col-span-5 relative">
+                <div className="relative mx-auto max-w-md lg:max-w-none rounded-2xl overflow-hidden border border-outline-variant/60 custom-teal-elevated">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuD3yF6wJfIyut6Dc4Uy87ZbZPHnUc-jCctcmNkKvT_f2N9sH0ucl40PRtjldoDTV5DtPnIT3Bp1XgJXv5uLAe9myftKorDJOCNzsb5X8LAJInP8ne3cVtg_uwvg9QR8JkWAAW_R4rRWNYWovhkt8I1kCW8dT2H7k4h8Yo1cp6tpLKlYYLCm1EaJenvGbKxiwO6DJXgjXlwLcqdGEuDvH7yWU4ppcklOrCDC6NNaSgNB0Tkn-qZYkYJo"
+                    alt="Retrato oficial de la Dra. Yasmín Blanco, especialista en implantología y estética dental"
+                    className="w-full h-[520px] object-cover object-top"
+                  />
+                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-on-surface via-on-surface/75 to-transparent p-6 text-on-primary">
+                    <h3 className="text-2xl font-bold text-white">Dra. Yasmín Blanco</h3>
+                    <p className="text-sm font-semibold text-secondary-fixed mt-0.5">
+                      Directora Médica & Especialista en Implantología y Estética
+                    </p>
+                    <p className="text-xs text-outline-variant mt-1">
+                      Colegiado Nº 28004921 • Máster en Cirugía Bucal y Rehabilitación
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bio & Philosophy Details */}
+              <div className="lg:col-span-7 flex flex-col justify-center space-y-6">
+                <span className="inline-block px-3.5 py-1 rounded-full bg-secondary-container/40 text-primary text-xs font-bold w-fit uppercase tracking-wider">
+                  Filosofía & Trayectoria
+                </span>
+                
+                <h2 className="text-3xl sm:text-4xl font-extrabold text-on-surface tracking-tight leading-tight">
+                  &ldquo;La excelencia dental nace de la empatía, el diagnóstico riguroso y la odontología sin dolor.&rdquo;
+                </h2>
+
+                <p className="text-base text-on-surface-variant leading-relaxed">
+                  Con más de quince años de dedicación clínica exclusiva, la Dra. Yasmín Blanco ha liderado la transición hacia una práctica odontológica serena, libre de ansiedad y respaldada por evidencia científica. Nuestro equipo multidisciplinario combina el trato humano con tecnología robótica y protocolos mínimamente invasivos.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/40 flex items-start gap-3">
+                    <span className="material-symbols-outlined text-primary text-[28px] mt-0.5">sentiment_satisfied</span>
+                    <div>
+                      <h4 className="font-bold text-on-surface text-[15px]">Protocolo Sin Dolor</h4>
+                      <p className="text-on-surface-variant text-xs mt-1 leading-relaxed">
+                        Anestesia computarizada y sedación consciente monitorizada para una experiencia relajante.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/40 flex items-start gap-3">
+                    <span className="material-symbols-outlined text-primary text-[28px] mt-0.5">view_in_ar</span>
+                    <div>
+                      <h4 className="font-bold text-on-surface text-[15px]">Escáner Intraoral 3D</h4>
+                      <p className="text-on-surface-variant text-xs mt-1 leading-relaxed">
+                        Prescindimos de las incómodas pastas de moldeo gracias a la digitalización óptica instantánea.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/40 flex items-start gap-3">
+                    <span className="material-symbols-outlined text-primary text-[28px] mt-0.5">radiology</span>
+                    <div>
+                      <h4 className="font-bold text-on-surface text-[15px]">Tomografía CBCT</h4>
+                      <p className="text-on-surface-variant text-xs mt-1 leading-relaxed">
+                        Radiografía volumétrica 3D con hasta un 80% menos de radiación que los sistemas convencionales.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/40 flex items-start gap-3">
+                    <span className="material-symbols-outlined text-primary text-[28px] mt-0.5">verified_user</span>
+                    <div>
+                      <h4 className="font-bold text-on-surface text-[15px]">Biomateriales Certificados</h4>
+                      <p className="text-on-surface-variant text-xs mt-1 leading-relaxed">
+                        Uso exclusivo de implantes y cerámicas biocompatibles con trazabilidad internacional.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <Link
+                    href="#contacto"
+                    className="inline-flex items-center text-primary text-sm font-bold hover:text-secondary group"
+                  >
+                    <span>Conoce a nuestro equipo de especialistas</span>
+                    <span className="material-symbols-outlined ml-1 group-hover:translate-x-1 transition-transform">
+                      arrow_forward
+                    </span>
+                  </Link>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* 5. TECNOLOGÍA CLÍNICA (INTERACTIVE SHOWCASE) */}
+        {/* ========================================================================= */}
+        <section className="py-20 bg-surface-container border-y border-outline-variant/30" id="tecnologia">
+          <div className="max-w-7xl mx-auto px-6 lg:px-12">
+            
+            <div className="flex flex-col md:flex-row md:items-end justify-between mb-14 gap-6">
+              <div>
+                <span className="inline-block px-3.5 py-1 rounded-full bg-secondary-container/40 text-primary text-xs font-bold uppercase tracking-wider mb-3">
+                  Vanguardia Tecnológica
+                </span>
+                <h2 className="text-3xl sm:text-4xl font-extrabold text-on-surface">
+                  Odontología Digital de Flujo Completo
+                </h2>
+              </div>
+              <p className="text-sm text-on-surface-variant max-w-md leading-relaxed">
+                Eliminamos la incertidumbre médica planificando cada milímetro de tu tratamiento en modelos virtuales interactivos de alta fidelidad.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              
+              {/* Card 1: Escáner Óptico */}
+              <div className="bg-surface-container-lowest rounded-xl overflow-hidden border border-outline-variant/50 custom-teal-shadow hover:shadow-lg transition">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuDAnsQIuHqq-GLrpjzZA188BI6M2eJczQIq3VBA_GLMnzl6pmx274ISfyXXKzuBULEM-T3xxBrYUEHt6pxH8u77L_u6T36MJ0SoL8B3pMFtqwsGjov4MlV1DXw6fklRIKrJa2JI1vpwn35wVz6iTpw0NPDYEZwHxzMs8ZU2d8QBRMm9hamoIha5QcHNoub61xtfoui9x2wK-Am2gJ1r3zIRR4WzupJplF8rN6zpwNEDyQMrMdjzeW7s"
+                  alt="Escaneo intraoral digital 3D"
+                  className="w-full h-52 object-cover"
+                />
+                <div className="p-6">
+                  <span className="text-primary text-xs font-bold uppercase tracking-wider">Flujo Digital</span>
+                  <h3 className="text-lg font-bold text-on-surface mt-1 mb-2">
+                    Escáner Óptico de Alta Definición
+                  </h3>
+                  <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+                    Captura digital exacta en 60 segundos. Permite simular el resultado de tu alineación u ortodoncia antes de iniciar.
+                  </p>
+                </div>
+              </div>
+
+              {/* Card 2: Fresado Robótico CAD/CAM */}
+              <div className="bg-surface-container-lowest rounded-xl overflow-hidden border border-outline-variant/50 custom-teal-shadow hover:shadow-lg transition">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZ4pMYaQtDDvGr0JWFmlyZWNatJDFyJCibSiH44gJjSheU_bF4b-elGMii_B8fP2uhDiPhreDdua4f0ctx21HvdsEuaAViqeEdXW80pjAMo89oFnMUHhUjzQV_JHA5bx--H1jI6rzZkT_xs4KOThj1pFWEMseGT2Z9PeiI2Z8-AunPIDbeKzoUr88BwCj_7796SQD5RrN0m5dGAGuZPKsDt6OQrqKCExgWWBPYdXCMvL4JjaKpEq-i"
+                  alt="Fresado robótico de coronas dentales"
+                  className="w-full h-52 object-cover"
+                />
+                <div className="p-6">
+                  <span className="text-primary text-xs font-bold uppercase tracking-wider">Laboratorio In-House</span>
+                  <h3 className="text-lg font-bold text-on-surface mt-1 mb-2">
+                    Fresado Robótico CAD/CAM
+                  </h3>
+                  <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+                    Confección robótica de coronas y carillas en cuestión de horas con ajuste micrométrico perfecto y sellado bacteriano superior.
+                  </p>
+                </div>
+              </div>
+
+              {/* Card 3: Radiología Tridimensional CBCT */}
+              <div className="bg-surface-container-lowest rounded-xl overflow-hidden border border-outline-variant/50 custom-teal-shadow hover:shadow-lg transition">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuCzp1UwWqwNhaeMxIQqjnpKb6KHyPHJYQalp0ouX6k-8FXh11G251xwcg-bAFWCRseWyRiDKP2ePy8yGu0G3-XCRJxCvRXYWcjcCwFoHahjMWoELXQtKIfFMdBHcljNhuA2alxAabs6_Mrn3JELb9Eg1Nab9t0V4fV9nSf45UMtn7w2inf_la0ODGa9Ayq2Vf7W6MXJID4wJ2EGL5HNFOtPwDIy2v0NKREJ5gLsvJSvk9gCxMzWFIdO"
+                  alt="Tomografía volumétrica 3D CBCT de baja radiación"
+                  className="w-full h-52 object-cover"
+                />
+                <div className="p-6">
+                  <span className="text-primary text-xs font-bold uppercase tracking-wider">Diagnóstico 3D</span>
+                  <h3 className="text-lg font-bold text-on-surface mt-1 mb-2">
+                    Radiología Tridimensional CBCT
+                  </h3>
+                  <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+                    Planificación virtual de implantes que evita tocar nervios o estructuras sensibles, asegurando cirugías precisas y sin suturas invasivas.
+                  </p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* 6. CASOS DE ÉXITO & TESTIMONIOS */}
+        {/* ========================================================================= */}
+        <section className="py-24 bg-surface-container-lowest" id="casos">
+          <div className="max-w-7xl mx-auto px-6 lg:px-12">
+            
+            <div className="text-center max-w-2xl mx-auto mb-16">
+              <span className="inline-block px-3.5 py-1 rounded-full bg-secondary-container/40 text-primary text-xs font-bold uppercase tracking-wider mb-3">
+                Casos de Éxito
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-on-surface">
+                Sonrisas reales, historias de confianza
+              </h2>
+              <p className="text-sm text-on-surface-variant mt-3 leading-relaxed">
+                Descubre los testimonios de pacientes que recuperaron su salud, estética y seguridad al sonreír.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              
+              {/* Testimonio 1 */}
+              <div className="p-8 rounded-2xl bg-surface-container-low border border-outline-variant/40 custom-teal-shadow flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-1 text-primary mb-4">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <span key={s} className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                        star
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-sm text-on-surface italic leading-relaxed">
+                    &ldquo;Llevaba años posponiendo mi tratamiento por auténtico pánico al dentista. El trato de la Dra. Yasmín Blanco fue tan cercano y delicado que ni me enteré del procedimiento de implantes. Un cambio radical de vida.&rdquo;
+                  </p>
+                </div>
+                <div className="flex items-center gap-4 mt-8 pt-6 border-t border-outline-variant/30">
+                  <div className="w-12 h-12 rounded-full bg-secondary-container text-primary font-bold flex items-center justify-center text-sm">
+                    CR
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-on-surface text-sm">Carlos Rodríguez</h4>
+                    <p className="text-xs text-on-surface-variant">Rehabilitación con Implantes Guiados</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Testimonio 2 */}
+              <div className="p-8 rounded-2xl bg-surface-container-low border border-outline-variant/40 custom-teal-shadow flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-1 text-primary mb-4">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <span key={s} className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                        star
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-sm text-on-surface italic leading-relaxed">
+                    &ldquo;Me realicé ortodoncia invisible y un posterior blanqueamiento dental. La tecnología de la clínica es impresionante, ves en la pantalla cómo va a quedar tu sonrisa desde el primer día. 100% recomendable.&rdquo;
+                  </p>
+                </div>
+                <div className="flex items-center gap-4 mt-8 pt-6 border-t border-outline-variant/30">
+                  <div className="w-12 h-12 rounded-full bg-secondary-container text-primary font-bold flex items-center justify-center text-sm">
+                    MV
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-on-surface text-sm">María Eugenia Vidal</h4>
+                    <p className="text-xs text-on-surface-variant">Invisalign & Blanqueamiento Láser</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Testimonio 3 */}
+              <div className="p-8 rounded-2xl bg-surface-container-low border border-outline-variant/40 custom-teal-shadow flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-1 text-primary mb-4">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <span key={s} className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                        star
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-sm text-on-surface italic leading-relaxed">
+                    &ldquo;Las carillas de porcelana que me diseñó la Dra. Yasmín tienen una naturalidad asombrosa. Nadie nota que son postizas, solo que mi sonrisa luce impecable. El seguimiento post-tratamiento es inmejorable.&rdquo;
+                  </p>
+                </div>
+                <div className="flex items-center gap-4 mt-8 pt-6 border-t border-outline-variant/30">
+                  <div className="w-12 h-12 rounded-full bg-secondary-container text-primary font-bold flex items-center justify-center text-sm">
+                    AM
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-on-surface text-sm">Alejandro Morales</h4>
+                    <p className="text-xs text-on-surface-variant">Diseño de Sonrisa & Carillas</p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* 7. BLOG DE SALUD ORAL DE LA CLÍNICA */}
+        {/* ========================================================================= */}
+        <section id="blog" className="py-20 bg-surface-container-low border-t border-outline-variant/30">
+          <div className="max-w-7xl mx-auto px-6 lg:px-12">
+            
+            <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
+              <div>
+                <span className="inline-block px-3.5 py-1 rounded-full bg-secondary-container/40 text-primary text-xs font-bold uppercase tracking-wider mb-3">
+                  Educación y Prevención Dental
+                </span>
+                <h2 className="text-3xl font-extrabold text-on-surface tracking-tight">
+                  Blog de Salud Oral
+                </h2>
+                <p className="text-on-surface-variant text-sm mt-2 max-w-xl leading-relaxed">
+                  Artículos y guías preventivas redactadas por la Dra. Yasmín Blanco y su equipo médico para preservar tu sonrisa de por vida.
+                </p>
+              </div>
+
+              <div className="mt-4 md:mt-0">
+                <Link
+                  href="/blog"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-secondary bg-surface-container-lowest border border-outline-variant/60 px-4 py-2.5 rounded-xl transition shadow-xs"
+                >
+                  <span>Ver todos los artículos</span>
+                  <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                </Link>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition">
-                <div className="w-11 h-11 rounded-xl bg-dentist-100 text-dentist-700 flex items-center justify-center mb-4">
-                  <Sparkles className="w-6 h-6" />
-                </div>
-                <h3 className="font-bold text-lg text-slate-900 mb-2">Profilaxis y Prevención</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Limpieza profunda con ultrasonido, remoción de sarro subgingival, profilaxis y aplicación de flúor remineralizante.
-                </p>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition">
-                <div className="w-11 h-11 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center mb-4">
-                  <Smile className="w-6 h-6" />
-                </div>
-                <h3 className="font-bold text-lg text-slate-900 mb-2">Ortodoncia Avanzada</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Alineación dental con brackets convencionales, autoligado o alineadores invisibles transparentes según tu necesidad.
-                </p>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition">
-                <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4">
-                  <Award className="w-6 h-6" />
-                </div>
-                <h3 className="font-bold text-lg text-slate-900 mb-2">Estética y Blanqueamiento</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Blanqueamiento LED en consultorio y diseño de sonrisa con carillas y resinas de alta gama que conservan tu estructura natural.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 4. SECCIÓN DEL EQUIPO MÉDICO */}
-        <section id="equipo" className="py-20 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center max-w-2xl mx-auto mb-14">
-              <span className="text-xs font-bold uppercase tracking-wider text-dentist-700 bg-dentist-100 px-3 py-1 rounded-full">
-                Nuestros Especialistas
-              </span>
-              <h2 className="text-3xl font-extrabold text-slate-900 mt-3">
-                Profesionales certificados a tu cuidado
-              </h2>
-              <p className="text-slate-600 text-sm mt-2">
-                Conoce a nuestro equipo médico comprometido con la excelencia, la ética y tu bienestar.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 flex items-start gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-dentist-600 text-white font-bold text-xl flex items-center justify-center shrink-0">
-                  CR
-                </div>
+              
+              {/* Artículo 1 */}
+              <article className="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-6 flex flex-col justify-between custom-teal-shadow hover:shadow-md transition group">
                 <div>
-                  <h3 className="font-bold text-lg text-slate-900">Dr. Carlos Ruiz Morales</h3>
-                  <span className="text-xs font-semibold text-dentist-700 block mb-2">
-                    Odontología General y Rehabilitación Estética
-                  </span>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Especialista con más de 12 años de trayectoria en restauraciones estéticas complejas, coronas y profilaxis de alta precisión.
+                  <div className="flex items-center justify-between text-xs text-on-surface-variant mb-4">
+                    <span className="inline-block px-2.5 py-0.5 rounded-full bg-secondary-container/40 text-primary font-bold text-[11px]">
+                      Higiene Dental
+                    </span>
+                    <span className="flex items-center gap-1 text-[11px]">
+                      <span className="material-symbols-outlined text-[16px] text-outline">schedule</span>
+                      4 min de lectura
+                    </span>
+                  </div>
+
+                  <h3 className="font-bold text-lg text-on-surface group-hover:text-primary transition-colors leading-snug mb-3">
+                    5 consejos prácticos para cuidar y proteger el esmalte dental
+                  </h3>
+
+                  <p className="text-xs text-on-surface-variant leading-relaxed">
+                    El esmalte es la barrera más resistente de tu cuerpo. Aprende a protegerlo de alimentos ácidos y técnicas agresivas de cepillado.
                   </p>
                 </div>
-              </div>
 
-              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 flex items-start gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white font-bold text-xl flex items-center justify-center shrink-0">
-                  LV
+                <div className="pt-6 mt-6 border-t border-outline-variant/30 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-primary text-on-primary font-bold text-[11px] flex items-center justify-center">
+                      YB
+                    </div>
+                    <span className="text-on-surface font-semibold">Dra. Yasmín Blanco</span>
+                  </div>
+                  <Link href="/blog" className="font-bold text-primary inline-flex items-center gap-0.5 group-hover:translate-x-1 transition-transform">
+                    <span>Leer</span>
+                    <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                  </Link>
                 </div>
+              </article>
+
+              {/* Artículo 2 */}
+              <article className="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-6 flex flex-col justify-between custom-teal-shadow hover:shadow-md transition group">
                 <div>
-                  <h3 className="font-bold text-lg text-slate-900">Dra. Laura Vega Pardo</h3>
-                  <span className="text-xs font-semibold text-indigo-700 block mb-2">
-                    Ortodoncia y Ortopedia Maxilofacial
-                  </span>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Experta en corrección de mordida y estética dental mediante alineadores transparentes y técnicas de ortodoncia de baja fricción.
+                  <div className="flex items-center justify-between text-xs text-on-surface-variant mb-4">
+                    <span className="inline-block px-2.5 py-0.5 rounded-full bg-secondary-container/40 text-primary font-bold text-[11px]">
+                      Ortodoncia
+                    </span>
+                    <span className="flex items-center gap-1 text-[11px]">
+                      <span className="material-symbols-outlined text-[16px] text-outline">schedule</span>
+                      6 min de lectura
+                    </span>
+                  </div>
+
+                  <h3 className="font-bold text-lg text-on-surface group-hover:text-primary transition-colors leading-snug mb-3">
+                    Mitos y realidades sobre los tratamientos de ortodoncia invisible
+                  </h3>
+
+                  <p className="text-xs text-on-surface-variant leading-relaxed">
+                    ¿Los alineadores invisibles funcionan para cualquier caso? Respondemos todas las preguntas sobre el confort y la duración.
                   </p>
                 </div>
-              </div>
+
+                <div className="pt-6 mt-6 border-t border-outline-variant/30 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-secondary text-on-secondary font-bold text-[11px] flex items-center justify-center">
+                      LV
+                    </div>
+                    <span className="text-on-surface font-semibold">Dra. Laura Vega</span>
+                  </div>
+                  <Link href="/blog" className="font-bold text-primary inline-flex items-center gap-0.5 group-hover:translate-x-1 transition-transform">
+                    <span>Leer</span>
+                    <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                  </Link>
+                </div>
+              </article>
+
+              {/* Artículo 3 */}
+              <article className="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-6 flex flex-col justify-between custom-teal-shadow hover:shadow-md transition group">
+                <div>
+                  <div className="flex items-center justify-between text-xs text-on-surface-variant mb-4">
+                    <span className="inline-block px-2.5 py-0.5 rounded-full bg-secondary-container/40 text-primary font-bold text-[11px]">
+                      Prevención
+                    </span>
+                    <span className="flex items-center gap-1 text-[11px]">
+                      <span className="material-symbols-outlined text-[16px] text-outline">schedule</span>
+                      5 min de lectura
+                    </span>
+                  </div>
+
+                  <h3 className="font-bold text-lg text-on-surface group-hover:text-primary transition-colors leading-snug mb-3">
+                    ¿Por qué debes realizarte una profilaxis dental cada 6 meses?
+                  </h3>
+
+                  <p className="text-xs text-on-surface-variant leading-relaxed">
+                    La remoción de sarro calcificado con tecnología de ultrasonido previene la gingivitis y garantiza encías sanas y firmes.
+                  </p>
+                </div>
+
+                <div className="pt-6 mt-6 border-t border-outline-variant/30 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-primary text-on-primary font-bold text-[11px] flex items-center justify-center">
+                      YB
+                    </div>
+                    <span className="text-on-surface font-semibold">Dra. Yasmín Blanco</span>
+                  </div>
+                  <Link href="/blog" className="font-bold text-primary inline-flex items-center gap-0.5 group-hover:translate-x-1 transition-transform">
+                    <span>Leer</span>
+                    <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                  </Link>
+                </div>
+              </article>
+
             </div>
           </div>
         </section>
 
-        {/* 5. SECCIÓN DEL FORMULARIO DE AGENDAMIENTO PÚBLICO */}
-        <section className="py-20 bg-gradient-to-b from-slate-50 to-sky-50/40 border-t border-slate-200">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6">
-            <FormularioSolicitudCita />
-          </div>
-        </section>
-
-        {/* 6. SECCIÓN DE CONTACTO Y HORARIOS */}
-        <section id="contacto" className="py-16 bg-white border-t border-slate-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-xs text-slate-600">
-              <div className="space-y-2">
-                <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-dentist-600" /> Ubicación
-                </h4>
-                <p>Calle 127 # 19-45, Consultorio 302</p>
-                <p>Bogotá, Colombia</p>
+        {/* ========================================================================= */}
+        {/* 8. AGENDAMIENTO & CONTACTO / UBICACIÓN */}
+        {/* ========================================================================= */}
+        <section className="py-20 bg-surface-container border-t border-outline-variant/30" id="contacto">
+          <div className="max-w-7xl mx-auto px-6 lg:px-12">
+            
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+              
+              {/* Formulario de Cita Rápida Conectado a la Plataforma */}
+              <div id="agendar" className="lg:col-span-7">
+                <FormularioSolicitudCita />
               </div>
 
-              <div className="space-y-2">
-                <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-dentist-600" /> Horarios de Atención
-                </h4>
-                <p>Lunes a Viernes: 08:00 AM - 06:00 PM</p>
-                <p>Sábados: 08:00 AM - 01:00 PM</p>
+              {/* Ubicación, Horarios e Información de la Clínica */}
+              <div className="lg:col-span-5 space-y-6">
+                
+                <div className="bg-surface-container-lowest p-8 rounded-2xl border border-outline-variant/50 custom-teal-shadow">
+                  <h3 className="text-xl font-bold text-on-surface mb-6 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary">pin_drop</span>
+                    <span>Clínica Dental Dra. Yasmín Blanco</span>
+                  </h3>
+
+                  <div className="space-y-5 text-sm">
+                    <div className="flex items-start gap-3">
+                      <span className="material-symbols-outlined text-primary text-[22px] mt-0.5">location_on</span>
+                      <div>
+                        <p className="font-bold text-on-surface">Dirección Principal</p>
+                        <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">
+                          Paseo de la Castellana 142, Planta 2ª, 28046 Madrid
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <span className="material-symbols-outlined text-primary text-[22px] mt-0.5">call</span>
+                      <div>
+                        <p className="font-bold text-on-surface">Teléfono & Urgencias</p>
+                        <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">
+                          +34 912 345 678 / +34 654 321 987
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <span className="material-symbols-outlined text-primary text-[22px] mt-0.5">schedule</span>
+                      <div>
+                        <p className="font-bold text-on-surface">Horario de Consulta</p>
+                        <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">
+                          Lunes a Viernes: 09:00 - 20:00 h
+                        </p>
+                        <p className="text-xs text-on-surface-variant">
+                          Sábados: 10:00 - 14:00 h (Citas previas)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Representación de Mapa de la Clínica */}
+                  <div className="mt-6 rounded-xl overflow-hidden border border-outline-variant/40 relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuDNCLJM717Apdu5NmdyqVgx6E-175242eC9l52cCpL1FqxiNCJdWTWz45Wjh8_VIzku02DMDo3jac_CzP4y6Pw3IHFTZKaco5VWjuVut1PRZJZUZt1QsMutpIQlnlVErwOBBurYGkijEWmmYBQ9XvmZk2G6gpCLyG4Hygrghxv5RsQeHtBZTxUDRHuxnC_VPFlfOojJTs6SHC24AojZr4bfd6MpvbdQpUT5itFCPWbxxpmAxg126HEX"
+                      alt="Mapa de ubicación en Paseo de la Castellana 142, Madrid"
+                      className="w-full h-48 object-cover"
+                    />
+                    <div className="absolute bottom-2 left-2 px-3 py-1 bg-surface-container-lowest/90 backdrop-blur-md rounded-md text-[12px] font-semibold text-primary shadow-xs flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[16px]">directions_car</span>
+                      <span>Parking concertado gratuito</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tarjeta de Garantía y Certificación */}
+                <div className="p-5 rounded-2xl bg-secondary-container/40 border border-secondary-container text-xs text-secondary leading-relaxed flex items-center gap-3">
+                  <span className="material-symbols-outlined text-primary text-[28px] shrink-0">verified</span>
+                  <div>
+                    <span className="font-bold block text-primary text-sm">Certificación Médica de Excelencia</span>
+                    <span>Instalaciones habilitadas con normas ISO de esterilización y flujo 100% digital.</span>
+                  </div>
+                </div>
+
               </div>
 
-              <div className="space-y-2">
-                <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-                  <PhoneCall className="w-4 h-4 text-dentist-600" /> Canales Directos
-                </h4>
-                <p>WhatsApp: +57 (300) 123-4567</p>
-                <p>Correo: contacto@dentiscare.com</p>
-              </div>
             </div>
           </div>
         </section>
+
       </main>
 
-      {/* 7. PIE DE PÁGINA */}
-      <footer className="border-t bg-slate-50 py-8 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p>© {new Date().getFullYear()} DentisCare Consultorio Odontológico. Todos los derechos reservados.</p>
-          <div className="flex items-center space-x-4">
-            <Link href="/blog" className="hover:text-dentist-600">Blog de Salud Oral</Link>
-            <span>•</span>
-            <Link href="/portal-paciente" className="hover:text-dentist-600">Portal del Paciente</Link>
-            <span>•</span>
-            <Link href="/dashboard" className="hover:text-dentist-600">Acceso Personal</Link>
+      {/* ========================================================================= */}
+      {/* 9. PIE DE PÁGINA / FOOTER INSTITUCIONAL */}
+      {/* ========================================================================= */}
+      <footer className="w-full bg-surface-container-low border-t border-outline-variant/40">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-14 flex flex-col md:flex-row justify-between items-center gap-8">
+          
+          {/* Marca y Copyright */}
+          <div className="flex flex-col items-center md:items-start gap-3">
+            <Link href="/" className="inline-block">
+              <div className="relative h-14 w-52">
+                <Image
+                  src="/brand/logo-yasmin-blanco.png"
+                  alt="Logotipo Dra. Yasmín Blanco"
+                  fill
+                  className="object-contain object-left"
+                />
+              </div>
+            </Link>
+            <p className="text-xs text-on-surface-variant text-center md:text-left">
+              © {new Date().getFullYear()} Clínica Dental Dra. Yasmín Blanco. Todos los derechos reservados.
+            </p>
+          </div>
+
+          {/* Enlaces Legales y Módulos del Sistema */}
+          <div className="flex flex-wrap justify-center md:justify-end gap-x-6 gap-y-2.5 text-xs font-semibold text-on-surface-variant">
+            <Link href="#tratamientos" className="hover:text-primary transition-colors">Tratamientos</Link>
+            <Link href="#equipo" className="hover:text-primary transition-colors">Dra. Yasmín</Link>
+            <Link href="/blog" className="hover:text-primary transition-colors">Blog Dental</Link>
+            <Link href="/portal-paciente" className="hover:text-primary transition-colors">Portal del Paciente</Link>
+            <Link href="/dashboard" className="hover:text-primary transition-colors">Panel Administrativo</Link>
+            <Link href="#contacto" className="hover:text-primary transition-colors">Ubicación y Contacto</Link>
           </div>
         </div>
       </footer>
+
     </div>
   );
 }

@@ -36,3 +36,44 @@ export interface ConfiguracionConsultorio {
   diasAnticipacionMaximo: number;
   horasCancelacionMinima: number;
 }
+
+export interface SolicitudCitaInput {
+  nombres: string;
+  apellidos: string;
+  tipoDocumento: 'CC' | 'TI' | 'CE' | 'PASAPORTE' | 'Pasaporte' | 'OTRO';
+  numeroDocumento: string;
+  telefono: string;
+  email?: string;
+  tratamiento: string;
+  especialista?: string;
+  fechaDeseada: string;
+  jornada?: 'mañana' | 'tarde';
+  horaSugerida: string;
+  motivo?: string;
+}
+
+export interface CitaHoy {
+  id: string;
+  pacienteId: string;
+  pacienteNombre: string;
+  pacienteDocumento: string;
+  pacienteTelefono: string;
+  tratamientoNombre: string;
+  doctorNombre: string;
+  fecha: string;
+  horaInicio: string;
+  horaFin: string;
+  motivo: string;
+  estado: EstadoCita;
+  esReagendamiento: boolean;
+  motivoRechazoCancelacion?: string;
+  notas?: string;
+}
+
+export interface ResultadoAccionCita<T = unknown> {
+  exito: boolean;
+  mensaje: string;
+  datos?: T;
+  error?: string;
+}
+
