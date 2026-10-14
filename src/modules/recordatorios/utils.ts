@@ -36,3 +36,26 @@ export function generarEnlaceWhatsApp(telefono: string, mensaje: string): string
   const textoCodificado = encodeURIComponent(mensaje);
   return `https://wa.me/${telNormalizado}?text=${textoCodificado}`;
 }
+
+/**
+ * Genera los 3 enlaces web oficiales para que el paciente confirme, reagende o cancele su cita.
+ */
+export function generarEnlacesAccionCita(citaId: string, baseUrl = 'https://odontocontrol-ashen.vercel.app') {
+  const rutaBase = `${baseUrl}/portal-paciente`;
+  return {
+    confirmar: `${rutaBase}?accion=confirmar&citaId=${encodeURIComponent(citaId)}`,
+    reagendar: `${rutaBase}?accion=reagendar&citaId=${encodeURIComponent(citaId)}`,
+    cancelar: `${rutaBase}?accion=cancelar&citaId=${encodeURIComponent(citaId)}`,
+  };
+}
+
+/**
+ * Genera un enlace mailto para abrir el gestor de correo preconfigurado.
+ */
+export function generarEnlaceEmail(destinatario: string, asunto: string, cuerpo: string): string {
+  const dest = encodeURIComponent(destinatario || '');
+  const asu = encodeURIComponent(asunto || '');
+  const cue = encodeURIComponent(cuerpo || '');
+  return `mailto:${dest}?subject=${asu}&body=${cue}`;
+}
+

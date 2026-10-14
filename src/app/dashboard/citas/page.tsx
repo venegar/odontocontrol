@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { EstadoCita, ModoAprobacion } from '@/modules/citas/types';
 import { aprobarCita, rechazarCita, obtenerCitasHoy } from '@/modules/citas/actions';
+import { supabase } from '@/lib/supabase';
 
 interface CitaGestionUI {
   id: string;
@@ -112,11 +113,39 @@ export default function GestionCitasPage() {
   const [filtroDoctor, setFiltroDoctor] = useState<string>('todos');
   const [mensajeAlerta, setMensajeAlerta] = useState<string | null>(null);
 
-  // Carga inicial y sincronización con Supabase
+  // Carga inicial y sincronización con Supabase (Cargar citas en tiempo real como la de Pedro Pérez)
   React.useEffect(() => {
     let montado = true;
     async function sincronizarCitasDB() {
       try {
+        // 1. Intentar obtener todas las citas reales desde Supabase RPC
+        const { data: rpcCitas, error: rpcError } = await supabase.rpc('obtener_citas_gestion');
+        if (!rpcError && Array.isArray(rpcCitas) && rpcCitas.length > 0 && montado) {
+          const citasDB: CitaGestionUI[] = rpcCitas.map((c: any) => ({
+            id: c.id,
+            pacienteNombre: c.paciente_nombre,
+            pacienteDocumento: c.paciente_documento,
+            pacienteTelefono: c.paciente_telefono,
+            doctorNombre: c.doctor_nombre,
+            tratamiento: c.tratamiento_nombre,
+            fecha: c.fecha,
+            horaInicio: c.hora_inicio,
+            horaFin: c.hora_fin,
+            estado: c.estado,
+            esReagendamiento: c.es_reagendamiento,
+            motivoSolicitud: c.motivo,
+            motivoRechazoCancelacion: c.motivo_rechazo_cancelacion,
+          }));
+
+          setCitas(prev => {
+            const idsDB = new Set(citasDB.map(d => d.id));
+            const prevNoDuplicadas = prev.filter(p => !idsDB.has(p.id));
+            return [...citasDB, ...prevNoDuplicadas];
+          });
+          return;
+        }
+
+        // 2. Si el RPC aún no está creado, fallback a obtenerCitasHoy
         const respuesta = await obtenerCitasHoy();
         if (respuesta.exito && respuesta.datos && respuesta.datos.length > 0 && montado) {
           const citasDB: CitaGestionUI[] = respuesta.datos.map(c => ({

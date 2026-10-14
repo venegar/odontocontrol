@@ -36,4 +36,8 @@ export interface VariablesCita {
   hora: string;
   consultorio_telefono: string;
   enlace_portal: string;
+  enlace_confirmar: string;
+  enlace_reagendar: string;
+  enlace_cancelar: string;
 }
+

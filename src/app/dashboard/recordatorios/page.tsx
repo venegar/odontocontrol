@@ -31,16 +31,20 @@ import {
 } from '@/modules/recordatorios/types';
 import { 
   interpolarMensaje, 
-  generarEnlaceWhatsApp 
+  generarEnlaceWhatsApp,
+  generarEnlacesAccionCita,
+  generarEnlaceEmail 
 } from '@/modules/recordatorios/utils';
+import { supabase } from '@/lib/supabase';
+import { obtenerDatosConsultorio } from '@/modules/configuracion/consultorioService';
 
-// Plantillas iniciales por defecto
+// Plantillas iniciales con enlaces de Confirmación, Reagendamiento y Cancelación
 const PLANTILLAS_INICIALES: PlantillaRecordatorio[] = [
   {
     id: 'plan-wa-24h',
     nombre: 'Recordatorio WhatsApp (24h Antes)',
     canal: 'whatsapp',
-    contenido: '¡Hola {{nombre_paciente}}! 👋 Te recordamos que tienes una cita de {{tratamiento}} con el {{doctor}} programada para mañana {{fecha}} a las {{hora}} en la Clínica Dental Dra. Yasmín Blanco. 🦷\n\nSi necesitas reagendar o confirmar con anticipación, puedes hacerlo desde tu portal: {{enlace_portal}}\n\n¡Te esperamos!',
+    contenido: '¡Hola {{nombre_paciente}}! 👋 Te recordamos tu cita de {{tratamiento}} con el {{doctor}} programada para el {{fecha}} a las {{hora}} en la Clínica Dental Dra. Yasmín Blanco. 🦷\n\nElige una opción para gestionar tu cita de inmediato:\n✅ Confirmar asistencia: {{enlace_confirmar}}\n🔄 Reagendar fecha u hora: {{enlace_reagendar}}\n❌ Cancelar cita: {{enlace_cancelar}}\n\nSede: Paseo de la Castellana 142, Madrid. Teléfono: {{consultorio_telefono}}\n¡Te esperamos!',
     anticipacionHoras: 24,
     activa: true,
   },
@@ -49,7 +53,7 @@ const PLANTILLAS_INICIALES: PlantillaRecordatorio[] = [
     nombre: 'Recordatorio Correo Electrónico (24h Antes)',
     canal: 'email',
     asunto: 'Recordatorio de Cita Odontológica - {{fecha}} a las {{hora}}',
-    contenido: 'Estimado(a) {{nombre_paciente}},\n\nLe confirmamos que su cita para {{tratamiento}} con el {{doctor}} se llevará a cabo el día {{fecha}} a las {{hora}}.\n\nSede: Paseo de la Castellana 142, Madrid.\nTeléfono de atención: {{consultorio_telefono}}\n\nPuede consultar sus citas en línea ingresando a: {{enlace_portal}}\n\nAtentamente,\nEquipo Dra. Yasmín Blanco',
+    contenido: 'Estimado(a) {{nombre_paciente}},\n\nLe confirmamos los detalles de su cita odontológica agendada en la Clínica Dental Dra. Yasmín Blanco:\n\n• Tratamiento: {{tratamiento}}\n• Profesional: {{doctor}}\n• Fecha y Hora: {{fecha}} a las {{hora}}\n• Sede: Paseo de la Castellana 142, Madrid\n\nPor favor seleccione una de las siguientes opciones para gestionar su cita de inmediato:\n\n👉 [CONFIRMAR CITA]: {{enlace_confirmar}}\n👉 [REAGENDAR CITA]: {{enlace_reagendar}}\n👉 [CANCELAR CITA]: {{enlace_cancelar}}\n\nTeléfono de atención al paciente: {{consultorio_telefono}}\n\nAtentamente,\nEquipo Médico Dra. Yasmín Blanco',
     anticipacionHoras: 24,
     activa: true,
   },
@@ -111,6 +115,9 @@ const VARIABLES_DISPONIBLES = [
   { etiqueta: '{{hora}}', descripcion: 'Hora asignada' },
   { etiqueta: '{{doctor}}', descripcion: 'Nombre del odontólogo' },
   { etiqueta: '{{tratamiento}}', descripcion: 'Servicio odontológico' },
+  { etiqueta: '{{enlace_confirmar}}', descripcion: 'Enlace para confirmar cita' },
+  { etiqueta: '{{enlace_reagendar}}', descripcion: 'Enlace para reagendar cita' },
+  { etiqueta: '{{enlace_cancelar}}', descripcion: 'Enlace para cancelar cita' },
   { etiqueta: '{{enlace_portal}}', descripcion: 'Enlace al portal paciente' },
   { etiqueta: '{{consultorio_telefono}}', descripcion: 'Teléfono del consultorio' },
 ];
@@ -121,21 +128,68 @@ export default function RecordatoriosPage() {
   const [cola, setCola] = useState<RecordatorioItem[]>(COLA_INICIAL);
   const [plantillaActivaId, setPlantillaActivaId] = useState(PLANTILLAS_INICIALES[0].id);
   const [mensajeAlerta, setMensajeAlerta] = useState<string | null>(null);
+  const [cargandoDB, setCargandoDB] = useState<boolean>(false);
+
+  // Sincronización en vivo con Supabase (Cargar citas reales como la de Pedro Pérez)
+  React.useEffect(() => {
+    let montado = true;
+    async function sincronizarCitasReales() {
+      try {
+        setCargandoDB(true);
+        const { data, error } = await supabase.rpc('obtener_citas_gestion');
+        if (!error && Array.isArray(data) && data.length > 0 && montado) {
+          const citasDB: RecordatorioItem[] = data.map((c: any) => ({
+            id: `rec-db-${c.id}`,
+            citaId: c.id,
+            pacienteNombre: c.paciente_nombre || 'Paciente sin nombre',
+            pacienteTelefono: c.paciente_telefono || '',
+            pacienteEmail: c.paciente_email || '',
+            doctorNombre: c.doctor_nombre || 'Dra. Yasmín Blanco',
+            tratamiento: c.tratamiento_nombre || 'Valoración General',
+            fechaCita: c.fecha,
+            horaCita: c.hora_inicio || '08:00 AM',
+            canal: c.paciente_email ? 'whatsapp' : 'whatsapp',
+            mensajeGenerado: '',
+            estado: c.estado === 'confirmada' ? 'enviado' : 'pendiente',
+            programadoPara: `${c.fecha} ${c.hora_inicio || ''}`,
+          }));
+
+          setCola(prev => {
+            const idsDB = new Set(citasDB.map(r => r.citaId));
+            const prevFiltradas = prev.filter(p => !idsDB.has(p.citaId));
+            return [...citasDB, ...prevFiltradas];
+          });
+        }
+      } catch (err) {
+        console.warn('Citas reales de Supabase en proceso:', err);
+      } finally {
+        if (montado) setCargandoDB(false);
+      }
+    }
+    sincronizarCitasReales();
+    return () => { montado = false; };
+  }, []);
 
   // Plantilla seleccionada para editar
   const plantillaSeleccionada = plantillas.find(p => p.id === plantillaActivaId) || plantillas[0];
 
-  // Generar texto para un recordatorio específico usando su plantilla
+  // Generar texto para un recordatorio específico usando su plantilla con enlaces de acción
   const generarTextoParaCita = (item: RecordatorioItem, canal: CanalRecordatorio): string => {
     const plantilla = plantillas.find(p => p.canal === canal && p.activa) || plantillas[0];
+    const enlaces = generarEnlacesAccionCita(item.citaId);
+    const datosConsultorio = obtenerDatosConsultorio();
+    
     const variables: VariablesCita = {
       nombre_paciente: item.pacienteNombre,
       doctor: item.doctorNombre,
       tratamiento: item.tratamiento,
       fecha: item.fechaCita,
       hora: item.horaCita,
-      consultorio_telefono: '+57 (300) 123-4567',
-      enlace_portal: 'https://consultorio.com/portal-paciente',
+      consultorio_telefono: datosConsultorio.telefonoPrincipal || '+34 912 345 678',
+      enlace_portal: 'https://odontocontrol-ashen.vercel.app/portal-paciente',
+      enlace_confirmar: enlaces.confirmar,
+      enlace_reagendar: enlaces.reagendar,
+      enlace_cancelar: enlaces.cancelar,
     };
     return interpolarMensaje(plantilla.contenido, variables);
   };
@@ -152,23 +206,48 @@ export default function RecordatoriosPage() {
       enviadoEn: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) 
     } : r));
 
-    setMensajeAlerta(`Abriendo WhatsApp para enviar recordatorio a ${item.pacienteNombre}...`);
-    setTimeout(() => setMensajeAlerta(null), 4000);
+    setMensajeAlerta(`Abriendo WhatsApp con opciones de Confirmar/Reagendar para ${item.pacienteNombre}...`);
+    setTimeout(() => setMensajeAlerta(null), 5000);
 
     // Abrir WhatsApp en nueva pestaña
     window.open(enlace, '_blank');
   };
 
-  // Disparo simulado por Correo Electrónico
+  // Disparo real de Correo Electrónico (Abre gestor de correo prellenado con enlaces de acción)
   const handleEnviarEmail = (item: RecordatorioItem) => {
+    const plantilla = plantillas.find(p => p.canal === 'email' && p.activa) || plantillas[1] || plantillas[0];
+    const enlaces = generarEnlacesAccionCita(item.citaId);
+    const datosConsultorio = obtenerDatosConsultorio();
+
+    const variables: VariablesCita = {
+      nombre_paciente: item.pacienteNombre,
+      doctor: item.doctorNombre,
+      tratamiento: item.tratamiento,
+      fecha: item.fechaCita,
+      hora: item.horaCita,
+      consultorio_telefono: datosConsultorio.telefonoPrincipal || '+34 912 345 678',
+      enlace_portal: 'https://odontocontrol-ashen.vercel.app/portal-paciente',
+      enlace_confirmar: enlaces.confirmar,
+      enlace_reagendar: enlaces.reagendar,
+      enlace_cancelar: enlaces.cancelar,
+    };
+
+    const asunto = interpolarMensaje(plantilla.asunto || 'Recordatorio de Cita Odontológica', variables);
+    const cuerpo = interpolarMensaje(plantilla.contenido, variables);
+    const enlaceMail = generarEnlaceEmail(item.pacienteEmail, asunto, cuerpo);
+
+    // Marcar como enviado en la cola
     setCola(prev => prev.map(r => r.id === item.id ? { 
       ...r, 
       estado: 'enviado', 
       enviadoEn: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) 
     } : r));
 
-    setMensajeAlerta(`Correo de recordatorio enviado exitosamente a ${item.pacienteEmail}.`);
-    setTimeout(() => setMensajeAlerta(null), 4000);
+    setMensajeAlerta(`Abriendo cliente de correo para enviar recordatorio a ${item.pacienteNombre} (${item.pacienteEmail})...`);
+    setTimeout(() => setMensajeAlerta(null), 5000);
+
+    // Abrir cliente de correo
+    window.location.href = enlaceMail;
   };
 
   // Disparar en lote todos los pendientes (Simulación del Cron Job Automático)

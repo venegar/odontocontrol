@@ -43,7 +43,12 @@ import {
   Mail,
   FileCheck
 } from 'lucide-react';
-import { generarEnlaceWhatsApp } from '@/modules/recordatorios/utils';
+import { 
+  generarEnlaceWhatsApp, 
+  generarEnlacesAccionCita, 
+  generarEnlaceEmail 
+} from '@/modules/recordatorios/utils';
+import { supabase } from '@/lib/supabase';
 import {
   obtenerDatosConsultorio,
   guardarDatosConsultorio,
@@ -62,6 +67,7 @@ interface PacienteDia {
   hora: string;
   nombre: string;
   telefono: string;
+  email?: string;
   tratamiento: string;
   doctor: string;
   sillon: string;
@@ -467,6 +473,49 @@ export default function DashboardPrincipalPage() {
     return () => window.removeEventListener('consultorio_actualizado', handleActualizacion);
   }, []);
 
+  // Sincronización en tiempo real de citas reales de Supabase (ej. Pedro Pérez)
+  useEffect(() => {
+    let montado = true;
+    async function sincronizarCitasDB() {
+      try {
+        const { data, error } = await supabase.rpc('obtener_citas_gestion');
+        if (!error && Array.isArray(data) && data.length > 0 && montado) {
+          const citasDB: PacienteDia[] = data.map((c: any) => {
+            let estadoCita: PacienteDia['estadoCita'] = 'por_atender';
+            if (c.estado === 'completada') estadoCita = 'completada';
+            else if (c.estado === 'en_atencion') estadoCita = 'en_atencion';
+            else if (c.estado === 'en_espera') estadoCita = 'en_espera';
+
+            return {
+              id: c.id,
+              hora: c.hora_inicio || '08:00 AM',
+              nombre: c.paciente_nombre || 'Paciente',
+              telefono: c.paciente_telefono || '',
+              email: c.paciente_email || '',
+              tratamiento: c.tratamiento_nombre || 'Valoración Odontológica',
+              doctor: c.doctor_nombre || 'Dra. Yasmín Blanco',
+              sillon: 'Sillón 1',
+              estadoCita,
+              notificacion: {
+                estado: c.estado === 'confirmada' ? 'notificado' : 'pendiente',
+              },
+            };
+          });
+
+          setPacientes(prev => {
+            const idsDB = new Set(citasDB.map(p => p.id));
+            const demosRestantes = prev.filter(p => !idsDB.has(p.id));
+            return [...citasDB, ...demosRestantes];
+          });
+        }
+      } catch (err) {
+        console.warn('Error al cargar citas de Supabase en recepción:', err);
+      }
+    }
+    sincronizarCitasDB();
+    return () => { montado = false; };
+  }, []);
+
   const handleGuardarConsultorio = (e: React.FormEvent) => {
     e.preventDefault();
     setGuardandoConsultorio(true);
@@ -510,7 +559,7 @@ export default function DashboardPrincipalPage() {
     return true;
   });
 
-  // Función para enviar recordatorio de WhatsApp inmediato
+  // Función para enviar recordatorio de WhatsApp inmediato con enlaces de autogestión
   const handleEnviarRecordatorioWhatsApp = (paciente: PacienteDia) => {
     const horaActual = new Date().toLocaleTimeString('es-CO', { 
       hour: '2-digit', 
@@ -518,7 +567,8 @@ export default function DashboardPrincipalPage() {
       hour12: true 
     });
 
-    const mensajeWhatsApp = `¡Hola ${paciente.nombre}! Te recordamos tu cita odontológica hoy a las ${paciente.hora} para "${paciente.tratamiento}" con el ${paciente.doctor} en la Clínica Dental Dra. Yasmín Blanco (Sillón: ${paciente.sillon}). Por favor confirmar tu asistencia respondiendo a este mensaje. ¡Te esperamos!`;
+    const enlaces = generarEnlacesAccionCita(paciente.id);
+    const mensajeWhatsApp = `¡Hola ${paciente.nombre}! 👋 Te recordamos tu cita odontológica para "${paciente.tratamiento}" con ${paciente.doctor} en ${datosConsultorio.nombre}.\n\n📅 Hora: ${paciente.hora}\n📍 Lugar: ${datosConsultorio.direccion} (${paciente.sillon})\n\nPuedes autogestionar tu cita fácilmente:\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nSi necesitas ayuda adicional, contáctanos al ${datosConsultorio.telefonoPrincipal}. ¡Te esperamos!`;
 
     // Generar enlace oficial funcional
     const urlEnlace = generarEnlaceWhatsApp(paciente.telefono, mensajeWhatsApp);
@@ -556,6 +606,27 @@ export default function DashboardPrincipalPage() {
 
     // Mensaje de éxito
     setAlertaExito(`Recordatorio enviado con éxito por WhatsApp a ${paciente.nombre} (${paciente.telefono})`);
+    setTimeout(() => {
+      setAlertaExito(null);
+    }, 5000);
+  };
+
+  // Función para enviar recordatorio por Correo Electrónico con opciones de autogestión
+  const handleEnviarRecordatorioEmail = (paciente: PacienteDia) => {
+    if (!paciente.email) {
+      setAlertaExito(`El paciente ${paciente.nombre} no tiene registrado correo electrónico.`);
+      setTimeout(() => setAlertaExito(null), 4000);
+      return;
+    }
+
+    const enlaces = generarEnlacesAccionCita(paciente.id);
+    const asunto = `Recordatorio de Cita Odontológica - ${datosConsultorio.nombre}`;
+    const cuerpo = `Hola ${paciente.nombre},\n\nTe recordamos tu cita odontológica programada en ${datosConsultorio.nombre}:\n\n• Especialista: ${paciente.doctor}\n• Tratamiento: ${paciente.tratamiento}\n• Horario: ${paciente.hora}\n• Ubicación: ${datosConsultorio.direccion}\n\nOpciones de autogestión directa de tu cita:\n\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nCualquier consulta adicional, comunícate al ${datosConsultorio.telefonoPrincipal}.\n\nSaludos cordiales,\n${datosConsultorio.nombre}`;
+
+    const urlMail = generarEnlaceEmail(paciente.email, asunto, cuerpo);
+    window.location.href = urlMail;
+
+    setAlertaExito(`Abriendo cliente de correo para ${paciente.nombre} (${paciente.email})`);
     setTimeout(() => {
       setAlertaExito(null);
     }, 5000);
@@ -1615,19 +1686,31 @@ export default function DashboardPrincipalPage() {
 
                                 {/* Botón Acción */}
                                 <td className="py-3 px-4 text-right whitespace-nowrap">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleEnviarRecordatorioWhatsApp(paciente)}
-                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-2xs ${
-                                      yaNotificado
-                                        ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                                        : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200'
-                                    }`}
-                                    title={`Abrir WhatsApp para ${paciente.nombre}`}
-                                  >
-                                    <MessageCircle className="w-3.5 h-3.5" />
-                                    <span>{yaNotificado ? 'Reenviar' : 'Enviar WhatsApp'}</span>
-                                  </button>
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleEnviarRecordatorioWhatsApp(paciente)}
+                                      className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition shadow-2xs ${
+                                        yaNotificado
+                                          ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                                          : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200'
+                                      }`}
+                                      title={`Abrir WhatsApp para ${paciente.nombre}`}
+                                    >
+                                      <MessageCircle className="w-3.5 h-3.5" />
+                                      <span>{yaNotificado ? 'Reenviar' : 'WhatsApp'}</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => handleEnviarRecordatorioEmail(paciente)}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition"
+                                      title={`Enviar correo con botones de Confirmar / Reagendar a ${paciente.nombre}`}
+                                    >
+                                      <Mail className="w-3.5 h-3.5" />
+                                      <span>Email</span>
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             );
