@@ -20,6 +20,7 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import { TipoDocumento } from '@/modules/pacientes/types';
+import FotoPerfilDropzone from '@/components/ui/FotoPerfilDropzone';
 
 export default function RegistroPacientePage() {
   const router = useRouter();
@@ -31,6 +32,8 @@ export default function RegistroPacientePage() {
 
   // Estado del formulario
   const [form, setForm] = useState({
+    // Foto de Perfil Drag and Drop
+    fotoUrl: '',
     // Paso 1: Identificación y Contacto
     nombres: '',
     apellidos: '',
@@ -143,14 +146,24 @@ export default function RegistroPacientePage() {
         {/* Pantalla de Éxito */}
         {registroExitoso ? (
           <div className="text-center py-8 space-y-3 animate-scale-up">
-            <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-8 h-8" />
-            </div>
+            {form.fotoUrl ? (
+              <div className="relative w-20 h-20 rounded-2xl overflow-hidden mx-auto border-2 border-primary shadow-md">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={form.fotoUrl} alt={form.nombres} className="w-full h-full object-cover" />
+                <div className="absolute bottom-1 right-1 w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                </div>
+              </div>
+            ) : (
+              <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+            )}
             <h3 className="text-lg font-bold text-slate-900">
               ¡Cuenta creada exitosamente, {form.nombres}!
             </h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Tu ficha médica ha quedado registrada. Te estamos redirigiendo automáticamente a tu <strong>Portal del Paciente</strong>...
+              Tu ficha médica con foto de perfil ha quedado registrada. Te estamos redirigiendo automáticamente a tu <strong>Portal del Paciente</strong>...
             </p>
           </div>
         ) : (
@@ -160,6 +173,19 @@ export default function RegistroPacientePage() {
             {/* ============================================================== */}
             {paso === 1 && (
               <form onSubmit={handleSiguientePaso} className="space-y-4">
+                
+                {/* Zona Drag and Drop para Foto de Perfil */}
+                <div className="pb-1">
+                  <FotoPerfilDropzone
+                    valor={form.fotoUrl || null}
+                    onChange={(nuevaFoto) => setForm(prev => ({ ...prev, fotoUrl: nuevaFoto || '' }))}
+                    etiqueta="Foto de Perfil del Paciente (Opcional)"
+                    descripcion="Arrastra y suelta tu foto aquí o haz clic para subirla"
+                    ayuda="Recomendado: Fondo claro o neutro, archivo PNG o JPG (Máx. 5MB)"
+                    tamano="md"
+                  />
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Nombres *</label>

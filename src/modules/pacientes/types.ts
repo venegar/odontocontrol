@@ -9,6 +9,7 @@ export interface Paciente {
   email: string;
   telefono: string;
   fechaNacimiento: string;
+  fotoUrl?: string;
   genero?: 'Femenino' | 'Masculino' | 'Otro';
   ciudad?: string;
   direccion?: string;

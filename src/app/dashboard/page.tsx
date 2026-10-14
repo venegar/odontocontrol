@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Home, 
@@ -35,9 +35,21 @@ import {
   Building2, 
   Award, 
   ArrowUpRight, 
-  AlertTriangle 
+  AlertTriangle,
+  Lock,
+  Settings,
+  Save,
+  MapPin,
+  Mail,
+  FileCheck
 } from 'lucide-react';
 import { generarEnlaceWhatsApp } from '@/modules/recordatorios/utils';
+import {
+  obtenerDatosConsultorio,
+  guardarDatosConsultorio,
+  DatosConsultorio,
+  DATOS_CONSULTORIO_DEFAULT,
+} from '@/modules/configuracion/consultorioService';
 
 // ============================================================================
 // TIPOS ESTRICTOS EN TYPESCRIPT
@@ -433,6 +445,51 @@ export default function DashboardPrincipalPage() {
   const [alertaExito, setAlertaExito] = useState<string | null>(null);
   const [filtroEstado, setFiltroEstado] = useState<string>('todos');
 
+  // Estados para datos corporativos del consultorio y permisos por rol
+  const [datosConsultorio, setDatosConsultorio] = useState<DatosConsultorio>(DATOS_CONSULTORIO_DEFAULT);
+  const [formConsultorio, setFormConsultorio] = useState<DatosConsultorio>(DATOS_CONSULTORIO_DEFAULT);
+  const [alertaConsultorio, setAlertaConsultorio] = useState<{ tipo: 'exito' | 'error'; mensaje: string } | null>(null);
+  const [guardandoConsultorio, setGuardandoConsultorio] = useState<boolean>(false);
+  const [mostrarConfigConsultorio, setMostrarConfigConsultorio] = useState<boolean>(false);
+
+  useEffect(() => {
+    const d = obtenerDatosConsultorio();
+    setDatosConsultorio(d);
+    setFormConsultorio(d);
+
+    const handleActualizacion = () => {
+      const datosActuales = obtenerDatosConsultorio();
+      setDatosConsultorio(datosActuales);
+      setFormConsultorio(datosActuales);
+    };
+
+    window.addEventListener('consultorio_actualizado', handleActualizacion);
+    return () => window.removeEventListener('consultorio_actualizado', handleActualizacion);
+  }, []);
+
+  const handleGuardarConsultorio = (e: React.FormEvent) => {
+    e.preventDefault();
+    setGuardandoConsultorio(true);
+    const nombreOperador = rolActivo === 'admin' 
+      ? 'Dra. Yasmín Blanco (Directora Médica)' 
+      : rolActivo === 'odontologo' 
+      ? 'Dr. Carlos Ruiz (Odontólogo Titular)' 
+      : 'Marcela Sánchez (Recepcionista)';
+
+    const res = guardarDatosConsultorio(formConsultorio, rolActivo, nombreOperador);
+    setGuardandoConsultorio(false);
+    if (res.exito && res.datos) {
+      setDatosConsultorio(res.datos);
+      setAlertaConsultorio({ tipo: 'exito', mensaje: res.mensaje });
+    } else {
+      setAlertaConsultorio({ tipo: 'error', mensaje: res.mensaje });
+    }
+
+    setTimeout(() => {
+      setAlertaConsultorio(null);
+    }, 5000);
+  };
+
   // Cálculos de métricas del día para Recepción
   const totalCitasHoy = pacientes.length;
   const citasCompletadas = pacientes.filter(p => p.estadoCita === 'completada').length;
@@ -555,12 +612,12 @@ export default function DashboardPrincipalPage() {
       {/* 1. BARRA SUPERIOR INSTITUCIONAL (HEADER LUMINOSO) */}
       {/* ===================================================================== */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-20 sm:h-22 flex items-center justify-between gap-4">
           
-          {/* Logo y Nombre */}
+          {/* Logo y Nombre (Tamaño Ampliado Prominente) */}
           <div className="flex items-center space-x-3">
             <Link href="/" className="flex items-center space-x-2.5 group">
-              <div className="relative h-10 w-36 sm:w-44">
+              <div className="relative h-14 sm:h-16 md:h-18 w-52 sm:w-64 md:w-72 transition-transform duration-200 group-hover:scale-[1.02]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/brand/logo-yasmin-blanco.png"
@@ -570,12 +627,12 @@ export default function DashboardPrincipalPage() {
               </div>
             </Link>
 
-            <span className="hidden md:inline-block h-6 w-px bg-slate-200 mx-2" />
+            <span className="hidden md:inline-block h-8 w-px bg-slate-200 mx-2" />
 
             {/* BOTÓN PROMINENTE 1: VOLVER AL SITIO WEB EN BARRA SUPERIOR */}
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:text-dentist-600 bg-slate-100 hover:bg-slate-200/70 border border-slate-200 transition-colors shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-dentist-600 bg-slate-100 hover:bg-slate-200/70 border border-slate-200 transition-colors shadow-2xs"
               title="Volver a la Página Principal"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
@@ -636,6 +693,26 @@ export default function DashboardPrincipalPage() {
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>Clínica Activa</span>
             </div>
+
+            {/* Botón Acceso Rápido a Configuración de la Clínica */}
+            <button
+              type="button"
+              onClick={() => setMostrarConfigConsultorio(!mostrarConfigConsultorio)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
+                mostrarConfigConsultorio
+                  ? 'bg-dentist-600 text-white border-dentist-700 shadow-xs'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+              }`}
+              title="Configuración y Datos de la Clínica"
+            >
+              <Building2 className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Datos Consultorio</span>
+              {rolActivo === 'admin' ? (
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              ) : (
+                <Lock className="w-3 h-3 text-slate-400" />
+              )}
+            </button>
 
             <Link
               href="/dashboard/recordatorios"
@@ -874,6 +951,30 @@ export default function DashboardPrincipalPage() {
                   <BarChart2 className="w-4 h-4 text-slate-400" />
                   <span>Reportes e Ingresos</span>
                 </Link>
+
+                <button
+                  type="button"
+                  onClick={() => setMostrarConfigConsultorio(!mostrarConfigConsultorio)}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition ${
+                    mostrarConfigConsultorio
+                      ? 'bg-dentist-50 text-dentist-800 font-bold border border-dentist-200'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Building2 className="w-4 h-4 text-dentist-600" />
+                    <span>Datos de la Clínica</span>
+                  </div>
+                  {rolActivo === 'admin' ? (
+                    <span className="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.5 rounded font-bold">
+                      Editable
+                    </span>
+                  ) : (
+                    <span className="bg-slate-100 text-slate-500 text-[10px] px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5">
+                      <Lock className="w-2.5 h-2.5" /> Lectura
+                    </span>
+                  )}
+                </button>
               </nav>
             </div>
           </div>
@@ -909,10 +1010,296 @@ export default function DashboardPrincipalPage() {
         {/* ÁREA DE CONTENIDO PRINCIPAL SEGÚN EL ROL ACTIVO */}
         {/* =================================================================== */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 overflow-y-auto">
-          
-          {/* ================================================================= */}
-          {/* VISTA 1: RECEPCIONISTA (ÉNFASIS PRINCIPAL) */}
-          {/* ================================================================= */}
+
+          {/* PANEL DE CONFIGURACIÓN Y DATOS INSTITUCIONALES DEL CONSULTORIO (CONTROL POR ROLES) */}
+          {(mostrarConfigConsultorio || rolActivo === 'admin') && (
+            <div id="config-consultorio" className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 sm:p-7 space-y-6 animate-in fade-in slide-in-from-top-2">
+              
+              {/* Encabezado del Panel */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-dentist-50 text-dentist-700 flex items-center justify-center border border-dentist-200 shrink-0">
+                    <Building2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                        Datos Institucionales y Operativos del Consultorio
+                      </h2>
+                      {rolActivo === 'admin' ? (
+                        <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-200">
+                          <ShieldCheck className="w-3.5 h-3.5" /> Edición Habilitada (Admin)
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-amber-200">
+                          <Lock className="w-3.5 h-3.5" /> Solo Lectura ({rolActivo === 'odontologo' ? 'Odontólogo' : 'Recepcionista'})
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Información oficial sincronizada en la página de inicio, horarios de atención y mensajes de WhatsApp.
+                    </p>
+                  </div>
+                </div>
+
+                {mostrarConfigConsultorio && rolActivo !== 'admin' && (
+                  <button
+                    type="button"
+                    onClick={() => setMostrarConfigConsultorio(false)}
+                    className="self-end sm:self-auto text-xs font-semibold text-slate-500 hover:text-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50"
+                  >
+                    Ocultar panel ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Banner de Advertencia de Rol Restringido si no es admin */}
+              {rolActivo !== 'admin' && (
+                <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 flex items-start gap-3 text-xs text-amber-900">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block">Privilegios de edición restringidos por rol clínico:</span>
+                    <span>
+                      Tu rol actual es <strong>{rolActivo === 'odontologo' ? 'Odontólogo Titular' : 'Recepcionista'}</strong>. Solo la <strong>Directora Médica (Dra. Yasmín Blanco / Admin)</strong> tiene autorización para alterar la dirección, los teléfonos y la política de citas. Puedes cambiar de rol arriba para editar.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Alerta de Éxito o Error tras Guardar */}
+              {alertaConsultorio && (
+                <div className={`p-4 rounded-2xl flex items-center gap-3 text-xs font-semibold border ${
+                  alertaConsultorio.tipo === 'exito'
+                    ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                    : 'bg-rose-50 text-rose-900 border-rose-200'
+                }`}>
+                  {alertaConsultorio.tipo === 'exito' ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  )}
+                  <span>{alertaConsultorio.mensaje}</span>
+                </div>
+              )}
+
+              {/* Formulario de Configuración */}
+              <form onSubmit={handleGuardarConsultorio} className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  
+                  {/* Nombre del Consultorio */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Nombre Comercial del Consultorio
+                    </label>
+                    <input
+                      type="text"
+                      disabled={rolActivo !== 'admin'}
+                      value={formConsultorio.nombreConsultorio}
+                      onChange={(e) => setFormConsultorio({ ...formConsultorio, nombreConsultorio: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 bg-white disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-dentist-500 font-medium"
+                      required
+                    />
+                  </div>
+
+                  {/* Directora Médica */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Directora Médica Titular
+                    </label>
+                    <input
+                      type="text"
+                      disabled={rolActivo !== 'admin'}
+                      value={formConsultorio.directoraMedica}
+                      onChange={(e) => setFormConsultorio({ ...formConsultorio, directoraMedica: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 bg-white disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-dentist-500 font-medium"
+                      required
+                    />
+                  </div>
+
+                  {/* Registro Profesional */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Colegiado / Matrícula Profesional
+                    </label>
+                    <input
+                      type="text"
+                      disabled={rolActivo !== 'admin'}
+                      value={formConsultorio.registroProfesional}
+                      onChange={(e) => setFormConsultorio({ ...formConsultorio, registroProfesional: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 bg-white disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-dentist-500 font-medium"
+                      required
+                    />
+                  </div>
+
+                  {/* Dirección */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Dirección de la Sede Principal
+                    </label>
+                    <input
+                      type="text"
+                      disabled={rolActivo !== 'admin'}
+                      value={formConsultorio.direccion}
+                      onChange={(e) => setFormConsultorio({ ...formConsultorio, direccion: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 bg-white disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-dentist-500 font-medium"
+                      required
+                    />
+                  </div>
+
+                  {/* Ciudad */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Ciudad / Jurisdicción
+                    </label>
+                    <input
+                      type="text"
+                      disabled={rolActivo !== 'admin'}
+                      value={formConsultorio.ciudad}
+                      onChange={(e) => setFormConsultorio({ ...formConsultorio, ciudad: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 bg-white disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-dentist-500 font-medium"
+                      required
+                    />
+                  </div>
+
+                  {/* Teléfono Citas */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Teléfono Principal (Citas)
+                    </label>
+                    <input
+                      type="text"
+                      disabled={rolActivo !== 'admin'}
+                      value={formConsultorio.telefonoPrincipal}
+                      onChange={(e) => setFormConsultorio({ ...formConsultorio, telefonoPrincipal: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 bg-white disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-dentist-500 font-medium"
+                      required
+                    />
+                  </div>
+
+                  {/* Teléfono Urgencias */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Línea de Urgencias Odontológicas
+                    </label>
+                    <input
+                      type="text"
+                      disabled={rolActivo !== 'admin'}
+                      value={formConsultorio.telefonoUrgencias}
+                      onChange={(e) => setFormConsultorio({ ...formConsultorio, telefonoUrgencias: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 bg-white disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-dentist-500 font-medium"
+                      required
+                    />
+                  </div>
+
+                  {/* Email de Contacto */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Correo Electrónico Institucional
+                    </label>
+                    <input
+                      type="email"
+                      disabled={rolActivo !== 'admin'}
+                      value={formConsultorio.emailContacto}
+                      onChange={(e) => setFormConsultorio({ ...formConsultorio, emailContacto: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 bg-white disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-dentist-500 font-medium"
+                      required
+                    />
+                  </div>
+
+                  {/* Modo de Aprobación de Citas */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Flujo de Aprobación de Citas Web
+                    </label>
+                    <select
+                      disabled={rolActivo !== 'admin'}
+                      value={formConsultorio.modoAprobacion}
+                      onChange={(e) => setFormConsultorio({ ...formConsultorio, modoAprobacion: e.target.value as 'manual' | 'automatico' })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 bg-white disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-dentist-500 font-medium"
+                    >
+                      <option value="manual">Manual (Revisión y confirmación por Recepción)</option>
+                      <option value="automatico">Automático (Confirmación instantánea al paciente)</option>
+                    </select>
+                  </div>
+
+                  {/* Horario Lunes a Viernes */}
+                  <div className="sm:col-span-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Horario de Atención (Lunes a Viernes)
+                    </label>
+                    <input
+                      type="text"
+                      disabled={rolActivo !== 'admin'}
+                      value={formConsultorio.horarioSemana}
+                      onChange={(e) => setFormConsultorio({ ...formConsultorio, horarioSemana: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 bg-white disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-dentist-500 font-medium"
+                      required
+                    />
+                  </div>
+
+                  {/* Horario Sábados */}
+                  <div className="sm:col-span-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Horario de Atención (Sábados)
+                    </label>
+                    <input
+                      type="text"
+                      disabled={rolActivo !== 'admin'}
+                      value={formConsultorio.horarioSabado}
+                      onChange={(e) => setFormConsultorio({ ...formConsultorio, horarioSabado: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 bg-white disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-dentist-500 font-medium"
+                      required
+                    />
+                  </div>
+
+                  {/* Plantilla WhatsApp */}
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Plantilla Oficial de Recordatorios por WhatsApp
+                    </label>
+                    <textarea
+                      rows={2}
+                      disabled={rolActivo !== 'admin'}
+                      value={formConsultorio.mensajeWhatsAppDefault}
+                      onChange={(e) => setFormConsultorio({ ...formConsultorio, mensajeWhatsAppDefault: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 bg-white disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-dentist-500 font-medium"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Variables dinámicas disponibles: <code>{`{{nombre}}`}</code>, <code>{`{{hora}}`}</code>, <code>{`{{doctor}}`}</code>, <code>{`{{consultorio}}`}</code>.
+                    </p>
+                  </div>
+
+                </div>
+
+                {/* Acciones y Metadatos de Guardado */}
+                <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="text-xs text-slate-500 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-slate-400" />
+                    <span>
+                      Última modificación por: <strong>{datosConsultorio.ultimaActualizacionPor || 'Dra. Yasmín Blanco'}</strong> ({datosConsultorio.ultimaActualizacionFecha || '14 de Octubre, 2026'})
+                    </span>
+                  </div>
+
+                  {rolActivo === 'admin' ? (
+                    <button
+                      type="submit"
+                      disabled={guardandoConsultorio}
+                      className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-dentist-600 hover:bg-dentist-700 text-white font-bold text-xs shadow-sm transition active:scale-[0.98] disabled:opacity-50"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>{guardandoConsultorio ? 'Guardando...' : 'Guardar Cambios del Consultorio'}</span>
+                    </button>
+                  ) : (
+                    <div className="inline-flex items-center gap-1.5 text-xs text-slate-400 italic">
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>Solo la Directora Médica puede guardar cambios corporativos</span>
+                    </div>
+                  )}
+                </div>
+              </form>
+
+            </div>
+          )}
           {rolActivo === 'recepcionista' && (
             <div className="space-y-6">
               

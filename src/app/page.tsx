@@ -1,9 +1,29 @@
-import React from "react";
+'use client';
+
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import FormularioSolicitudCita from "@/modules/citas/components/FormularioSolicitudCita";
+import { 
+  obtenerDatosConsultorio, 
+  DATOS_CONSULTORIO_DEFAULT, 
+  DatosConsultorio 
+} from "@/modules/configuracion/consultorioService";
 
 export default function HomePage() {
+  const [datosConsultorio, setDatosConsultorio] = useState<DatosConsultorio>(DATOS_CONSULTORIO_DEFAULT);
+
+  useEffect(() => {
+    setDatosConsultorio(obtenerDatosConsultorio());
+
+    const handleActualizacion = () => {
+      setDatosConsultorio(obtenerDatosConsultorio());
+    };
+
+    window.addEventListener('consultorio_actualizado', handleActualizacion);
+    return () => window.removeEventListener('consultorio_actualizado', handleActualizacion);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background text-on-surface antialiased font-sans selection:bg-secondary-fixed selection:text-on-secondary-fixed flex flex-col justify-between">
       
@@ -11,12 +31,11 @@ export default function HomePage() {
       {/* 1. BARRA DE NAVEGACIÓN SUPERIOR / TOP APP BAR */}
       {/* ========================================================================= */}
       <header className="sticky top-0 z-50 w-full bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant/30 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between py-2.5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between py-2 sm:py-3">
           
-          {/* Logotipo Oficial Dra. Yasmín Blanco */}
+          {/* Logotipo Oficial Dra. Yasmín Blanco (Tamaño Ampliado Prominente) */}
           <Link href="/" className="flex items-center gap-3 group focus:outline-none">
-            {/* Usamos el logotipo oficial proporcionado guardado en public/brand */}
-            <div className="relative h-14 md:h-16 w-52 md:w-64 transition-transform duration-200 group-hover:scale-[1.02]">
+            <div className="relative h-20 sm:h-24 md:h-28 w-64 sm:w-80 md:w-96 transition-transform duration-200 group-hover:scale-[1.02]">
               <Image
                 src="/brand/logo-yasmin-blanco.png"
                 alt="Logotipo Dra. Yasmín Blanco | Odontología Avanzada y Estética Dental"
@@ -27,69 +46,42 @@ export default function HomePage() {
             </div>
           </Link>
 
-          {/* Enlaces de Navegación de Escritorio */}
-          <nav className="hidden lg:flex items-center space-x-7 text-sm font-semibold">
+          {/* Enlaces de Navegación de Escritorio: Menú Principal con las 5 opciones solicitadas */}
+          <nav className="hidden lg:flex items-center space-x-6 xl:space-x-8 text-sm font-semibold">
+            <Link 
+              href="/portal-paciente" 
+              className="text-on-surface-variant hover:text-primary transition-colors duration-200 py-1"
+            >
+              Portal paciente
+            </Link>
             <Link 
               href="#tratamientos" 
-              className="text-on-surface hover:text-primary transition-colors duration-200 py-1"
+              className="text-on-surface-variant hover:text-primary transition-colors duration-200 py-1"
             >
               Tratamientos
-            </Link>
-            <Link 
-              href="#equipo" 
-              className="text-on-surface-variant hover:text-primary transition-colors duration-200 py-1"
-            >
-              Dra. Yasmín
-            </Link>
-            <Link 
-              href="#tecnologia" 
-              className="text-on-surface-variant hover:text-primary transition-colors duration-200 py-1"
-            >
-              Tecnología 3D
             </Link>
             <Link 
               href="#casos" 
               className="text-on-surface-variant hover:text-primary transition-colors duration-200 py-1"
             >
-              Casos de Éxito
+              Casos de éxito
             </Link>
             <Link 
               href="#blog" 
               className="text-on-surface-variant hover:text-primary transition-colors duration-200 py-1"
             >
-              Blog Dental
+              Blog
             </Link>
             <Link 
-              href="#contacto" 
+              href="/login" 
               className="text-on-surface-variant hover:text-primary transition-colors duration-200 py-1"
             >
-              Contacto
+              Iniciar sesión
             </Link>
           </nav>
 
-          {/* Accesos a la Plataforma y Botón Primario */}
+          {/* Botón de Conversión Primario (Agendar Cita) */}
           <div className="flex items-center gap-2 sm:gap-3">
-            <Link
-              href="/portal-paciente"
-              className="hidden xl:inline-flex text-xs font-bold text-on-surface-variant hover:text-primary transition-colors px-2.5 py-1.5 rounded-lg hover:bg-surface-container"
-            >
-              Portal Paciente
-            </Link>
-            
-            <Link
-              href="/login"
-              className="hidden sm:inline-flex text-xs font-bold text-on-surface-variant hover:text-primary transition-colors px-2.5 py-1.5 rounded-lg hover:bg-surface-container"
-            >
-              Iniciar Sesión
-            </Link>
-
-            <Link
-              href="/registro"
-              className="hidden md:inline-flex text-xs font-bold text-primary bg-secondary-container/50 hover:bg-secondary-container px-3 py-1.5 rounded-lg transition-colors border border-outline-variant/40"
-            >
-              Registrarse
-            </Link>
-
             <Link
               href="#agendar"
               className="inline-flex items-center justify-center h-11 px-4 sm:px-6 rounded-lg bg-primary hover:bg-secondary text-on-primary text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] shadow-sm hover:shadow-md custom-teal-shadow"
@@ -823,7 +815,7 @@ export default function HomePage() {
                 <div className="bg-surface-container-lowest p-8 rounded-2xl border border-outline-variant/50 custom-teal-shadow">
                   <h3 className="text-xl font-bold text-on-surface mb-6 flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary">pin_drop</span>
-                    <span>Clínica Dental Dra. Yasmín Blanco</span>
+                    <span>{datosConsultorio.nombreConsultorio}</span>
                   </h3>
 
                   <div className="space-y-5 text-sm">
@@ -832,7 +824,7 @@ export default function HomePage() {
                       <div>
                         <p className="font-bold text-on-surface">Dirección Principal</p>
                         <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">
-                          Paseo de la Castellana 142, Planta 2ª, 28046 Madrid
+                          {datosConsultorio.direccion}, {datosConsultorio.ciudad}
                         </p>
                       </div>
                     </div>
@@ -842,7 +834,7 @@ export default function HomePage() {
                       <div>
                         <p className="font-bold text-on-surface">Teléfono & Urgencias</p>
                         <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">
-                          +34 912 345 678 / +34 654 321 987
+                          {datosConsultorio.telefonoPrincipal} / {datosConsultorio.telefonoUrgencias}
                         </p>
                       </div>
                     </div>
@@ -852,10 +844,10 @@ export default function HomePage() {
                       <div>
                         <p className="font-bold text-on-surface">Horario de Consulta</p>
                         <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">
-                          Lunes a Viernes: 09:00 - 20:00 h
+                          {datosConsultorio.horarioSemana}
                         </p>
                         <p className="text-xs text-on-surface-variant">
-                          Sábados: 10:00 - 14:00 h (Citas previas)
+                          {datosConsultorio.horarioSabado}
                         </p>
                       </div>
                     </div>
@@ -866,7 +858,7 @@ export default function HomePage() {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src="https://lh3.googleusercontent.com/aida-public/AB6AXuDNCLJM717Apdu5NmdyqVgx6E-175242eC9l52cCpL1FqxiNCJdWTWz45Wjh8_VIzku02DMDo3jac_CzP4y6Pw3IHFTZKaco5VWjuVut1PRZJZUZt1QsMutpIQlnlVErwOBBurYGkijEWmmYBQ9XvmZk2G6gpCLyG4Hygrghxv5RsQeHtBZTxUDRHuxnC_VPFlfOojJTs6SHC24AojZr4bfd6MpvbdQpUT5itFCPWbxxpmAxg126HEX"
-                      alt="Mapa de ubicación en Paseo de la Castellana 142, Madrid"
+                      alt="Mapa de ubicación de la clínica"
                       className="w-full h-48 object-cover"
                     />
                     <div className="absolute bottom-2 left-2 px-3 py-1 bg-surface-container-lowest/90 backdrop-blur-md rounded-md text-[12px] font-semibold text-primary shadow-xs flex items-center gap-1.5">
@@ -902,7 +894,7 @@ export default function HomePage() {
           {/* Marca y Copyright */}
           <div className="flex flex-col items-center md:items-start gap-3">
             <Link href="/" className="inline-block">
-              <div className="relative h-14 w-52">
+              <div className="relative h-20 sm:h-24 w-72 sm:w-80">
                 <Image
                   src="/brand/logo-yasmin-blanco.png"
                   alt="Logotipo Dra. Yasmín Blanco"
@@ -912,7 +904,7 @@ export default function HomePage() {
               </div>
             </Link>
             <p className="text-xs text-on-surface-variant text-center md:text-left">
-              © {new Date().getFullYear()} Clínica Dental Dra. Yasmín Blanco. Todos los derechos reservados.
+              © {new Date().getFullYear()} {datosConsultorio.nombreConsultorio}. Todos los derechos reservados.
             </p>
           </div>
 

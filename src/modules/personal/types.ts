@@ -51,6 +51,7 @@ export interface PerfilPersonal {
   telefono?: string;
   especialidad?: string;
   registroProfesional?: string;
+  fotoUrl?: string;
   activo: boolean;
   permisos: PermisoCodigo[];
 }

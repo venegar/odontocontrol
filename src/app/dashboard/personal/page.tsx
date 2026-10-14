@@ -25,17 +25,18 @@ import {
   CATALOGO_PERMISOS, 
   RolUsuario 
 } from '@/modules/personal/types';
+import FotoPerfilDropzone from '@/components/ui/FotoPerfilDropzone';
 
 // Personal inicial de prueba
 const PERSONAL_INICIAL: PerfilPersonal[] = [
   {
     id: 'user-admin',
-    nombres: 'Dra. Patricia',
-    apellidos: 'Gómez Salazar',
+    nombres: 'Dra. Yasmín',
+    apellidos: 'Blanco',
     rol: 'admin',
-    telefono: '+57 300 987 6543',
-    especialidad: 'Directora Médica / Cirugía Oral',
-    registroProfesional: 'OD-19842',
+    telefono: '+34 912 345 678',
+    especialidad: 'Directora Médica & Implantología/Estética',
+    registroProfesional: 'COL-28004921',
     activo: true,
     permisos: [
       'citas.ver', 'citas.aprobar', 'citas.crear', 'citas.cancelar',
@@ -117,6 +118,7 @@ export default function GestionPersonalPermisosPage() {
     telefono: '',
     especialidad: '',
     registroProfesional: '',
+    fotoUrl: '',
   });
 
   // Usuario actualmente seleccionado para editar sus permisos
@@ -179,6 +181,7 @@ export default function GestionPersonalPermisosPage() {
       telefono: nuevoMiembro.telefono,
       especialidad: nuevoMiembro.especialidad,
       registroProfesional: nuevoMiembro.registroProfesional,
+      fotoUrl: nuevoMiembro.fotoUrl || undefined,
       activo: true,
       permisos: permisosBase,
     };
@@ -193,6 +196,7 @@ export default function GestionPersonalPermisosPage() {
       telefono: '',
       especialidad: '',
       registroProfesional: '',
+      fotoUrl: '',
     });
     setMensajeExito(`Se ha registrado a ${nuevo.nombres} ${nuevo.apellidos} con éxito.`);
     setTimeout(() => setMensajeExito(null), 4000);
@@ -311,26 +315,37 @@ export default function GestionPersonalPermisosPage() {
                         : 'hover:bg-slate-50/80 border-l-4 border-transparent'
                     }`}
                   >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-slate-900">
-                          {u.nombres} {u.apellidos}
-                        </span>
-                        {u.rol === 'admin' && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
-                            Superadmin
-                          </span>
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl overflow-hidden bg-dentist-100 text-dentist-700 font-bold text-xs flex items-center justify-center shrink-0 border border-slate-200 shadow-2xs">
+                        {u.fotoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={u.fotoUrl} alt={u.nombres} className="w-full h-full object-cover" />
+                        ) : (
+                          <span>{u.nombres.slice(0, 1)}{u.apellidos.slice(0, 1)}</span>
                         )}
                       </div>
-                      <p className="text-xs text-slate-500">
-                        {u.especialidad || (u.rol === 'recepcionista' ? 'Recepción y Atención' : 'Personal Clínico')}
-                      </p>
-                      <div className="flex items-center gap-3 text-[11px] text-slate-400 pt-1">
-                        <span className="capitalize font-medium text-slate-600">Rol: {u.rol}</span>
-                        <span>•</span>
-                        <span className="font-semibold text-dentist-700">
-                          {u.rol === 'admin' ? 'Todos los permisos' : `${u.permisos.length} permisos activos`}
-                        </span>
+
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-slate-900">
+                            {u.nombres} {u.apellidos}
+                          </span>
+                          {u.rol === 'admin' && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                              Superadmin
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          {u.especialidad || (u.rol === 'recepcionista' ? 'Recepción y Atención' : 'Personal Clínico')}
+                        </p>
+                        <div className="flex items-center gap-3 text-[11px] text-slate-400 pt-0.5">
+                          <span className="capitalize font-medium text-slate-600">Rol: {u.rol}</span>
+                          <span>•</span>
+                          <span className="font-semibold text-dentist-700">
+                            {u.rol === 'admin' ? 'Todos los permisos' : `${u.permisos.length} permisos`}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -348,18 +363,28 @@ export default function GestionPersonalPermisosPage() {
             <div>
               {/* Encabezado del usuario seleccionado */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-slate-200 gap-4 mb-6">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold text-slate-900">
-                      Permisos de {usuarioActivo.nombres} {usuarioActivo.apellidos}
-                    </h2>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Rol: <span className="font-semibold capitalize text-slate-800">{usuarioActivo.rol}</span>
-                    {usuarioActivo.registroProfesional && (
-                      <span> • Registro: {usuarioActivo.registroProfesional}</span>
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl overflow-hidden bg-dentist-100 text-dentist-700 font-bold text-sm flex items-center justify-center shrink-0 border border-slate-200 shadow-xs">
+                    {usuarioActivo.fotoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={usuarioActivo.fotoUrl} alt={usuarioActivo.nombres} className="w-full h-full object-cover" />
+                    ) : (
+                      <span>{usuarioActivo.nombres.slice(0, 1)}{usuarioActivo.apellidos.slice(0, 1)}</span>
                     )}
-                  </p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-lg font-bold text-slate-900">
+                        {usuarioActivo.nombres} {usuarioActivo.apellidos}
+                      </h2>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Rol: <span className="font-semibold capitalize text-slate-800">{usuarioActivo.rol}</span>
+                      {usuarioActivo.registroProfesional && (
+                        <span> • Registro: {usuarioActivo.registroProfesional}</span>
+                      )}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -482,6 +507,17 @@ export default function GestionPersonalPermisosPage() {
             </div>
 
             <form onSubmit={handleCrearMiembro} className="mt-4 space-y-3.5">
+              
+              {/* Foto de Perfil Drag and Drop */}
+              <FotoPerfilDropzone
+                valor={nuevoMiembro.fotoUrl || null}
+                onChange={(base64) => setNuevoMiembro(prev => ({ ...prev, fotoUrl: base64 || '' }))}
+                etiqueta="Foto de Perfil del Profesional"
+                descripcion="Arrastra la fotografía aquí o haz clic para subir"
+                ayuda="PNG, JPG o WebP recomendado (Máx. 5MB)"
+                tamano="sm"
+              />
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Nombres *</label>
