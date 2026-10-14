@@ -19,6 +19,7 @@ import {
   SlidersHorizontal,
   ChevronRight,
   AlertTriangle
+} from 'lucide-react';
 import { EstadoCita, ModoAprobacion } from '@/modules/citas/types';
 import { aprobarCita, rechazarCita, obtenerCitasHoy } from '@/modules/citas/actions';
 
