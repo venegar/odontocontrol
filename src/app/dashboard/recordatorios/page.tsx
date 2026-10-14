@@ -299,9 +299,10 @@ export default function RecordatoriosPage() {
     const esManana = item.fechaCita === fechaManana;
     const enlaces = generarEnlacesAccionCita(item.citaId);
     const datosConsultorio = obtenerDatosConsultorio();
+    const nombreClinica = datosConsultorio.nombreConsultorio || datosConsultorio.nombre || 'Clínica Dental Dra. Yasmín Blanco';
 
     const momentoTexto = esManana ? `mañana (${formatearFechaEspanol(item.fechaCita)})` : `el ${item.fechaCita}`;
-    const texto = `¡Hola ${item.pacienteNombre}! 👋 Te recordamos tu cita odontológica para ${momentoTexto} a las ${item.horaCita} para "${item.tratamiento}" con ${item.doctorNombre} en ${datosConsultorio.nombre}.\n\n📅 Fecha: ${item.fechaCita}\n⏰ Hora: ${item.horaCita}\n📍 Dirección: ${datosConsultorio.direccion}\n\nOpciones de autogestión directa de tu cita:\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nSi necesitas ayuda, comunícate al ${datosConsultorio.telefonoPrincipal}. ¡Te esperamos!`;
+    const texto = `¡Hola ${item.pacienteNombre}! 👋 Te recordamos tu cita odontológica para ${momentoTexto} a las ${item.horaCita} para "${item.tratamiento}" con ${item.doctorNombre} en ${nombreClinica}.\n\n📅 Fecha: ${item.fechaCita}\n⏰ Hora: ${item.horaCita}\n📍 Dirección: ${datosConsultorio.direccion}\n\nOpciones de autogestión directa de tu cita:\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nSi necesitas ayuda, comunícate al ${datosConsultorio.telefonoPrincipal}. ¡Te esperamos!`;
 
     const enlace = generarEnlaceWhatsApp(item.pacienteTelefono, texto);
 
@@ -324,12 +325,13 @@ export default function RecordatoriosPage() {
     const esManana = item.fechaCita === fechaManana;
     const enlaces = generarEnlacesAccionCita(item.citaId);
     const datosConsultorio = obtenerDatosConsultorio();
+    const nombreClinica = datosConsultorio.nombreConsultorio || datosConsultorio.nombre || 'Clínica Dental Dra. Yasmín Blanco';
 
     const asunto = esManana 
-      ? `Recordatorio: Tu cita odontológica es mañana a las ${item.horaCita} - ${datosConsultorio.nombre}`
-      : `Recordatorio de Cita Odontológica (${item.fechaCita}) - ${datosConsultorio.nombre}`;
+      ? `Recordatorio: Tu cita odontológica es mañana a las ${item.horaCita} - ${nombreClinica}`
+      : `Recordatorio de Cita Odontológica (${item.fechaCita}) - ${nombreClinica}`;
 
-    const cuerpo = `Hola ${item.pacienteNombre},\n\nTe recordamos tu cita odontológica agendada en ${datosConsultorio.nombre} para ${esManana ? 'mañana' : item.fechaCita}:\n\n• Especialista: ${item.doctorNombre}\n• Tratamiento: ${item.tratamiento}\n• Horario: ${item.horaCita}\n• Sede: ${datosConsultorio.direccion}\n\nPor favor autogestiona tu cita seleccionando una opción:\n\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nTeléfono de atención: ${datosConsultorio.telefonoPrincipal}\n\nAtentamente,\nEquipo de ${datosConsultorio.nombre}`;
+    const cuerpo = `Hola ${item.pacienteNombre},\n\nTe recordamos tu cita odontológica agendada en ${nombreClinica} para ${esManana ? 'mañana' : item.fechaCita}:\n\n• Especialista: ${item.doctorNombre}\n• Tratamiento: ${item.tratamiento}\n• Horario: ${item.horaCita}\n• Sede: ${datosConsultorio.direccion}\n\nPor favor autogestiona tu cita seleccionando una opción:\n\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nTeléfono de atención: ${datosConsultorio.telefonoPrincipal}\n\nAtentamente,\nEquipo de ${nombreClinica}`;
 
     const enlaceMail = generarEnlaceEmail(item.pacienteEmail, asunto, cuerpo);
 
@@ -377,7 +379,8 @@ export default function RecordatoriosPage() {
     const primera = pendientesParaManana[0];
     const enlaces = generarEnlacesAccionCita(primera.citaId);
     const datos = obtenerDatosConsultorio();
-    const texto = `¡Hola ${primera.pacienteNombre}! 👋 Te recordamos tu cita odontológica para mañana (${primera.fechaCita}) a las ${primera.horaCita} para "${primera.tratamiento}" con ${primera.doctorNombre} en ${datos.nombre}.\n\n📅 Fecha: ${primera.fechaCita}\n⏰ Hora: ${primera.horaCita}\n📍 Sede: ${datos.direccion}\n\nOpciones de autogestión directa:\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\n¡Te esperamos!`;
+    const clinicaNombre = datos.nombreConsultorio || datos.nombre || 'Clínica Dental Dra. Yasmín Blanco';
+    const texto = `¡Hola ${primera.pacienteNombre}! 👋 Te recordamos tu cita odontológica para mañana (${primera.fechaCita}) a las ${primera.horaCita} para "${primera.tratamiento}" con ${primera.doctorNombre} en ${clinicaNombre}.\n\n📅 Fecha: ${primera.fechaCita}\n⏰ Hora: ${primera.horaCita}\n📍 Sede: ${datos.direccion}\n\nOpciones de autogestión directa:\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\n¡Te esperamos!`;
     const enlaceWA = generarEnlaceWhatsApp(primera.pacienteTelefono, texto);
     window.open(enlaceWA, '_blank');
 

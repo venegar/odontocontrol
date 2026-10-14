@@ -156,11 +156,12 @@ export default function ModalCrearCitasPrueba({
   // Enviar WhatsApp para una cita de prueba
   const handleEnviarWhatsAppPrueba = (cita: CitaPruebaGenerada, esManana: boolean) => {
     const enlaces = generarEnlacesAccionCita(cita.id);
+    const nombreClinica = datosConsultorio.nombreConsultorio || datosConsultorio.nombre || 'Clínica Dental Dra. Yasmín Blanco';
     const momento = esManana 
       ? `mañana (${formatearFechaEspanol(cita.fecha)})` 
       : `hoy (${formatearFechaEspanol(cita.fecha)})`;
 
-    const texto = `¡Hola ${cita.nombre}! 👋 Te recordamos tu cita odontológica para ${momento} a las ${cita.hora} para "${cita.tratamiento}" con ${cita.doctor} en ${datosConsultorio.nombre}.\n\n📅 Fecha: ${cita.fecha}\n⏰ Hora: ${cita.hora}\n📍 Sede: ${datosConsultorio.direccion}\n\nPor favor autogestiona tu asistencia en 1 clic:\n✅ Confirmar Cita: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nTeléfono consultorio: ${datosConsultorio.telefonoPrincipal}. ¡Te esperamos!`;
+    const texto = `¡Hola ${cita.nombre}! 👋 Te recordamos tu cita odontológica para ${momento} a las ${cita.hora} para "${cita.tratamiento}" con ${cita.doctor} en ${nombreClinica}.\n\n📅 Fecha: ${cita.fecha}\n⏰ Hora: ${cita.hora}\n📍 Sede: ${datosConsultorio.direccion}\n\nPor favor autogestiona tu asistencia en 1 clic:\n✅ Confirmar Cita: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nTeléfono consultorio: ${datosConsultorio.telefonoPrincipal}. ¡Te esperamos!`;
 
     const url = generarEnlaceWhatsApp(cita.telefono, texto);
     window.open(url, '_blank');
@@ -173,11 +174,12 @@ export default function ModalCrearCitasPrueba({
       return;
     }
     const enlaces = generarEnlacesAccionCita(cita.id);
+    const nombreClinica = datosConsultorio.nombreConsultorio || datosConsultorio.nombre || 'Clínica Dental Dra. Yasmín Blanco';
     const asunto = esManana
-      ? `Recordatorio Preventivo 24h: Tu cita odontológica es mañana a las ${cita.hora} - ${datosConsultorio.nombre}`
-      : `Recordatorio: Tu cita odontológica de hoy a las ${cita.hora} - ${datosConsultorio.nombre}`;
+      ? `Recordatorio Preventivo 24h: Tu cita odontológica es mañana a las ${cita.hora} - ${nombreClinica}`
+      : `Recordatorio: Tu cita odontológica de hoy a las ${cita.hora} - ${nombreClinica}`;
 
-    const cuerpo = `Hola ${cita.nombre},\n\nTe recordamos tu cita odontológica agendada en ${datosConsultorio.nombre}:\n\n• Especialista: ${cita.doctor}\n• Tratamiento: ${cita.tratamiento}\n• Horario: ${cita.hora}\n• Fecha: ${cita.fecha}\n• Sede: ${datosConsultorio.direccion}\n\nOpciones de autogestión directa:\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nAtentamente,\nEquipo Médico ${datosConsultorio.nombre}`;
+    const cuerpo = `Hola ${cita.nombre},\n\nTe recordamos tu cita odontológica agendada en ${nombreClinica}:\n\n• Especialista: ${cita.doctor}\n• Tratamiento: ${cita.tratamiento}\n• Horario: ${cita.hora}\n• Fecha: ${cita.fecha}\n• Sede: ${datosConsultorio.direccion}\n\nOpciones de autogestión directa:\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nAtentamente,\nEquipo Médico ${nombreClinica}`;
 
     const url = generarEnlaceEmail(cita.email, asunto, cuerpo);
     window.location.href = url;

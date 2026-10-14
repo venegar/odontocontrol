@@ -1,5 +1,6 @@
 export interface DatosConsultorio {
   nombreConsultorio: string;
+  nombre?: string; // Alias de compatibilidad total con vistas y recordatorios
   directoraMedica: string;
   registroProfesional: string;
   direccion: string;
@@ -17,6 +18,7 @@ export interface DatosConsultorio {
 
 export const DATOS_CONSULTORIO_DEFAULT: DatosConsultorio = {
   nombreConsultorio: 'Clínica Dental Dra. Yasmín Blanco',
+  nombre: 'Clínica Dental Dra. Yasmín Blanco',
   directoraMedica: 'Dra. Yasmín Blanco',
   registroProfesional: 'Colegiado Nº 28004921 • Máster en Cirugía Bucal',
   direccion: 'Paseo de la Castellana 142, Planta 2ª',
@@ -45,7 +47,14 @@ export function obtenerDatosConsultorio(): DatosConsultorio {
   try {
     const dataGuardada = localStorage.getItem(STORAGE_KEY);
     if (dataGuardada) {
-      return { ...DATOS_CONSULTORIO_DEFAULT, ...JSON.parse(dataGuardada) };
+      const parsed = JSON.parse(dataGuardada);
+      const nombreFinal = parsed.nombreConsultorio || parsed.nombre || DATOS_CONSULTORIO_DEFAULT.nombreConsultorio;
+      return { 
+        ...DATOS_CONSULTORIO_DEFAULT, 
+        ...parsed,
+        nombreConsultorio: nombreFinal,
+        nombre: nombreFinal,
+      };
     }
   } catch (error) {
     console.error('Error al recuperar datos del consultorio:', error);
@@ -79,8 +88,11 @@ export function guardarDatosConsultorio(
     minute: '2-digit',
   });
 
+  const nombreFinal = nuevosDatos.nombreConsultorio || nuevosDatos.nombre || DATOS_CONSULTORIO_DEFAULT.nombreConsultorio;
   const datosActualizados: DatosConsultorio = {
     ...nuevosDatos,
+    nombreConsultorio: nombreFinal,
+    nombre: nombreFinal,
     ultimaActualizacionPor: nombreUsuario,
     ultimaActualizacionFecha: fechaActual,
   };
