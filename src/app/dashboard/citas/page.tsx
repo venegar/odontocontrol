@@ -27,9 +27,15 @@ import {
   ExternalLink,
   Eye,
   AlertTriangle,
-  Loader2
+  Loader2,
+  Search,
+  UserCheck,
+  UserPlus,
+  ChevronDown
 } from 'lucide-react';
 import { EstadoCita, ModoAprobacion } from '@/modules/citas/types';
+import { Paciente, TipoEps } from '@/modules/pacientes/types';
+import { PACIENTES_REGISTRADOS_BASE } from '@/modules/pacientes/datos';
 import { 
   aprobarCita, 
   rechazarCita, 
@@ -219,6 +225,36 @@ export default function GestionCitasPage() {
             return [...citasDB, ...prevNoDuplicadas];
           });
         }
+
+        // 3. Sincronizar pacientes registrados de Supabase
+        const { data: dbPacientes } = await supabase.from('pacientes').select('*');
+        if (dbPacientes && Array.isArray(dbPacientes) && dbPacientes.length > 0 && montado) {
+          const pacientesMapeados: Paciente[] = dbPacientes.map((p: any) => ({
+            id: p.id,
+            tipoDocumento: p.tipo_documento || 'CC',
+            numeroDocumento: p.numero_documento || '',
+            nombres: p.nombres || '',
+            apellidos: p.apellidos || '',
+            eps: (p.eps as TipoEps) || 'Particular',
+            email: p.email || '',
+            telefono: p.telefono || '',
+            fechaNacimiento: p.fecha_nacimiento || '',
+            genero: p.genero || 'Otro',
+            ciudad: p.ciudad || 'Bogotá',
+            direccion: p.direccion || '',
+            alergias: Array.isArray(p.alergias) ? p.alergias : [],
+            enfermedadesPrevias: Array.isArray(p.enfermedades_previas) ? p.enfermedades_previas : [],
+            medicamentosActuales: Array.isArray(p.medicamentos_actuales) ? p.medicamentos_actuales : [],
+            grupoSanguineo: p.grupo_sanguineo || 'O+',
+            creadoEn: p.creado_en || new Date().toISOString(),
+          }));
+
+          setListaPacientes(prev => {
+            const docsExistentes = new Set(prev.map(item => item.numeroDocumento.trim()));
+            const nuevos = pacientesMapeados.filter(item => item.numeroDocumento && !docsExistentes.has(item.numeroDocumento.trim()));
+            return [...prev, ...nuevos];
+          });
+        }
       } catch (err) {
         console.warn('Sincronización con Supabase diferida:', err);
       }
@@ -236,6 +272,14 @@ export default function GestionCitasPage() {
   const [citaParaRechazar, setCitaParaRechazar] = useState<CitaGestionUI | null>(null);
   const [guardandoNuevaCita, setGuardandoNuevaCita] = useState(false);
   const [errorModalCita, setErrorModalCita] = useState<string | null>(null);
+
+  // Estados para Selección de Paciente (Registrado vs Nuevo)
+  const [listaPacientes, setListaPacientes] = useState<Paciente[]>(PACIENTES_REGISTRADOS_BASE);
+  const [modoPacienteCita, setModoPacienteCita] = useState<'registrado' | 'nuevo'>('registrado');
+  const [busquedaPaciente, setBusquedaPaciente] = useState<string>('');
+  const [pacienteSeleccionado, setPacienteSeleccionado] = useState<Paciente | null>(null);
+  const [mostrarSugerencias, setMostrarSugerencias] = useState<boolean>(false);
+  const [epsNuevoPaciente, setEpsNuevoPaciente] = useState<TipoEps>('Particular');
 
   // Estados para la Vista Calendario de la Agenda Confirmada
   const [fechaSeleccionada, setFechaSeleccionada] = useState<string>('2026-10-20');
@@ -546,9 +590,61 @@ export default function GestionCitasPage() {
     });
   };
 
+  // Pacientes sugeridos en autocompletado para agendamiento directo
+  const sugerenciasPacientes = React.useMemo(() => {
+    const q = busquedaPaciente.trim().toLowerCase();
+    if (!q) return listaPacientes.slice(0, 8);
+    return listaPacientes.filter(p => {
+      const nombreCompleto = `${p.nombres} ${p.apellidos}`.toLowerCase();
+      const doc = (p.numeroDocumento || '').toLowerCase();
+      const tel = (p.telefono || '').replace(/\s+/g, '');
+      const qSinEspacios = q.replace(/\s+/g, '');
+      return (
+        nombreCompleto.includes(q) ||
+        doc.includes(q) ||
+        tel.includes(qSinEspacios)
+      );
+    }).slice(0, 8);
+  }, [listaPacientes, busquedaPaciente]);
+
+  // Manejar selección de un paciente de la lista o autocompletado
+  const handleSeleccionarPaciente = (p: Paciente) => {
+    setPacienteSeleccionado(p);
+    const nombreCompleto = `${p.nombres} ${p.apellidos}`.trim();
+    setNuevoPaciente(prev => ({
+      ...prev,
+      nombre: nombreCompleto,
+      documento: p.numeroDocumento,
+      telefono: p.telefono,
+      notas: p.eps ? `EPS: ${p.eps}` : prev.notas,
+    }));
+    setBusquedaPaciente(nombreCompleto);
+    setMostrarSugerencias(false);
+    setErrorModalCita(null);
+  };
+
+  // Limpiar selección de paciente
+  const handleLimpiarPaciente = () => {
+    setPacienteSeleccionado(null);
+    setBusquedaPaciente('');
+    setNuevoPaciente(prev => ({
+      ...prev,
+      nombre: '',
+      documento: '',
+      telefono: '',
+      notas: '',
+    }));
+  };
+
   // 5. CREAR NUEVA CITA DIRECTA CON GUARDADO EN SUPABASE
   const handleCrearCitaDirecta = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (modoPacienteCita === 'registrado' && !nuevoPaciente.nombre) {
+      setErrorModalCita('Por favor selecciona un paciente registrado o búscalo en la lista.');
+      return;
+    }
+
     if (!nuevoPaciente.nombre || !nuevoPaciente.fecha || !nuevoPaciente.telefono) {
       setErrorModalCita('Por favor completa los campos obligatorios: nombre, teléfono y fecha.');
       return;
@@ -556,6 +652,10 @@ export default function GestionCitasPage() {
 
     setGuardandoNuevaCita(true);
     setErrorModalCita(null);
+
+    const notasConEps = modoPacienteCita === 'nuevo' && epsNuevoPaciente
+      ? `EPS: ${epsNuevoPaciente}${nuevoPaciente.notas ? ` • ${nuevoPaciente.notas}` : ''}`
+      : nuevoPaciente.notas;
 
     const res = await agendarCitaRecepcionAction({
       nombre: nuevoPaciente.nombre,
@@ -565,7 +665,7 @@ export default function GestionCitasPage() {
       tratamiento: nuevoPaciente.tratamiento,
       fecha: nuevoPaciente.fecha,
       hora: nuevoPaciente.hora,
-      notas: nuevoPaciente.notas,
+      notas: notasConEps,
     });
 
     setGuardandoNuevaCita(false);
@@ -588,9 +688,34 @@ export default function GestionCitasPage() {
       estado: res.datos.estado,
     };
 
+    // Si fue un paciente nuevo, agregarlo a la lista de pacientes registrados en memoria
+    if (modoPacienteCita === 'nuevo') {
+      const partes = nuevoPaciente.nombre.trim().split(/\s+/);
+      const nuevoReg: Paciente = {
+        id: `pac-${Date.now()}`,
+        tipoDocumento: 'CC',
+        numeroDocumento: nuevoPaciente.documento || `DOC-${Date.now().toString().slice(-6)}`,
+        nombres: partes[0] || 'Paciente',
+        apellidos: partes.slice(1).join(' ') || 'Registrado',
+        eps: epsNuevoPaciente,
+        telefono: nuevoPaciente.telefono,
+        fechaNacimiento: '1990-01-01',
+        genero: 'Otro',
+        ciudad: 'Bogotá',
+        direccion: '',
+        alergias: [],
+        enfermedadesPrevias: [],
+        medicamentosActuales: [],
+        grupoSanguineo: 'O+',
+        creadoEn: new Date().toISOString().split('T')[0],
+      };
+      setListaPacientes(prev => [nuevoReg, ...prev]);
+    }
+
     setCitas(prev => [nuevaCita, ...prev]);
-    setMensajeAlerta('¡Nueva cita agendada y guardada con éxito en la base de datos!');
+    setMensajeAlerta(`¡Cita agendada con éxito para ${res.datos.pacienteNombre}! Guardada en la base de datos.`);
     setModalNuevaCitaAbierto(false);
+    handleLimpiarPaciente();
     setNuevoPaciente({
       nombre: '',
       documento: '',
@@ -1456,54 +1581,256 @@ export default function GestionCitasPage() {
       {/* MODAL: AGENDAR NUEVA CITA DIRECTA (RECEPCIÓN) */}
       {/* ============================================================== */}
       {modalNuevaCitaAbierto && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-scale-up">
-            <div className="flex items-center justify-between pb-3 border-b">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-scale-up my-8 max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b shrink-0">
               <div>
                 <h3 className="font-bold text-base text-slate-900">Agendar Nueva Cita Directa</h3>
-                <p className="text-xs text-slate-500">Acción directa de recepción (queda confirmada automáticamente)</p>
+                <p className="text-xs text-slate-500">Acción directa de recepción para agendar citas en consultorio</p>
               </div>
               <button 
-                onClick={() => setModalNuevaCitaAbierto(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                onClick={() => {
+                  setModalNuevaCitaAbierto(false);
+                  handleLimpiarPaciente();
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleCrearCitaDirecta} className="mt-4 space-y-3.5">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Nombre Paciente *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ej. Roberto Gómez"
-                    value={nuevoPaciente.nombre}
-                    onChange={e => setNuevoPaciente({ ...nuevoPaciente, nombre: e.target.value })}
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Teléfono Móvil *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="+57 300 123 4567"
-                    value={nuevoPaciente.telefono}
-                    onChange={e => setNuevoPaciente({ ...nuevoPaciente, telefono: e.target.value })}
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500"
-                  />
+            <form onSubmit={handleCrearCitaDirecta} className="mt-4 space-y-4 overflow-y-auto pr-1">
+              {/* Selector de Modo: Paciente Registrado vs Paciente Nuevo */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">¿Para quién es la cita?</label>
+                <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModoPacienteCita('registrado');
+                      setErrorModalCita(null);
+                    }}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition ${
+                      modoPacienteCita === 'registrado'
+                        ? 'bg-white text-dentist-700 shadow-sm border border-slate-200/80'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <UserCheck className="w-4 h-4 text-dentist-600" />
+                    <span>Paciente Ya Registrado</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModoPacienteCita('nuevo');
+                      handleLimpiarPaciente();
+                      setErrorModalCita(null);
+                    }}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition ${
+                      modoPacienteCita === 'nuevo'
+                        ? 'bg-white text-emerald-700 shadow-sm border border-slate-200/80'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <UserPlus className="w-4 h-4 text-emerald-600" />
+                    <span>Paciente Nuevo</span>
+                  </button>
                 </div>
               </div>
 
+              {/* SECCIÓN SEGÚN MODO SELECCIONADO */}
+              {modoPacienteCita === 'registrado' ? (
+                <div className="space-y-3 p-3.5 bg-slate-50/80 rounded-xl border border-slate-200">
+                  {pacienteSeleccionado ? (
+                    /* Tarjeta de Paciente Seleccionado */
+                    <div className="p-3 bg-emerald-50/90 rounded-xl border border-emerald-200 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
+                          {pacienteSeleccionado.nombres[0]}{pacienteSeleccionado.apellidos[0]}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-xs font-bold text-slate-900 truncate">
+                              {pacienteSeleccionado.nombres} {pacienteSeleccionado.apellidos}
+                            </h4>
+                            {pacienteSeleccionado.eps && (
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full shrink-0 ${
+                                pacienteSeleccionado.eps === 'Ecopetrol'
+                                  ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                                  : 'bg-blue-100 text-blue-900 border border-blue-200'
+                              }`}>
+                                EPS: {pacienteSeleccionado.eps}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-slate-600 flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span>Doc: {pacienteSeleccionado.numeroDocumento}</span>
+                            <span>•</span>
+                            <span className="flex items-center gap-1 font-semibold text-slate-700">
+                              <Phone className="w-3 h-3 text-dentist-600" />
+                              {pacienteSeleccionado.telefono}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleLimpiarPaciente}
+                        className="text-xs font-bold text-rose-600 hover:text-rose-800 px-2.5 py-1 rounded-lg hover:bg-white transition border border-rose-200 bg-white shrink-0 shadow-2xs"
+                      >
+                        Cambiar
+                      </button>
+                    </div>
+                  ) : (
+                    /* Buscador con Autocompletado y Selector Dropdown */
+                    <div className="space-y-2.5">
+                      <div className="relative">
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          Buscar y autocompletar paciente *
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder="Escribe nombre, cédula o teléfono..."
+                            value={busquedaPaciente}
+                            onChange={e => {
+                              setBusquedaPaciente(e.target.value);
+                              setMostrarSugerencias(true);
+                            }}
+                            onFocus={() => setMostrarSugerencias(true)}
+                            className="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500 bg-white"
+                          />
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
+
+                        {/* Dropdown de sugerencias de autocompletado */}
+                        {mostrarSugerencias && (
+                          <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl border border-slate-200 shadow-xl z-30 max-h-56 overflow-y-auto divide-y divide-slate-100 animate-fade-in">
+                            {sugerenciasPacientes.length === 0 ? (
+                              <div className="p-3 text-xs text-slate-500 text-center">
+                                No se encontraron pacientes registrados con ese criterio.
+                              </div>
+                            ) : (
+                              sugerenciasPacientes.map(p => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => handleSeleccionarPaciente(p)}
+                                  className="w-full text-left p-2.5 hover:bg-dentist-50 transition flex items-center justify-between gap-2 text-xs"
+                                >
+                                  <div>
+                                    <p className="font-bold text-slate-900">
+                                      {p.nombres} {p.apellidos}
+                                    </p>
+                                    <p className="text-[11px] text-slate-500">
+                                      Doc: {p.numeroDocumento} • Tel: {p.telefono}
+                                    </p>
+                                  </div>
+                                  {p.eps && (
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                                      p.eps === 'Ecopetrol'
+                                        ? 'bg-amber-100 text-amber-900'
+                                        : 'bg-blue-100 text-blue-900'
+                                    }`}>
+                                      {p.eps}
+                                    </span>
+                                  )}
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Selector dropdown tradicional alternativo */}
+                      <div>
+                        <label className="block text-[11px] text-slate-500 mb-1">
+                          O selecciona directamente del listado:
+                        </label>
+                        <select
+                          value={pacienteSeleccionado?.id || ''}
+                          onChange={e => {
+                            const encontrado = listaPacientes.find(item => item.id === e.target.value);
+                            if (encontrado) handleSeleccionarPaciente(encontrado);
+                          }}
+                          className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500 bg-white"
+                        >
+                          <option value="">-- Seleccionar paciente ({listaPacientes.length} disponibles) --</option>
+                          {listaPacientes.map(p => (
+                            <option key={p.id} value={p.id}>
+                              {p.nombres} {p.apellidos} (Doc: {p.numeroDocumento} - {p.eps || 'Particular'})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* FORMULARIO DE PACIENTE NUEVO */
+                <div className="space-y-3 p-3.5 bg-slate-50/80 rounded-xl border border-slate-200">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Nombre Completo del Paciente *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ej. Roberto Gómez Bolaños"
+                      value={nuevoPaciente.nombre}
+                      onChange={e => setNuevoPaciente({ ...nuevoPaciente, nombre: e.target.value })}
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500 bg-white"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Número de Documento</label>
+                      <input
+                        type="text"
+                        placeholder="Ej. 1020304050"
+                        value={nuevoPaciente.documento}
+                        onChange={e => setNuevoPaciente({ ...nuevoPaciente, documento: e.target.value })}
+                        className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">EPS *</label>
+                      <select
+                        value={epsNuevoPaciente}
+                        onChange={e => setEpsNuevoPaciente(e.target.value as TipoEps)}
+                        className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500 bg-white font-medium"
+                      >
+                        <option value="Particular">Particular</option>
+                        <option value="Ecopetrol">Ecopetrol</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Teléfono Móvil (WhatsApp) *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="+57 300 123 4567"
+                      value={nuevoPaciente.telefono}
+                      onChange={e => setNuevoPaciente({ ...nuevoPaciente, telefono: e.target.value })}
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500 bg-white"
+                    />
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 italic">
+                    ℹ️ Este paciente quedará registrado automáticamente en el consultorio.
+                  </p>
+                </div>
+              )}
+
+              {/* CAMPOS DE LA CITA */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Odontólogo *</label>
                   <select
                     value={nuevoPaciente.doctor}
                     onChange={e => setNuevoPaciente({ ...nuevoPaciente, doctor: e.target.value })}
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500"
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500 bg-white"
                   >
                     {ODONTOLOGOS.map(d => (
                       <option key={d} value={d}>{d}</option>
@@ -1515,7 +1842,7 @@ export default function GestionCitasPage() {
                   <select
                     value={nuevoPaciente.tratamiento}
                     onChange={e => setNuevoPaciente({ ...nuevoPaciente, tratamiento: e.target.value })}
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500"
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500 bg-white"
                   >
                     {TRATAMIENTOS.map(t => (
                       <option key={t} value={t}>{t}</option>
@@ -1533,7 +1860,7 @@ export default function GestionCitasPage() {
                     min={new Date().toISOString().split('T')[0]}
                     value={nuevoPaciente.fecha}
                     onChange={e => setNuevoPaciente({ ...nuevoPaciente, fecha: e.target.value })}
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500"
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500 bg-white"
                   />
                 </div>
                 <div>
@@ -1543,9 +1870,20 @@ export default function GestionCitasPage() {
                     required
                     value={nuevoPaciente.hora.replace(' AM', '').replace(' PM', '')}
                     onChange={e => setNuevoPaciente({ ...nuevoPaciente, hora: e.target.value })}
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500"
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500 bg-white"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Notas u Observaciones (Opcional)</label>
+                <input
+                  type="text"
+                  placeholder="Motivo de consulta o indicaciones para el odontólogo..."
+                  value={nuevoPaciente.notas}
+                  onChange={e => setNuevoPaciente({ ...nuevoPaciente, notas: e.target.value })}
+                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500 bg-white"
+                />
               </div>
 
               {errorModalCita && (
@@ -1555,11 +1893,14 @@ export default function GestionCitasPage() {
                 </div>
               )}
 
-              <div className="pt-4 border-t flex justify-end space-x-2">
+              <div className="pt-3 border-t flex justify-end space-x-2 shrink-0">
                 <button
                   type="button"
                   disabled={guardandoNuevaCita}
-                  onClick={() => setModalNuevaCitaAbierto(false)}
+                  onClick={() => {
+                    setModalNuevaCitaAbierto(false);
+                    handleLimpiarPaciente();
+                  }}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl disabled:opacity-50"
                 >
                   Cancelar
