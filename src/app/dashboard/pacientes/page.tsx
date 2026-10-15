@@ -24,7 +24,7 @@ import {
   Eye,
   CalendarPlus
 } from 'lucide-react';
-import { Paciente, TipoDocumento } from '@/modules/pacientes/types';
+import { Paciente, TipoDocumento, TipoEps } from '@/modules/pacientes/types';
 
 // Pacientes iniciales de demostración con antecedentes clínicos
 const PACIENTES_INICIALES: Paciente[] = [
@@ -34,6 +34,7 @@ const PACIENTES_INICIALES: Paciente[] = [
     numeroDocumento: '1020304050',
     nombres: 'María Camila',
     apellidos: 'Pérez Gómez',
+    eps: 'Particular',
     email: 'maria.perez@ejemplo.com',
     telefono: '+57 310 987 6543',
     fechaNacimiento: '1995-06-15',
@@ -56,6 +57,7 @@ const PACIENTES_INICIALES: Paciente[] = [
     numeroDocumento: '79845123',
     nombres: 'Andrés Felipe',
     apellidos: 'Gómez Salcedo',
+    eps: 'Ecopetrol',
     email: 'andres.gomez@ejemplo.com',
     telefono: '+57 320 123 4567',
     fechaNacimiento: '1988-11-23',
@@ -78,6 +80,7 @@ const PACIENTES_INICIALES: Paciente[] = [
     numeroDocumento: '52431980',
     nombres: 'Lucía',
     apellidos: 'Torres Mendoza',
+    eps: 'Particular',
     email: 'lucia.torres@ejemplo.com',
     telefono: '+57 301 555 7890',
     fechaNacimiento: '2001-03-30',
@@ -100,6 +103,7 @@ const PACIENTES_INICIALES: Paciente[] = [
     numeroDocumento: '1098234567',
     nombres: 'Santiago',
     apellidos: 'Morales Silva',
+    eps: 'Ecopetrol',
     email: 'contacto.padres@ejemplo.com',
     telefono: '+57 312 666 7788',
     fechaNacimiento: '2012-08-19',
@@ -122,6 +126,7 @@ export default function GestionPacientesPage() {
   const [pacientes, setPacientes] = useState<Paciente[]>(PACIENTES_INICIALES);
   const [busqueda, setBusqueda] = useState<string>('');
   const [filtroCondicion, setFiltroCondicion] = useState<'todos' | 'alergias' | 'enfermedades'>('todos');
+  const [filtroEps, setFiltroEps] = useState<'todos' | 'Particular' | 'Ecopetrol'>('todos');
   
   // Modales
   const [pacienteSeleccionado, setPacienteSeleccionado] = useState<Paciente | null>(null);
@@ -132,6 +137,7 @@ export default function GestionPacientesPage() {
   const [nuevoForm, setNuevoForm] = useState({
     tipoDocumento: 'CC' as TipoDocumento,
     numeroDocumento: '',
+    eps: 'Particular' as TipoEps,
     nombres: '',
     apellidos: '',
     email: '',
@@ -165,7 +171,7 @@ export default function GestionPacientesPage() {
 
   // Filtrado de pacientes
   const pacientesFiltrados = pacientes.filter(p => {
-    const texto = `${p.nombres} ${p.apellidos} ${p.numeroDocumento} ${p.telefono} ${p.email}`.toLowerCase();
+    const texto = `${p.nombres} ${p.apellidos} ${p.numeroDocumento} ${p.telefono} ${p.email} ${p.eps || ''}`.toLowerCase();
     const coincideBusqueda = texto.includes(busqueda.toLowerCase());
 
     if (!coincideBusqueda) return false;
@@ -175,6 +181,10 @@ export default function GestionPacientesPage() {
     }
     if (filtroCondicion === 'enfermedades') {
       return p.enfermedadesPrevias && p.enfermedadesPrevias.length > 0;
+    }
+
+    if (filtroEps !== 'todos' && (p.eps || 'Particular') !== filtroEps) {
+      return false;
     }
 
     return true;
@@ -193,6 +203,7 @@ export default function GestionPacientesPage() {
       id: `pac-${Date.now()}`,
       tipoDocumento: nuevoForm.tipoDocumento,
       numeroDocumento: nuevoForm.numeroDocumento,
+      eps: nuevoForm.eps || 'Particular',
       nombres: nuevoForm.nombres,
       apellidos: nuevoForm.apellidos,
       email: nuevoForm.email,
@@ -214,13 +225,14 @@ export default function GestionPacientesPage() {
 
     setPacientes([nuevo, ...pacientes]);
     setModalNuevoPaciente(false);
-    setMensajeExito(`¡Paciente ${nuevo.nombres} ${nuevo.apellidos} registrado con éxito en el sistema!`);
+    setMensajeExito(`¡Paciente ${nuevo.nombres} ${nuevo.apellidos} (${nuevo.eps}) registrado con éxito en el sistema!`);
     setTimeout(() => setMensajeExito(null), 5000);
 
     // Reset formulario
     setNuevoForm({
       tipoDocumento: 'CC',
       numeroDocumento: '',
+      eps: 'Particular',
       nombres: '',
       apellidos: '',
       email: '',
@@ -339,16 +351,29 @@ export default function GestionPacientesPage() {
             />
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Filter className="w-3.5 h-3.5 text-slate-400" />
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <Filter className="w-3.5 h-3.5 text-slate-400" />
+              <select
+                value={filtroEps}
+                onChange={(e) => setFiltroEps(e.target.value as any)}
+                className="text-xs bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-1 focus:ring-dentist-500 font-medium w-full sm:w-auto"
+                title="Filtrar pacientes por EPS / Convenio"
+              >
+                <option value="todos">Todas las EPS</option>
+                <option value="Particular">Particular</option>
+                <option value="Ecopetrol">Ecopetrol</option>
+              </select>
+            </div>
+
             <select
               value={filtroCondicion}
               onChange={(e) => setFiltroCondicion(e.target.value as any)}
               className="text-xs bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-1 focus:ring-dentist-500 w-full sm:w-auto"
             >
-              <option value="todos">Todos los Pacientes</option>
-              <option value="alergias">Solo con Alergias a Medicamentos</option>
-              <option value="enfermedades">Solo con Enfermedades Previas</option>
+              <option value="todos">Todas las Condiciones</option>
+              <option value="alergias">Solo con Alergias</option>
+              <option value="enfermedades">Solo con Enfermedades</option>
             </select>
           </div>
         </div>
@@ -360,7 +385,7 @@ export default function GestionPacientesPage() {
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
                 <tr>
                   <th className="py-3.5 px-4">Paciente</th>
-                  <th className="py-3.5 px-4">Documento</th>
+                  <th className="py-3.5 px-4">Documento & EPS</th>
                   <th className="py-3.5 px-4">Contacto Directo</th>
                   <th className="py-3.5 px-4">Edad / Género</th>
                   <th className="py-3.5 px-4">Alertas Clínicas (Alergias / Enfermedades)</th>
@@ -391,7 +416,16 @@ export default function GestionPacientesPage() {
                         </td>
                         <td className="py-3.5 px-4 text-slate-700">
                           <span className="font-semibold text-slate-800">{pac.tipoDocumento} {pac.numeroDocumento}</span>
-                          <span className="block text-[11px] text-slate-400">GS: {pac.grupoSanguineo || 'N/A'}</span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              pac.eps === 'Ecopetrol'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : 'bg-slate-100 text-slate-600 border border-slate-200'
+                            }`}>
+                              {pac.eps || 'Particular'}
+                            </span>
+                            <span className="text-[10px] text-slate-400">GS: {pac.grupoSanguineo || 'N/A'}</span>
+                          </div>
                         </td>
                         <td className="py-3.5 px-4 text-slate-700">
                           <span className="font-medium text-slate-800 block flex items-center gap-1">
@@ -471,9 +505,18 @@ export default function GestionPacientesPage() {
             {/* Cabecera de la ficha */}
             <div className="flex items-start justify-between pb-4 border-b border-slate-200">
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-dentist-600 bg-dentist-50 px-2 py-0.5 rounded-md">
-                  Ficha Odontológica Oficial
-                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-dentist-600 bg-dentist-50 px-2 py-0.5 rounded-md">
+                    Ficha Odontológica Oficial
+                  </span>
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${
+                    pacienteSeleccionado.eps === 'Ecopetrol'
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                      : 'bg-slate-100 text-slate-700 border-slate-200'
+                  }`}>
+                    EPS: {pacienteSeleccionado.eps || 'Particular'}
+                  </span>
+                </div>
                 <h3 className="font-bold text-xl text-slate-900 mt-1">
                   {pacienteSeleccionado.nombres} {pacienteSeleccionado.apellidos}
                 </h3>
@@ -566,7 +609,13 @@ export default function GestionPacientesPage() {
                 <span>Datos Personales y Contacto</span>
               </h4>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs bg-slate-50/70 p-4 rounded-xl border border-slate-100">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-slate-50/70 p-4 rounded-xl border border-slate-100">
+                <div>
+                  <span className="text-slate-400 block text-[11px]">EPS / Cobertura</span>
+                  <span className={`font-bold ${pacienteSeleccionado.eps === 'Ecopetrol' ? 'text-emerald-700 font-extrabold' : 'text-slate-800'}`}>
+                    {pacienteSeleccionado.eps || 'Particular'}
+                  </span>
+                </div>
                 <div>
                   <span className="text-slate-400 block text-[11px]">Teléfono Principal</span>
                   <span className="font-semibold text-slate-800">{pacienteSeleccionado.telefono}</span>
@@ -658,7 +707,7 @@ export default function GestionPacientesPage() {
                     <select
                       value={nuevoForm.tipoDocumento}
                       onChange={e => setNuevoForm({ ...nuevoForm, tipoDocumento: e.target.value as TipoDocumento })}
-                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:ring-1 focus:ring-dentist-500"
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:ring-1 focus:ring-dentist-500 font-medium bg-white"
                     >
                       <option value="CC">Cédula de Ciudadanía (CC)</option>
                       <option value="TI">Tarjeta de Identidad (TI)</option>
@@ -666,7 +715,7 @@ export default function GestionPacientesPage() {
                       <option value="Pasaporte">Pasaporte</option>
                     </select>
                   </div>
-                  <div className="sm:col-span-2">
+                  <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Número de Documento *</label>
                     <input
                       type="text"
@@ -676,6 +725,19 @@ export default function GestionPacientesPage() {
                       onChange={e => setNuevoForm({ ...nuevoForm, numeroDocumento: e.target.value })}
                       className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:ring-1 focus:ring-dentist-500"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      EPS / Cobertura *
+                    </label>
+                    <select
+                      value={nuevoForm.eps}
+                      onChange={e => setNuevoForm({ ...nuevoForm, eps: e.target.value as TipoEps })}
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:ring-1 focus:ring-dentist-500 font-medium bg-white"
+                    >
+                      <option value="Particular">Particular</option>
+                      <option value="Ecopetrol">Ecopetrol</option>
+                    </select>
                   </div>
                 </div>
 

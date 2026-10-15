@@ -1,4 +1,5 @@
 export type TipoDocumento = 'CC' | 'TI' | 'CE' | 'Pasaporte';
+export type TipoEps = 'Particular' | 'Ecopetrol';
 
 export interface Paciente {
   id: string;
@@ -13,6 +14,7 @@ export interface Paciente {
   genero?: 'Femenino' | 'Masculino' | 'Otro';
   ciudad?: string;
   direccion?: string;
+  eps?: TipoEps;
   
   // Antecedentes médicos críticos para odontología
   alergias?: string[];

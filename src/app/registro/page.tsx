@@ -19,7 +19,7 @@ import {
   HeartPulse,
   ShieldAlert
 } from 'lucide-react';
-import { TipoDocumento } from '@/modules/pacientes/types';
+import { TipoDocumento, TipoEps } from '@/modules/pacientes/types';
 import FotoPerfilDropzone from '@/components/ui/FotoPerfilDropzone';
 
 export default function RegistroPacientePage() {
@@ -39,6 +39,7 @@ export default function RegistroPacientePage() {
     apellidos: '',
     tipoDocumento: 'CC' as TipoDocumento,
     numeroDocumento: '',
+    eps: 'Particular' as TipoEps,
     telefono: '',
     fechaNacimiento: '',
     ciudad: 'Bogotá',
@@ -217,7 +218,7 @@ export default function RegistroPacientePage() {
                     <select
                       value={form.tipoDocumento}
                       onChange={e => setForm({ ...form, tipoDocumento: e.target.value as TipoDocumento })}
-                      className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500"
+                      className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500 bg-white"
                     >
                       <option value="CC">Cédula (CC)</option>
                       <option value="TI">Tarjeta (TI)</option>
@@ -225,7 +226,7 @@ export default function RegistroPacientePage() {
                       <option value="Pasaporte">Pasaporte</option>
                     </select>
                   </div>
-                  <div className="sm:col-span-2">
+                  <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Número de Documento *</label>
                     <input
                       type="text"
@@ -235,6 +236,17 @@ export default function RegistroPacientePage() {
                       onChange={e => setForm({ ...form, numeroDocumento: e.target.value })}
                       className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">EPS / Cobertura *</label>
+                    <select
+                      value={form.eps}
+                      onChange={e => setForm({ ...form, eps: e.target.value as TipoEps })}
+                      className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500 font-medium bg-white"
+                    >
+                      <option value="Particular">Particular</option>
+                      <option value="Ecopetrol">Ecopetrol</option>
+                    </select>
                   </div>
                 </div>
 
