@@ -22,10 +22,36 @@ import {
   UserPlus, 
   ChevronRight,
   Eye,
-  CalendarPlus
+  CalendarPlus,
+  UploadCloud,
+  FileImage,
+  Film,
+  Trash2,
+  Maximize2,
+  Download,
+  Sparkles,
+  Plus,
+  Image as ImageIcon,
+  ZoomIn
 } from 'lucide-react';
-import { Paciente, TipoDocumento, TipoEps } from '@/modules/pacientes/types';
+import { 
+  Paciente, 
+  TipoDocumento, 
+  TipoEps, 
+  TipoImagenDiagnostica, 
+  ImagenDiagnostica 
+} from '@/modules/pacientes/types';
 import { PACIENTES_REGISTRADOS_BASE } from '@/modules/pacientes/datos';
+
+export const TIPOS_IMAGEN_DIAGNOSTICA: { id: TipoImagenDiagnostica; label: string; icon: string }[] = [
+  { id: 'radiografia_panoramica', label: 'Radiografía Panorámica (Ortopantomografía)', icon: '🦷' },
+  { id: 'radiografia_periapical', label: 'Radiografía Periapical', icon: '🔬' },
+  { id: 'tomografia_cbct', label: 'Tomografía Computarizada 3D (CBCT)', icon: '🧬' },
+  { id: 'fotografia_intraoral', label: 'Fotografía Intraoral', icon: '📸' },
+  { id: 'fotografia_extraoral', label: 'Fotografía Extraoral / Facial', icon: '👤' },
+  { id: 'cefalometria', label: 'Cefalometría / Teleradiografía', icon: '📐' },
+  { id: 'otro', label: 'Otro Estudio Diagnóstico', icon: '📑' },
+];
 
 export default function GestionPacientesPage() {
   const [pacientes, setPacientes] = useState<Paciente[]>(PACIENTES_REGISTRADOS_BASE);
@@ -33,10 +59,15 @@ export default function GestionPacientesPage() {
   const [filtroCondicion, setFiltroCondicion] = useState<'todos' | 'alergias' | 'enfermedades'>('todos');
   const [filtroEps, setFiltroEps] = useState<'todos' | 'Particular' | 'Ecopetrol'>('todos');
   
-  // Modales
+  // Modales y Visores
   const [pacienteSeleccionado, setPacienteSeleccionado] = useState<Paciente | null>(null);
   const [modalNuevoPaciente, setModalNuevoPaciente] = useState<boolean>(false);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
+  const [visorImagen, setVisorImagen] = useState<ImagenDiagnostica | null>(null);
+
+  // Estados de Imágenes Diagnósticas (Arrastrar y Soltar)
+  const [imagenesNuevas, setImagenesNuevas] = useState<ImagenDiagnostica[]>([]);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
 
   // Formulario de Nuevo Paciente
   const [nuevoForm, setNuevoForm] = useState({
@@ -95,6 +126,172 @@ export default function GestionPacientesPage() {
     return true;
   });
 
+  // Funciones de Arrastrar y Soltar (Drag & Drop) de Imágenes Diagnósticas
+  const formatearTamanoArchivo = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  };
+
+  const inferirTipoImagen = (nombreArchivo: string): { tipo: TipoImagenDiagnostica; tipoLabel: string } => {
+    const n = nombreArchivo.toLowerCase();
+    if (n.includes('peria') || n.includes('apical')) {
+      return { tipo: 'radiografia_periapical', tipoLabel: 'Radiografía Periapical' };
+    }
+    if (n.includes('tomo') || n.includes('cbct') || n.includes('3d') || n.includes('scan')) {
+      return { tipo: 'tomografia_cbct', tipoLabel: 'Tomografía Computarizada 3D (CBCT)' };
+    }
+    if (n.includes('intra') || n.includes('diente') || n.includes('boca') || n.includes('oclus')) {
+      return { tipo: 'fotografia_intraoral', tipoLabel: 'Fotografía Intraoral' };
+    }
+    if (n.includes('extra') || n.includes('rostro') || n.includes('facial') || n.includes('perfil')) {
+      return { tipo: 'fotografia_extraoral', tipoLabel: 'Fotografía Extraoral / Facial' };
+    }
+    if (n.includes('cefa') || n.includes('tele') || n.includes('craneo')) {
+      return { tipo: 'cefalometria', tipoLabel: 'Cefalometría / Teleradiografía' };
+    }
+    return { tipo: 'radiografia_panoramica', tipoLabel: 'Radiografía Panorámica (Ortopantomografía)' };
+  };
+
+  const procesarArchivosImagenes = (archivos: FileList | File[]) => {
+    const lista = Array.from(archivos);
+    lista.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const url = (e.target?.result as string) || '';
+        const { tipo, tipoLabel } = inferirTipoImagen(file.name);
+        const nuevaImg: ImagenDiagnostica = {
+          id: `img-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          nombre: file.name,
+          tipo,
+          tipoLabel,
+          url,
+          tamano: formatearTamanoArchivo(file.size),
+          fechaSubida: new Date().toISOString().split('T')[0],
+          notas: '',
+        };
+        setImagenesNuevas(prev => [...prev, nuevaImg]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      procesarArchivosImagenes(e.dataTransfer.files);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      procesarArchivosImagenes(e.target.files);
+    }
+  };
+
+  const handleEliminarImagen = (idImg: string) => {
+    setImagenesNuevas(prev => prev.filter(img => img.id !== idImg));
+  };
+
+  const handleCambiarTipoImagen = (idImg: string, nuevoTipo: TipoImagenDiagnostica) => {
+    const encontrado = TIPOS_IMAGEN_DIAGNOSTICA.find(t => t.id === nuevoTipo);
+    const label = encontrado ? encontrado.label : 'Estudio Diagnóstico';
+    setImagenesNuevas(prev => prev.map(img => 
+      img.id === idImg ? { ...img, tipo: nuevoTipo, tipoLabel: label } : img
+    ));
+  };
+
+  const handleCambiarNotasImagen = (idImg: string, notas: string) => {
+    setImagenesNuevas(prev => prev.map(img => 
+      img.id === idImg ? { ...img, notas } : img
+    ));
+  };
+
+  const handleCargarImagenesPrueba = () => {
+    const fecha = new Date().toISOString().split('T')[0];
+    const pruebas: ImagenDiagnostica[] = [
+      {
+        id: `img-demo-pano-${Date.now()}`,
+        nombre: 'Ortopantomografia_Panoramica_Digital.jpg',
+        tipo: 'radiografia_panoramica',
+        tipoLabel: 'Radiografía Panorámica (Ortopantomografía)',
+        url: 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=1200&q=80',
+        tamano: '3.4 MB',
+        fechaSubida: fecha,
+        notas: 'Control general de arcadas y valoración de densidad ósea.',
+      },
+      {
+        id: `img-demo-cbct-${Date.now()}`,
+        nombre: 'Tomografia_CBCT_3D_Alta_Definicion.jpg',
+        tipo: 'tomografia_cbct',
+        tipoLabel: 'Tomografía Computarizada 3D (CBCT)',
+        url: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=80',
+        tamano: '8.2 MB',
+        fechaSubida: fecha,
+        notas: 'Estudio volumétrico tridimensional guiado para cirugía de precisión.',
+      },
+      {
+        id: `img-demo-periapical-${Date.now()}`,
+        nombre: 'Radiografia_Periapical_Sector_Molar.jpg',
+        tipo: 'radiografia_periapical',
+        tipoLabel: 'Radiografía Periapical',
+        url: 'https://images.unsplash.com/photo-1598256989800-fe5f95da9787?auto=format&fit=crop&w=1200&q=80',
+        tamano: '1.2 MB',
+        fechaSubida: fecha,
+        notas: 'Detalle de conductos radiculares pieza 36.',
+      },
+    ];
+    setImagenesNuevas(prev => [...prev, ...pruebas]);
+  };
+
+  const handleAdjuntarImagenAPacienteSeleccionado = (archivos: FileList | File[]) => {
+    if (!pacienteSeleccionado) return;
+    const lista = Array.from(archivos);
+    lista.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const url = (e.target?.result as string) || '';
+        const { tipo, tipoLabel } = inferirTipoImagen(file.name);
+        const nuevaImg: ImagenDiagnostica = {
+          id: `img-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          nombre: file.name,
+          tipo,
+          tipoLabel,
+          url,
+          tamano: formatearTamanoArchivo(file.size),
+          fechaSubida: new Date().toISOString().split('T')[0],
+          notas: 'Adjuntado desde ficha clínica',
+        };
+        
+        const actualizado: Paciente = {
+          ...pacienteSeleccionado,
+          imagenesDiagnosticas: [...(pacienteSeleccionado.imagenesDiagnosticas || []), nuevaImg]
+        };
+        setPacienteSeleccionado(actualizado);
+        setPacientes(prev => prev.map(p => p.id === actualizado.id ? actualizado : p));
+        setMensajeExito(`¡Imagen "${file.name}" adjuntada con éxito a la ficha del paciente!`);
+        setTimeout(() => setMensajeExito(null), 4000);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   // Manejar creación de nuevo paciente
   const handleGuardarPaciente = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,16 +321,18 @@ export default function GestionPacientesPage() {
       contactoEmergenciaNombre: nuevoForm.contactoEmergenciaNombre,
       contactoEmergenciaTelefono: nuevoForm.contactoEmergenciaTelefono,
       contactoEmergenciaParentesco: nuevoForm.contactoEmergenciaParentesco,
+      imagenesDiagnosticas: imagenesNuevas.length > 0 ? imagenesNuevas : undefined,
       observaciones: nuevoForm.observaciones,
       creadoEn: new Date().toISOString().split('T')[0],
     };
 
     setPacientes([nuevo, ...pacientes]);
     setModalNuevoPaciente(false);
-    setMensajeExito(`¡Paciente ${nuevo.nombres} ${nuevo.apellidos} (${nuevo.eps}) registrado con éxito en el sistema!`);
+    setMensajeExito(`¡Paciente ${nuevo.nombres} ${nuevo.apellidos} (${nuevo.eps}) registrado con éxito con ${imagenesNuevas.length} estudio(s) diagnósticos!`);
     setTimeout(() => setMensajeExito(null), 5000);
 
-    // Reset formulario
+    // Reset formulario e imágenes
+    setImagenesNuevas([]);
     setNuevoForm({
       tipoDocumento: 'CC',
       numeroDocumento: '',
@@ -555,6 +754,108 @@ export default function GestionPacientesPage() {
               )}
             </div>
 
+            {/* SECCIÓN 3: ESTUDIOS RADIOLÓGICOS E IMÁGENES DIAGNÓSTICAS */}
+            <div className="mt-6 pt-5 border-t border-slate-200">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <Film className="w-4 h-4 text-dentist-600" />
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-800">
+                    Estudios Radiológicos e Imágenes Diagnósticas
+                  </h4>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-dentist-100 text-dentist-800 border border-dentist-200">
+                    {pacienteSeleccionado.imagenesDiagnosticas?.length || 0} disponibles
+                  </span>
+                </div>
+
+                {/* Botón para adjuntar más imágenes a este paciente */}
+                <div>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,.pdf,.dcm"
+                    id={`input-adjuntar-detalle-${pacienteSeleccionado.id}`}
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        handleAdjuntarImagenAPacienteSeleccionado(e.target.files);
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor={`input-adjuntar-detalle-${pacienteSeleccionado.id}`}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-dentist-700 hover:text-dentist-900 bg-dentist-50 hover:bg-dentist-100 border border-dentist-200 px-3 py-1.5 rounded-xl cursor-pointer transition shadow-2xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Adjuntar Nuevo Estudio</span>
+                  </label>
+                </div>
+              </div>
+
+              {pacienteSeleccionado.imagenesDiagnosticas && pacienteSeleccionado.imagenesDiagnosticas.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                  {pacienteSeleccionado.imagenesDiagnosticas.map((img) => (
+                    <div
+                      key={img.id}
+                      className="p-3 bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-sm flex gap-3 items-center group relative overflow-hidden"
+                    >
+                      {/* Miniatura con efecto negatoscopio */}
+                      <div
+                        onClick={() => setVisorImagen(img)}
+                        className="relative w-18 h-18 sm:w-20 sm:h-20 rounded-xl bg-black overflow-hidden shrink-0 cursor-pointer border border-slate-700"
+                        title="Clic para ampliar en Visor Radiológico de Alta Definición"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={img.url}
+                          alt={img.nombre}
+                          className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white">
+                          <ZoomIn className="w-5 h-5 text-dentist-400" />
+                        </div>
+                      </div>
+
+                      {/* Detalles del estudio */}
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full bg-dentist-500/20 text-dentist-300 border border-dentist-500/40 truncate">
+                            {img.tipoLabel}
+                          </span>
+                        </div>
+                        <p className="text-xs font-bold text-white truncate" title={img.nombre}>
+                          {img.nombre}
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          {img.fechaSubida} • {img.tamano}
+                        </p>
+                        {img.notas && (
+                          <p className="text-[11px] text-slate-300 italic truncate" title={img.notas}>
+                            &quot;{img.notas}&quot;
+                          </p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setVisorImagen(img)}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-dentist-400 hover:text-dentist-300 transition pt-0.5"
+                        >
+                          <Maximize2 className="w-3 h-3" />
+                          <span>Ver en Negatoscopio</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-center text-xs text-slate-500">
+                  <Film className="w-6 h-6 text-slate-300 mx-auto mb-1" />
+                  <p className="font-semibold text-slate-700">Sin estudios diagnósticos adjuntos</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Puedes adjuntar radiografías periapicales, panorámicas o tomografías CBCT usando el botón superior.
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Botones de acción */}
             <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-between">
               <span className="text-[11px] text-slate-400">
@@ -754,12 +1055,160 @@ export default function GestionPacientesPage() {
                     </div>
                   </div>
                 </div>
+              {/* Sección 3: Carga de Imágenes Diagnósticas (Arrastrar y Soltar) */}
+              <div className="pt-3 border-t border-slate-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-dentist-800 flex items-center gap-1.5">
+                    <Film className="w-3.5 h-3.5 text-dentist-600" />
+                    <span>3. Imágenes Diagnósticas (Radiografías, Tomografías y Estudios)</span>
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={handleCargarImagenesPrueba}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-lg transition self-start sm:self-auto"
+                    title="Cargar imágenes de muestra (Panorámica + CBCT 3D) para probar de inmediato"
+                  >
+                    <Sparkles className="w-3 h-3 text-amber-600" />
+                    <span>🧪 Cargar Imágenes de Prueba</span>
+                  </button>
+                </div>
+
+                {/* Zona Drag & Drop */}
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`relative border-2 border-dashed rounded-2xl p-5 text-center transition-all ${
+                    isDragging 
+                      ? 'border-dentist-600 bg-dentist-50/90 ring-4 ring-dentist-100 scale-[1.01]' 
+                      : 'border-slate-300 bg-slate-50/70 hover:bg-slate-100/70 hover:border-dentist-400'
+                  }`}
+                >
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,.pdf,.dcm"
+                    id="input-imagenes-diagnosticas"
+                    onChange={handleFileInputChange}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="input-imagenes-diagnosticas"
+                    className="cursor-pointer flex flex-col items-center justify-center space-y-2"
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-dentist-100 text-dentist-700 flex items-center justify-center shadow-xs">
+                      <UploadCloud className="w-6 h-6 animate-pulse" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">
+                        Arrastra y suelta aquí radiografías, tomografías CBCT o fotografías clínicas
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        o <span className="text-dentist-600 font-semibold underline">haz clic para examinar archivos</span> desde tu dispositivo
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap justify-center items-center gap-2 pt-1 text-[10px] text-slate-400">
+                      <span className="px-2 py-0.5 bg-white rounded border border-slate-200">PNG, JPG, WEBP</span>
+                      <span className="px-2 py-0.5 bg-white rounded border border-slate-200">DICOM / CBCT 3D</span>
+                      <span className="px-2 py-0.5 bg-white rounded border border-slate-200">PDF Diagnósticos</span>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Lista de Imágenes Cargadas */}
+                {imagenesNuevas.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center justify-between text-xs text-slate-600 px-1">
+                      <span className="font-semibold text-dentist-700">
+                        {imagenesNuevas.length} estudio(s) diagnósticos listos para adjuntar a la ficha:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setImagenesNuevas([])}
+                        className="text-[11px] text-rose-600 hover:text-rose-800 font-medium"
+                      >
+                        Limpiar todas
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-60 overflow-y-auto p-1">
+                      {imagenesNuevas.map((img) => (
+                        <div
+                          key={img.id}
+                          className="p-2.5 bg-white rounded-xl border border-slate-200 shadow-2xs hover:shadow-xs transition flex gap-3 items-start"
+                        >
+                          {/* Miniatura con botón de previsualización */}
+                          <div 
+                            onClick={() => setVisorImagen(img)}
+                            className="relative w-16 h-16 rounded-lg bg-slate-900 overflow-hidden shrink-0 cursor-pointer group border border-slate-200"
+                            title="Clic para ver en el visor radiológico"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={img.url}
+                              alt={img.nombre}
+                              className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white">
+                              <Maximize2 className="w-4 h-4" />
+                            </div>
+                          </div>
+
+                          {/* Datos y clasificación */}
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex items-start justify-between gap-1">
+                              <p className="text-xs font-bold text-slate-900 truncate" title={img.nombre}>
+                                {img.nombre}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => handleEliminarImagen(img.id)}
+                                className="text-slate-400 hover:text-rose-600 p-0.5 shrink-0"
+                                title="Eliminar esta imagen"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                              <span className="font-semibold text-slate-700">{img.tamano}</span>
+                              <span>•</span>
+                              <span>{img.fechaSubida}</span>
+                            </div>
+
+                            {/* Selector de Tipo de Estudio */}
+                            <select
+                              value={img.tipo}
+                              onChange={(e) => handleCambiarTipoImagen(img.id, e.target.value as TipoImagenDiagnostica)}
+                              className="w-full text-[11px] py-1 px-2 rounded-lg border border-slate-300 bg-slate-50 font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-dentist-500"
+                            >
+                              {TIPOS_IMAGEN_DIAGNOSTICA.map(t => (
+                                <option key={t.id} value={t.id}>
+                                  {t.icon} {t.label}
+                                </option>
+                              ))}
+                            </select>
+
+                            {/* Notas opcionales */}
+                            <input
+                              type="text"
+                              placeholder="Notas clínicas (ej: Diente 46, prequirúrgico)..."
+                              value={img.notas || ''}
+                              onChange={(e) => handleCambiarNotasImagen(img.id, e.target.value)}
+                              className="w-full text-[10px] py-1 px-2 rounded-lg border border-slate-200 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-dentist-500"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Sección 3: Contacto de Emergencia */}
+              {/* Sección 4: Contacto de Emergencia */}
               <div className="pt-3 border-t border-slate-200">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                  3. Contacto de Emergencia
+                  4. Contacto de Emergencia
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
@@ -811,6 +1260,78 @@ export default function GestionPacientesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* ============================================================== */}
+      {/* MODAL: VISOR RADIOLÓGICO / NEGATOSCOPIO DIGITAL DE PRECISIÓN */}
+      {/* ============================================================== */}
+      {visorImagen && (
+        <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-70 flex flex-col justify-between p-4 animate-fade-in">
+          {/* Cabecera del visor */}
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800 text-white max-w-7xl w-full mx-auto">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-dentist-600/30 border border-dentist-500/50 flex items-center justify-center text-dentist-400">
+                <Film className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-bold text-sm text-white">{visorImagen.nombre}</h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-dentist-500/20 text-dentist-300 border border-dentist-500/40">
+                    {visorImagen.tipoLabel}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Estudio del {visorImagen.fechaSubida} • Tamaño: {visorImagen.tamano}
+                  {visorImagen.notas && ` • Observaciones: "${visorImagen.notas}"`}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <a
+                href={visorImagen.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                download={visorImagen.nombre}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Descargar / Abrir</span>
+              </a>
+              <button
+                onClick={() => setVisorImagen(null)}
+                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition"
+                title="Cerrar visor"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Área central con la imagen sobre fondo oscuro / negatoscopio */}
+          <div className="flex-1 flex items-center justify-center p-4 overflow-hidden max-w-6xl w-full mx-auto">
+            <div className="relative max-w-full max-h-[75vh] rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-black flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={visorImagen.url}
+                alt={visorImagen.nombre}
+                className="max-w-full max-h-[75vh] object-contain mx-auto"
+              />
+            </div>
+          </div>
+
+          {/* Pie del visor */}
+          <div className="max-w-7xl w-full mx-auto pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+            <span className="flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-dentist-400" />
+              <span>Visor Diagnóstico Odontológico de Alta Fidelidad • Dra. Yasmín Blanco</span>
+            </span>
+            <button
+              onClick={() => setVisorImagen(null)}
+              className="px-4 py-1.5 bg-dentist-600 hover:bg-dentist-700 text-white rounded-xl text-xs font-semibold transition"
+            >
+              Cerrar Visor
+            </button>
           </div>
         </div>
       )}

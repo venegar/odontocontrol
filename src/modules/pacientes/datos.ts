@@ -25,6 +25,28 @@ export const PACIENTES_REGISTRADOS_BASE: Paciente[] = [
     grupoSanguineo: 'O+',
     observaciones: 'Paciente preferencial titular.',
     creadoEn: '2026-01-05',
+    imagenesDiagnosticas: [
+      {
+        id: 'img-diag-1',
+        nombre: 'Ortopantomografia_Digital_Panoramica.jpg',
+        tipo: 'radiografia_panoramica',
+        tipoLabel: 'Radiografía Panorámica',
+        url: 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=1200&q=80',
+        tamano: '3.4 MB',
+        fechaSubida: '2026-01-10',
+        notas: 'Control general de arcadas y estado de terceras molares.',
+      },
+      {
+        id: 'img-diag-2',
+        nombre: 'Tomografia_CBCT_3D_Maxilar_Superior.jpg',
+        tipo: 'tomografia_cbct',
+        tipoLabel: 'Tomografía CBCT 3D',
+        url: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=80',
+        tamano: '8.2 MB',
+        fechaSubida: '2026-02-15',
+        notas: 'Planificación guiada para implantes en zona premolar.',
+      },
+    ],
   },
   {
     id: 'pac-1',
@@ -48,6 +70,18 @@ export const PACIENTES_REGISTRADOS_BASE: Paciente[] = [
     contactoEmergenciaParentesco: 'Padre',
     observaciones: 'Presenta fobia a las agujas; requiere anestesia con técnica lenta.',
     creadoEn: '2026-01-10',
+    imagenesDiagnosticas: [
+      {
+        id: 'img-diag-3',
+        nombre: 'Radiografia_Periapical_Sector_Anterior.jpg',
+        tipo: 'radiografia_periapical',
+        tipoLabel: 'Radiografía Periapical',
+        url: 'https://images.unsplash.com/photo-1598256989800-fe5f95da9787?auto=format&fit=crop&w=1200&q=80',
+        tamano: '1.2 MB',
+        fechaSubida: '2026-02-01',
+        notas: 'Evaluación periapical incisivos centrales superiores.',
+      },
+    ],
   },
   {
     id: 'pac-2',
