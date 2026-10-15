@@ -236,7 +236,13 @@ export default function RecordatoriosPage() {
         setCargandoDB(true);
         const { data, error } = await supabase.rpc('obtener_citas_gestion');
         if (!error && Array.isArray(data) && data.length > 0 && montado) {
-          const citasDB: RecordatorioItem[] = data.map((c: any) => ({
+          // Excluir citas canceladas o rechazadas de la cola de recordatorios
+          const citasActivas = data.filter((c: any) => c.estado !== 'cancelada' && c.estado !== 'rechazada');
+          const idsInactivas = new Set(
+            data.filter((c: any) => c.estado === 'cancelada' || c.estado === 'rechazada').map((c: any) => c.id)
+          );
+
+          const citasDB: RecordatorioItem[] = citasActivas.map((c: any) => ({
             id: `rec-db-${c.id}`,
             citaId: c.id,
             pacienteNombre: c.paciente_nombre || 'Paciente sin nombre',
@@ -254,7 +260,7 @@ export default function RecordatoriosPage() {
 
           setCola(prev => {
             const idsDB = new Set(citasDB.map(r => r.citaId));
-            const prevFiltradas = prev.filter(p => !idsDB.has(p.citaId));
+            const prevFiltradas = prev.filter(p => !idsDB.has(p.citaId) && !idsInactivas.has(p.citaId));
             return [...citasDB, ...prevFiltradas];
           });
         }
@@ -308,6 +314,9 @@ export default function RecordatoriosPage() {
   // Disparo de recordatorio por WhatsApp con validación Zod y registro en Supabase
   const handleEnviarWhatsApp = async (item: RecordatorioItem) => {
     setEnviandoId(`wa-${item.id}`);
+    // Pre-abrir la pestaña sincrónicamente para evitar que el navegador bloquee el popup
+    const ventanaWA = typeof window !== 'undefined' ? window.open('', '_blank') : null;
+
     try {
       const payload: DatosEnvioRecordatorio = {
         citaId: item.citaId,
@@ -323,6 +332,7 @@ export default function RecordatoriosPage() {
       const res = await enviarRecordatorioWhatsAppAction(payload);
 
       if (!res.exito) {
+        if (ventanaWA) ventanaWA.close();
         mostrarAlerta(res.mensaje || 'Error de validación en los datos del paciente para WhatsApp.', 'error', 7000);
         return;
       }
@@ -336,11 +346,18 @@ export default function RecordatoriosPage() {
 
       mostrarAlerta(res.mensaje || `Enlace generado con éxito. Abriendo WhatsApp para ${item.pacienteNombre}...`, 'exito', 5000);
 
-      // Abrir WhatsApp en nueva pestaña
+      // Redirigir la pestaña pre-abierta a WhatsApp
       if (res.urlAccion) {
-        window.open(res.urlAccion, '_blank');
+        if (ventanaWA) {
+          ventanaWA.location.href = res.urlAccion;
+        } else {
+          window.open(res.urlAccion, '_blank');
+        }
+      } else if (ventanaWA) {
+        ventanaWA.close();
       }
     } catch (err: unknown) {
+      if (ventanaWA) ventanaWA.close();
       const msg = err instanceof Error ? err.message : 'Error inesperado al procesar recordatorio';
       mostrarAlerta(`No fue posible procesar el recordatorio: ${msg}`, 'error', 6000);
     } finally {
@@ -348,7 +365,7 @@ export default function RecordatoriosPage() {
     }
   };
 
-  // Disparo de recordatorio por Correo Electrónico (Resend + Respaldo mailto:)
+  // Disparo de recordatorio por Correo Electrónico (Resend + Respaldo Gmail / mailto:)
   const handleEnviarEmail = async (item: RecordatorioItem) => {
     setEnviandoId(`email-${item.id}`);
     try {
@@ -381,7 +398,10 @@ export default function RecordatoriosPage() {
         mostrarAlerta(`✅ ${res.mensaje}`, 'exito', 7000);
       } else {
         mostrarAlerta(`📧 ${res.mensaje}`, 'info', 6000);
-        if (res.urlAccion) {
+        if (res.urlGmailWeb) {
+          // Abrir directamente en Gmail Web para comodidad en navegadores
+          window.open(res.urlGmailWeb, '_blank');
+        } else if (res.urlAccion) {
           window.location.href = res.urlAccion;
         }
       }

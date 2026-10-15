@@ -18,10 +18,17 @@ import {
   X, 
   SlidersHorizontal,
   ChevronRight,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 import { EstadoCita, ModoAprobacion } from '@/modules/citas/types';
-import { aprobarCita, rechazarCita, obtenerCitasHoy } from '@/modules/citas/actions';
+import { 
+  aprobarCita, 
+  rechazarCita, 
+  obtenerCitasHoy,
+  agendarCitaRecepcionAction,
+  cancelarCitaAction
+} from '@/modules/citas/actions';
 import { supabase } from '@/lib/supabase';
 
 interface CitaGestionUI {
@@ -185,6 +192,8 @@ export default function GestionCitasPage() {
   const [citaParaReagendar, setCitaParaReagendar] = useState<CitaGestionUI | null>(null);
   const [citaParaCancelar, setCitaParaCancelar] = useState<CitaGestionUI | null>(null);
   const [citaParaRechazar, setCitaParaRechazar] = useState<CitaGestionUI | null>(null);
+  const [guardandoNuevaCita, setGuardandoNuevaCita] = useState(false);
+  const [errorModalCita, setErrorModalCita] = useState<string | null>(null);
 
   // Formulario Nueva Cita Directa
   const [nuevoPaciente, setNuevoPaciente] = useState({
@@ -234,7 +243,7 @@ export default function GestionCitasPage() {
     try {
       await aprobarCita(id);
     } catch (err) {
-      console.warn('Actualización en Supabase procesada de forma optimista:', err);
+      console.warn('Actualización en Supabase procesada:', err);
     }
   };
 
@@ -254,7 +263,7 @@ export default function GestionCitasPage() {
       }
       return c;
     }));
-    setMensajeAlerta('La solicitud ha sido rechazada. Se notificó al paciente el motivo.');
+    setMensajeAlerta('La solicitud ha sido rechazada y retirada de la agenda activa.');
     setCitaParaRechazar(null);
     setMotivoTexto('');
     setTimeout(() => setMensajeAlerta(null), 5000);
@@ -262,19 +271,22 @@ export default function GestionCitasPage() {
     try {
       await rechazarCita(idCita, motivoFinal);
     } catch (err) {
-      console.warn('Rechazo en Supabase procesado de forma optimista:', err);
+      console.warn('Rechazo en Supabase procesado:', err);
     }
   };
 
   // 3. CANCELAR CITA EXISTENTE
-  const handleConfirmarCancelacion = () => {
+  const handleConfirmarCancelacion = async () => {
     if (!citaParaCancelar) return;
+    const idCita = citaParaCancelar.id;
+    const motivoFinal = motivoTexto || 'Cancelada por recepción';
+
     setCitas(prev => prev.map(c => {
-      if (c.id === citaParaCancelar.id) {
+      if (c.id === idCita) {
         return { 
           ...c, 
           estado: 'cancelada', 
-          motivoRechazoCancelacion: motivoTexto || 'Cancelada por recepción' 
+          motivoRechazoCancelacion: motivoFinal 
         };
       }
       return c;
@@ -283,6 +295,12 @@ export default function GestionCitasPage() {
     setCitaParaCancelar(null);
     setMotivoTexto('');
     setTimeout(() => setMensajeAlerta(null), 5000);
+
+    try {
+      await cancelarCitaAction(idCita, motivoFinal);
+    } catch (err) {
+      console.warn('Cancelación en Supabase procesada:', err);
+    }
   };
 
   // 4. REAGENDAR CITA
@@ -306,26 +324,50 @@ export default function GestionCitasPage() {
     setTimeout(() => setMensajeAlerta(null), 5000);
   };
 
-  // 5. CREAR NUEVA CITA DIRECTA
-  const handleCrearCitaDirecta = (e: React.FormEvent) => {
+  // 5. CREAR NUEVA CITA DIRECTA CON GUARDADO EN SUPABASE
+  const handleCrearCitaDirecta = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nuevoPaciente.nombre || !nuevoPaciente.fecha) return;
+    if (!nuevoPaciente.nombre || !nuevoPaciente.fecha || !nuevoPaciente.telefono) {
+      setErrorModalCita('Por favor completa los campos obligatorios: nombre, teléfono y fecha.');
+      return;
+    }
 
-    const nuevaCita: CitaGestionUI = {
-      id: `cita-dir-${Date.now()}`,
-      pacienteNombre: nuevoPaciente.nombre,
-      pacienteDocumento: nuevoPaciente.documento || 'No especificado',
-      pacienteTelefono: nuevoPaciente.telefono || 'Sin teléfono',
-      doctorNombre: nuevoPaciente.doctor,
+    setGuardandoNuevaCita(true);
+    setErrorModalCita(null);
+
+    const res = await agendarCitaRecepcionAction({
+      nombre: nuevoPaciente.nombre,
+      documento: nuevoPaciente.documento,
+      telefono: nuevoPaciente.telefono,
+      doctor: nuevoPaciente.doctor,
       tratamiento: nuevoPaciente.tratamiento,
       fecha: nuevoPaciente.fecha,
-      horaInicio: nuevoPaciente.hora,
-      horaFin: `${nuevoPaciente.hora} (Estimado)`,
-      estado: 'confirmada', // Las citas creadas por recepción se confirman directo
+      hora: nuevoPaciente.hora,
+      notas: nuevoPaciente.notas,
+    });
+
+    setGuardandoNuevaCita(false);
+
+    if (!res.exito || !res.datos) {
+      setErrorModalCita(res.mensaje || 'Error al guardar la cita en la base de datos.');
+      return;
+    }
+
+    const nuevaCita: CitaGestionUI = {
+      id: res.datos.id,
+      pacienteNombre: res.datos.pacienteNombre,
+      pacienteDocumento: res.datos.pacienteDocumento,
+      pacienteTelefono: res.datos.pacienteTelefono,
+      doctorNombre: res.datos.doctorNombre,
+      tratamiento: res.datos.tratamiento,
+      fecha: res.datos.fecha,
+      horaInicio: res.datos.horaInicio,
+      horaFin: res.datos.horaFin,
+      estado: res.datos.estado,
     };
 
-    setCitas([nuevaCita, ...citas]);
-    setMensajeAlerta('Nueva cita agendada y confirmada con éxito por Recepción.');
+    setCitas(prev => [nuevaCita, ...prev]);
+    setMensajeAlerta('¡Nueva cita agendada y guardada con éxito en la base de datos!');
     setModalNuevaCitaAbierto(false);
     setNuevoPaciente({
       nombre: '',
@@ -780,19 +822,35 @@ export default function GestionCitasPage() {
                 </div>
               </div>
 
+              {errorModalCita && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{errorModalCita}</span>
+                </div>
+              )}
+
               <div className="pt-4 border-t flex justify-end space-x-2">
                 <button
                   type="button"
+                  disabled={guardandoNuevaCita}
                   onClick={() => setModalNuevaCitaAbierto(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-semibold bg-dentist-600 hover:bg-dentist-700 text-white rounded-xl shadow-sm transition"
+                  disabled={guardandoNuevaCita}
+                  className="inline-flex items-center gap-2 px-5 py-2 text-xs font-semibold bg-dentist-600 hover:bg-dentist-700 disabled:opacity-50 text-white rounded-xl shadow-sm transition"
                 >
-                  Agendar y Confirmar
+                  {guardandoNuevaCita ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Guardando en Base de Datos...</span>
+                    </>
+                  ) : (
+                    <span>Agendar y Confirmar en Agenda</span>
+                  )}
                 </button>
               </div>
             </form>

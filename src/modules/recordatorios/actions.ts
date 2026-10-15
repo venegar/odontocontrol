@@ -156,29 +156,32 @@ export async function enviarRecordatorioEmailAction(
         mensajeError
       );
 
-      // Respaldo inmediato: generar mailto
+      // Respaldo inmediato: generar mailto y enlace web de Gmail
       const mailtoUrl = generarEnlaceEmail(
         datosValidos.pacienteEmail,
         plantilla.asunto,
         plantilla.textoPlano
       );
+      const urlGmailWeb = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(datosValidos.pacienteEmail)}&su=${encodeURIComponent(plantilla.asunto)}&body=${encodeURIComponent(plantilla.textoPlano)}`;
 
       return {
         exito: true,
         canal: 'email',
         metodo: 'mailto',
         urlAccion: mailtoUrl,
-        mensaje: `Servicio Resend reportó: ${mensajeError}. Se activó el respaldo por cliente de correo.`,
+        urlGmailWeb,
+        mensaje: `Resend en modo prueba requiere dominio propio. Se abrió la redacción en Gmail Web / correo para ${datosValidos.pacienteEmail}.`,
       };
     }
   }
 
-  // 4. Si no hay API Key de Resend, usar respaldo mailto directo
+  // 4. Si no hay API Key de Resend, usar respaldo mailto directo y Gmail Web
   const mailtoUrl = generarEnlaceEmail(
     datosValidos.pacienteEmail,
     plantilla.asunto,
     plantilla.textoPlano
   );
+  const urlGmailWeb = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(datosValidos.pacienteEmail)}&su=${encodeURIComponent(plantilla.asunto)}&body=${encodeURIComponent(plantilla.textoPlano)}`;
 
   await registrarEnvioEnSupabase(
     datosValidos.citaId,
@@ -193,6 +196,7 @@ export async function enviarRecordatorioEmailAction(
     canal: 'email',
     metodo: 'mailto',
     urlAccion: mailtoUrl,
+    urlGmailWeb,
     mensaje: `Abriendo cliente de correo electrónico para ${datosValidos.pacienteEmail}.`,
   };
 }

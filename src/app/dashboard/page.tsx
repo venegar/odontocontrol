@@ -564,14 +564,20 @@ export default function DashboardPrincipalPage() {
     return () => window.removeEventListener('consultorio_actualizado', handleActualizacion);
   }, []);
 
-  // Sincronización en tiempo real de citas reales de Supabase (ej. Pedro Pérez)
+  // Sincronización en tiempo real de citas reales de Supabase
   useEffect(() => {
     let montado = true;
     async function sincronizarCitasDB() {
       try {
         const { data, error } = await supabase.rpc('obtener_citas_gestion');
         if (!error && Array.isArray(data) && data.length > 0 && montado) {
-          const citasDB: PacienteDia[] = data.map((c: any) => {
+          // Excluir citas canceladas o rechazadas de la atención activa de recepción
+          const citasActivas = data.filter((c: any) => c.estado !== 'cancelada' && c.estado !== 'rechazada');
+          const idsInactivas = new Set(
+            data.filter((c: any) => c.estado === 'cancelada' || c.estado === 'rechazada').map((c: any) => c.id)
+          );
+
+          const citasDB: PacienteDia[] = citasActivas.map((c: any) => {
             let estadoCita: PacienteDia['estadoCita'] = 'por_atender';
             if (c.estado === 'completada') estadoCita = 'completada';
             else if (c.estado === 'en_atencion') estadoCita = 'en_atencion';
@@ -596,7 +602,8 @@ export default function DashboardPrincipalPage() {
 
           setPacientes(prev => {
             const idsDB = new Set(citasDB.map(p => p.id));
-            const demosRestantes = prev.filter(p => !idsDB.has(p.id));
+            // Remover citas que hayan sido canceladas o rechazadas en la base de datos
+            const demosRestantes = prev.filter(p => !idsDB.has(p.id) && !idsInactivas.has(p.id));
             return [...citasDB, ...demosRestantes];
           });
         }
@@ -672,6 +679,9 @@ export default function DashboardPrincipalPage() {
     const idAccion = `wa-${paciente.id}`;
     setEnviandoRecordatorioId(idAccion);
 
+    // Pre-abrir la ventana sincrónicamente dentro del evento del usuario para que el navegador no bloquee el popup
+    const ventanaWA = typeof window !== 'undefined' ? window.open('', '_blank') : null;
+
     try {
       const payload: DatosEnvioRecordatorio = {
         citaId: paciente.id,
@@ -687,9 +697,21 @@ export default function DashboardPrincipalPage() {
       const resultado = await enviarRecordatorioWhatsAppAction(payload);
 
       if (!resultado.exito) {
+        if (ventanaWA) ventanaWA.close();
         setAlertaExito(resultado.mensaje || 'Error en la validación de datos para WhatsApp.');
         setTimeout(() => setAlertaExito(null), 7000);
         return;
+      }
+
+      // Redirigir la pestaña pre-abierta a WhatsApp
+      if (resultado.urlAccion) {
+        if (ventanaWA) {
+          ventanaWA.location.href = resultado.urlAccion;
+        } else {
+          window.open(resultado.urlAccion, '_blank');
+        }
+      } else if (ventanaWA) {
+        ventanaWA.close();
       }
 
       const horaActual = new Date().toLocaleTimeString('es-CO', { 
@@ -731,11 +753,8 @@ export default function DashboardPrincipalPage() {
       setTimeout(() => {
         setAlertaExito(null);
       }, 5000);
-
-      if (resultado.urlAccion) {
-        window.open(resultado.urlAccion, '_blank');
-      }
     } catch (err: unknown) {
+      if (ventanaWA) ventanaWA.close();
       const msg = err instanceof Error ? err.message : 'Error inesperado al enviar WhatsApp';
       setAlertaExito(`Error: ${msg}`);
       setTimeout(() => setAlertaExito(null), 6000);
@@ -824,13 +843,31 @@ export default function DashboardPrincipalPage() {
         return p;
       }));
 
+      // Registrar en bitácora
+      const nuevoRegistro: BitacoraEnvio = {
+        id: `bit-${Date.now()}`,
+        hora: horaActual,
+        pacienteNombre: paciente.nombre,
+        telefono: paciente.telefono,
+        tratamiento: paciente.tratamiento,
+        doctor: paciente.doctor,
+        canal: 'Email',
+        estado: 'Enviado',
+      };
+      setBitacora(prev => [nuevoRegistro, ...prev]);
+
       setAlertaExito(resultado.mensaje || `Recordatorio por correo procesado para ${paciente.nombre}.`);
       setTimeout(() => {
         setAlertaExito(null);
-      }, 5000);
+      }, 7000);
 
-      if (resultado.metodo === 'mailto' && resultado.urlAccion) {
-        window.location.href = resultado.urlAccion;
+      if (resultado.metodo === 'mailto') {
+        if (resultado.urlGmailWeb) {
+          // Abrir directamente en Gmail Web para mayor confiabilidad en navegadores
+          window.open(resultado.urlGmailWeb, '_blank');
+        } else if (resultado.urlAccion) {
+          window.location.href = resultado.urlAccion;
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error inesperado al enviar correo';

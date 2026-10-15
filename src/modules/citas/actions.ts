@@ -333,7 +333,7 @@ export async function obtenerCitasHoy(
 
 /**
  * Aprueba una cita en estado 'solicitada', actualizándola a 'confirmada'
- * y registrando la marca de tiempo de aprobación.
+ * mediante la función RPC segura 'confirmar_cita_portal'.
  */
 export async function aprobarCita(
   citaId: string,
@@ -349,6 +349,25 @@ export async function aprobarCita(
   }
 
   try {
+    // 1. Intentar con función RPC con permisos SECURITY DEFINER
+    const { data: rpcData, error: rpcError } = await supabase.rpc('confirmar_cita_portal', {
+      p_cita_id: citaId,
+    });
+
+    if (!rpcError && rpcData && (rpcData as { exito?: boolean }).exito) {
+      revalidatePath('/dashboard/citas');
+      revalidatePath('/dashboard');
+      return {
+        exito: true,
+        mensaje: 'La cita ha sido aprobada y confirmada en la agenda.',
+        datos: {
+          id: citaId,
+          estado: 'confirmada',
+        },
+      };
+    }
+
+    // 2. Fallback a UPDATE directo
     const payloadUpdate: {
       estado: EstadoCita;
       aprobado_en: string;
@@ -403,7 +422,8 @@ export async function aprobarCita(
 }
 
 /**
- * Rechaza una solicitud de cita especificando el motivo clínico o administrativo.
+ * Rechaza o cancela una solicitud de cita especificando el motivo.
+ * Utiliza la función RPC segura 'cancelar_cita_portal' de Supabase.
  */
 export async function rechazarCita(
   citaId: string,
@@ -420,6 +440,26 @@ export async function rechazarCita(
   }
 
   try {
+    // 1. Intentar con función RPC con permisos SECURITY DEFINER
+    const { data: rpcData, error: rpcError } = await supabase.rpc('cancelar_cita_portal', {
+      p_cita_id: citaId,
+      p_motivo: motivo.trim(),
+    });
+
+    if (!rpcError && rpcData && (rpcData as { exito?: boolean }).exito) {
+      revalidatePath('/dashboard/citas');
+      revalidatePath('/dashboard');
+      return {
+        exito: true,
+        mensaje: 'La solicitud de cita fue rechazada y retirada de la agenda.',
+        datos: {
+          id: citaId,
+          estado: 'rechazada',
+        },
+      };
+    }
+
+    // 2. Fallback a UPDATE directo
     const { data, error } = await supabase
       .from('citas')
       .update({
@@ -445,7 +485,7 @@ export async function rechazarCita(
 
     return {
       exito: true,
-      mensaje: 'La solicitud de cita fue rechazada.',
+      mensaje: 'La solicitud de cita fue rechazada y retirada de la agenda.',
       datos: {
         id: data.id,
         estado: data.estado as EstadoCita,
@@ -461,3 +501,165 @@ export async function rechazarCita(
     };
   }
 }
+
+/**
+ * Cancela una cita confirmada o solicitada en Supabase.
+ */
+export async function cancelarCitaAction(
+  citaId: string,
+  motivo?: string
+): Promise<ResultadoAccionCita<{ id: string; estado: EstadoCita }>> {
+  const parseId = uuidZodSchema.safeParse(citaId);
+  if (!parseId.success) {
+    return {
+      exito: false,
+      mensaje: 'El identificador de la cita no es un UUID válido.',
+      error: parseId.error.message,
+    };
+  }
+
+  try {
+    const motivoFinal = (motivo || 'Cancelada por recepción').trim();
+    const { data: rpcData, error: rpcError } = await supabase.rpc('cancelar_cita_portal', {
+      p_cita_id: citaId,
+      p_motivo: motivoFinal,
+    });
+
+    if (!rpcError && rpcData && (rpcData as { exito?: boolean }).exito) {
+      revalidatePath('/dashboard/citas');
+      revalidatePath('/dashboard');
+      return {
+        exito: true,
+        mensaje: 'La cita ha sido cancelada correctamente y el horario liberado.',
+        datos: {
+          id: citaId,
+          estado: 'cancelada',
+        },
+      };
+    }
+
+    // Fallback a UPDATE
+    await supabase.from('citas').update({
+      estado: 'cancelada',
+      motivo_rechazo_cancelacion: motivoFinal,
+      actualizado_en: new Date().toISOString(),
+    }).eq('id', citaId);
+
+    revalidatePath('/dashboard/citas');
+    revalidatePath('/dashboard');
+
+    return {
+      exito: true,
+      mensaje: 'La cita ha sido cancelada correctamente.',
+      datos: {
+        id: citaId,
+        estado: 'cancelada',
+      },
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Error al cancelar la cita';
+    return { exito: false, mensaje: msg, error: msg };
+  }
+}
+
+/**
+ * SERVER ACTION: Agendar Cita Directa desde Recepción y guardarla en Supabase
+ * Crea o busca al paciente, registra la cita y la confirma de forma inmediata.
+ */
+export async function agendarCitaRecepcionAction(datos: {
+  nombre: string;
+  documento?: string;
+  telefono: string;
+  email?: string;
+  doctor: string;
+  tratamiento: string;
+  fecha: string;
+  hora: string;
+  notas?: string;
+}): Promise<ResultadoAccionCita<{
+  id: string;
+  pacienteNombre: string;
+  pacienteDocumento: string;
+  pacienteTelefono: string;
+  doctorNombre: string;
+  tratamiento: string;
+  fecha: string;
+  horaInicio: string;
+  horaFin: string;
+  estado: EstadoCita;
+}>> {
+  if (!datos.nombre || datos.nombre.trim().length < 2) {
+    return { exito: false, mensaje: 'El nombre del paciente es obligatorio.' };
+  }
+  if (!datos.telefono || datos.telefono.trim().length < 7) {
+    return { exito: false, mensaje: 'El teléfono debe tener al menos 7 dígitos.' };
+  }
+  if (!datos.fecha) {
+    return { exito: false, mensaje: 'La fecha de la cita es obligatoria.' };
+  }
+
+  try {
+    const partes = datos.nombre.trim().split(/\s+/);
+    const nombres = partes[0] || 'Paciente';
+    const apellidos = partes.slice(1).join(' ') || 'Registrado';
+    const doc = (datos.documento || '').trim() || `CC-${Date.now().toString().slice(-8)}`;
+    const hora24 = normalizarHoraA24(datos.hora);
+
+    // 1. Invocar RPC solicitar_cita_publica en Supabase
+    const { data: rpcData, error: rpcError } = await supabase.rpc('solicitar_cita_publica', {
+      p_nombres: nombres,
+      p_apellidos: apellidos,
+      p_tipo_documento: 'CC',
+      p_numero_documento: doc,
+      p_telefono: datos.telefono.trim(),
+      p_email: (datos.email || '').trim() || null,
+      p_fecha: datos.fecha,
+      p_hora_inicio: hora24,
+      p_motivo: datos.notas || `Cita directa en recepción: ${datos.tratamiento}`,
+      p_tratamiento_nombre: datos.tratamiento,
+      p_especialista_nombre: datos.doctor,
+      p_fecha_nacimiento: null,
+    });
+
+    if (rpcError || !rpcData || !(rpcData as { exito?: boolean }).exito) {
+      console.error('Error al registrar cita directa en Supabase:', rpcError);
+      return {
+        exito: false,
+        mensaje: `No se pudo guardar la cita en la base de datos: ${rpcError?.message || 'Error desconocido'}`,
+      };
+    }
+
+    const respuesta = rpcData as RespuestaRpcSolicitud;
+    const citaIdReal = respuesta.cita_id;
+
+    // 2. Confirmar inmediatamente la cita en Supabase
+    await supabase.rpc('confirmar_cita_portal', {
+      p_cita_id: citaIdReal,
+    });
+
+    revalidatePath('/dashboard/citas');
+    revalidatePath('/dashboard');
+
+    return {
+      exito: true,
+      mensaje: `Cita para ${datos.nombre} guardada y confirmada con éxito en la base de datos.`,
+      datos: {
+        id: citaIdReal,
+        pacienteNombre: `${nombres} ${apellidos}`,
+        pacienteDocumento: doc,
+        pacienteTelefono: datos.telefono.trim(),
+        doctorNombre: datos.doctor,
+        tratamiento: datos.tratamiento,
+        fecha: datos.fecha,
+        horaInicio: datos.hora,
+        horaFin: `${datos.hora} (Estimado)`,
+        estado: 'confirmada',
+      },
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Error al guardar la cita en recepción';
+    console.error('Excepción en agendarCitaRecepcionAction:', err);
+    return { exito: false, mensaje: msg, error: msg };
+  }
+}
+

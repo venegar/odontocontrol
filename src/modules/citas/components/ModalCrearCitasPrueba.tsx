@@ -26,6 +26,7 @@ import {
   enviarRecordatorioWhatsAppAction, 
   enviarRecordatorioEmailAction 
 } from '@/modules/recordatorios/actions';
+import { agendarCitaRecepcionAction } from '@/modules/citas/actions';
 import { supabase } from '@/lib/supabase';
 import { obtenerDatosConsultorio } from '@/modules/configuracion/consultorioService';
 
@@ -70,6 +71,7 @@ export default function ModalCrearCitasPrueba({
   const [alerta, setAlerta] = useState<string | null>(null);
   const [enviandoAccion, setEnviandoAccion] = useState<string | null>(null);
   const [feedbackEnvio, setFeedbackEnvio] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null);
+  const [enlaceDirecto, setEnlaceDirecto] = useState<{ url: string; tipo: 'wa' | 'email'; titulo: string } | null>(null);
 
   if (!abierto) return null;
 
@@ -82,6 +84,7 @@ export default function ModalCrearCitasPrueba({
     setGuardando(true);
     setAlerta(null);
     setFeedbackEnvio(null);
+    setEnlaceDirecto(null);
 
     const idHoy = `prueba-hoy-${Date.now()}`;
     const idManana = `prueba-manana-${Date.now() + 1}`;
@@ -114,45 +117,46 @@ export default function ModalCrearCitasPrueba({
       notificacion: { estado: 'pendiente' },
     };
 
-    // Intentar registrar en Supabase en segundo plano si está disponible
+    // Registrar y confirmar ambas citas en Supabase de forma persistente
     try {
-      await Promise.allSettled([
-        supabase.rpc('solicitar_cita_publica', {
-          p_nombres: nombre.trim().split(' ')[0] || 'Paciente',
-          p_apellidos: nombre.trim().split(' ').slice(1).join(' ') || 'Prueba',
-          p_tipo_documento: 'CC',
-          p_numero_documento: '999999999',
-          p_telefono: telefono.trim(),
-          p_email: email.trim() || null,
-          p_fecha: fechaHoy,
-          p_hora_inicio: '15:30:00',
-          p_motivo: `Cita de prueba hoy: ${tratamiento}`,
-          p_tratamiento_nombre: tratamiento,
-          p_especialista_nombre: doctor,
-          p_fecha_nacimiento: null,
+      const [resHoy, resManana] = await Promise.allSettled([
+        agendarCitaRecepcionAction({
+          nombre: citaHoy.nombre,
+          documento: '999999999',
+          telefono: citaHoy.telefono,
+          email: citaHoy.email || undefined,
+          doctor: citaHoy.doctor,
+          tratamiento: citaHoy.tratamiento,
+          fecha: citaHoy.fecha,
+          hora: citaHoy.hora,
+          notas: `Cita de prueba hoy: ${citaHoy.tratamiento}`,
         }),
-        supabase.rpc('solicitar_cita_publica', {
-          p_nombres: nombre.trim().split(' ')[0] || 'Paciente',
-          p_apellidos: nombre.trim().split(' ').slice(1).join(' ') || 'Prueba',
-          p_tipo_documento: 'CC',
-          p_numero_documento: '999999999',
-          p_telefono: telefono.trim(),
-          p_email: email.trim() || null,
-          p_fecha: fechaManana,
-          p_hora_inicio: '09:00:00',
-          p_motivo: `Cita de prueba mañana: ${tratamiento}`,
-          p_tratamiento_nombre: tratamiento,
-          p_especialista_nombre: doctor,
-          p_fecha_nacimiento: null,
+        agendarCitaRecepcionAction({
+          nombre: citaManana.nombre,
+          documento: '999999999',
+          telefono: citaManana.telefono,
+          email: citaManana.email || undefined,
+          doctor: citaManana.doctor,
+          tratamiento: citaManana.tratamiento,
+          fecha: citaManana.fecha,
+          hora: citaManana.hora,
+          notas: `Cita de prueba mañana: ${citaManana.tratamiento}`,
         }),
       ]);
+
+      if (resHoy.status === 'fulfilled' && resHoy.value.exito && resHoy.value.datos) {
+        citaHoy.id = resHoy.value.datos.id;
+      }
+      if (resManana.status === 'fulfilled' && resManana.value.exito && resManana.value.datos) {
+        citaManana.id = resManana.value.datos.id;
+      }
     } catch (err) {
-      console.warn('Registro RPC Supabase en segundo plano:', err);
+      console.warn('Registro en Supabase para citas de prueba:', err);
     }
 
     setCitasGeneradas({ hoy: citaHoy, manana: citaManana });
     setGuardando(false);
-    setAlerta('¡Ambas citas de prueba han sido creadas con éxito! Ahora puedes probar los envíos de WhatsApp y Correo.');
+    setAlerta('¡Ambas citas de prueba han sido registradas y confirmadas con éxito en la base de datos! Ya puedes enviar los recordatorios.');
 
     if (onCitasCreadas) {
       onCitasCreadas({ citaHoy, citaManana });
@@ -164,6 +168,10 @@ export default function ModalCrearCitasPrueba({
     const claveAccion = esManana ? 'wa-manana' : 'wa-hoy';
     setEnviandoAccion(claveAccion);
     setFeedbackEnvio(null);
+    setEnlaceDirecto(null);
+
+    // Pre-abrir la ventana sincrónicamente dentro del evento del usuario para que el navegador no bloquee el popup
+    const ventanaWA = typeof window !== 'undefined' ? window.open('', '_blank') : null;
 
     try {
       const payload: DatosEnvioRecordatorio = {
@@ -180,6 +188,7 @@ export default function ModalCrearCitasPrueba({
       const resultado = await enviarRecordatorioWhatsAppAction(payload);
 
       if (!resultado.exito) {
+        if (ventanaWA) ventanaWA.close();
         setFeedbackEnvio({
           tipo: 'error',
           texto: resultado.mensaje || 'Error en la validación de datos para WhatsApp.',
@@ -193,9 +202,21 @@ export default function ModalCrearCitasPrueba({
       });
 
       if (resultado.urlAccion) {
-        window.open(resultado.urlAccion, '_blank');
+        setEnlaceDirecto({
+          url: resultado.urlAccion,
+          tipo: 'wa',
+          titulo: 'Abrir WhatsApp Web',
+        });
+        if (ventanaWA) {
+          ventanaWA.location.href = resultado.urlAccion;
+        } else {
+          window.open(resultado.urlAccion, '_blank');
+        }
+      } else if (ventanaWA) {
+        ventanaWA.close();
       }
     } catch (err: unknown) {
+      if (ventanaWA) ventanaWA.close();
       const msg = err instanceof Error ? err.message : 'Error al procesar envío de WhatsApp';
       setFeedbackEnvio({ tipo: 'error', texto: msg });
     } finally {
@@ -203,11 +224,12 @@ export default function ModalCrearCitasPrueba({
     }
   };
 
-  // Enviar Email para una cita de prueba utilizando Server Action (Resend / mailto fallback)
+  // Enviar Email para una cita de prueba utilizando Server Action (Resend / mailto / Gmail fallback)
   const handleEnviarEmailPrueba = async (cita: CitaPruebaGenerada, esManana: boolean) => {
     const claveAccion = esManana ? 'email-manana' : 'email-hoy';
     setEnviandoAccion(claveAccion);
     setFeedbackEnvio(null);
+    setEnlaceDirecto(null);
 
     try {
       const payload: DatosEnvioRecordatorio = {
@@ -236,8 +258,17 @@ export default function ModalCrearCitasPrueba({
         texto: resultado.mensaje || 'Correo electrónico procesado exitosamente.',
       });
 
-      if (resultado.metodo === 'mailto' && resultado.urlAccion) {
-        window.location.href = resultado.urlAccion;
+      if (resultado.metodo === 'mailto') {
+        if (resultado.urlGmailWeb) {
+          setEnlaceDirecto({
+            url: resultado.urlGmailWeb,
+            tipo: 'email',
+            titulo: 'Abrir Redacción en Gmail Web',
+          });
+          window.open(resultado.urlGmailWeb, '_blank');
+        } else if (resultado.urlAccion) {
+          window.location.href = resultado.urlAccion;
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al procesar envío de correo';
@@ -297,6 +328,24 @@ export default function ModalCrearCitasPrueba({
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
             )}
             <span>{feedbackEnvio.texto}</span>
+          </div>
+        )}
+
+        {enlaceDirecto && (
+          <div className="mb-4 p-3 rounded-2xl bg-sky-50 border border-sky-200 flex items-center justify-between gap-3">
+            <span className="text-xs text-sky-900 font-semibold flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-sky-600 shrink-0" />
+              ¿No se abrió la ventana automáticamente?
+            </span>
+            <a
+              href={enlaceDirecto.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-dentist-600 hover:bg-dentist-700 text-white font-bold text-xs shadow-xs transition"
+            >
+              <span>{enlaceDirecto.titulo}</span>
+              <span>→</span>
+            </a>
           </div>
         )}
 

@@ -60,6 +60,7 @@ export interface ResultadoEnvioRecordatorio {
   metodo: 'resend' | 'mailto' | 'cloud_api' | 'wa.me';
   mensaje: string;
   urlAccion?: string;
+  urlGmailWeb?: string;
   idEnvio?: string;
   erroresValidacion?: string[];
 }
