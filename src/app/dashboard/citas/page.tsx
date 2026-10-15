@@ -1749,7 +1749,7 @@ export default function GestionCitasPage() {
                           O selecciona directamente del listado:
                         </label>
                         <select
-                          value={pacienteSeleccionado?.id || ''}
+                          value=""
                           onChange={e => {
                             const encontrado = listaPacientes.find(item => item.id === e.target.value);
                             if (encontrado) handleSeleccionarPaciente(encontrado);
