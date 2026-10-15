@@ -888,8 +888,7 @@ export default function RecordatoriosPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setMensajeAlerta('Plantilla guardada y actualizada con éxito.');
-                    setTimeout(() => setMensajeAlerta(null), 3000);
+                    mostrarAlerta('Plantilla guardada y actualizada con éxito.', 'exito');
                   }}
                   className="px-5 py-2 text-xs font-semibold bg-dentist-600 hover:bg-dentist-700 text-white rounded-xl shadow-sm transition"
                 >
@@ -995,8 +994,7 @@ export default function RecordatoriosPage() {
               <button
                 type="button"
                 onClick={() => {
-                  setMensajeAlerta('Configuración del motor de automatización guardada correctamente.');
-                  setTimeout(() => setMensajeAlerta(null), 3000);
+                  mostrarAlerta('Configuración del motor de automatización guardada correctamente.', 'exito');
                 }}
                 className="px-6 py-2.5 text-xs font-semibold bg-dentist-600 hover:bg-dentist-700 text-white rounded-xl shadow-sm transition"
               >
