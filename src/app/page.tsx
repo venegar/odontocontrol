@@ -9,6 +9,7 @@ import {
   DATOS_CONSULTORIO_DEFAULT, 
   DatosConsultorio 
 } from "@/modules/configuracion/consultorioService";
+import BannerPatrocinadores from "@/modules/patrocinadores/components/BannerPatrocinadores";
 
 export default function HomePage() {
   const [datosConsultorio, setDatosConsultorio] = useState<DatosConsultorio>(DATOS_CONSULTORIO_DEFAULT);
@@ -264,6 +265,11 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* ========================================================================= */}
+        {/* BANNER DE PATROCINADORES Y MARCAS ALIADAS (BAJO EL BANNER PRINCIPAL) */}
+        {/* ========================================================================= */}
+        <BannerPatrocinadores />
 
         {/* ========================================================================= */}
         {/* 3. TRATAMIENTOS / ESPECIALIDADES (BENTO GRID STYLE) */}
