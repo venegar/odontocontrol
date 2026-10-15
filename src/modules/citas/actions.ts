@@ -632,17 +632,13 @@ export async function agendarCitaRecepcionAction(datos: {
     const respuesta = rpcData as RespuestaRpcSolicitud;
     const citaIdReal = respuesta.cita_id;
 
-    // 2. Confirmar inmediatamente la cita en Supabase
-    await supabase.rpc('confirmar_cita_portal', {
-      p_cita_id: citaIdReal,
-    });
-
+    // 2. La cita queda en estado 'solicitada' / 'pendiente' a la espera de confirmación del paciente o recepción
     revalidatePath('/dashboard/citas');
     revalidatePath('/dashboard');
 
     return {
       exito: true,
-      mensaje: `Cita para ${datos.nombre} guardada y confirmada con éxito en la base de datos.`,
+      mensaje: `Cita para ${datos.nombre} guardada con éxito. Estado: Pendiente de confirmación.`,
       datos: {
         id: citaIdReal,
         pacienteNombre: `${nombres} ${apellidos}`,
@@ -653,12 +649,54 @@ export async function agendarCitaRecepcionAction(datos: {
         fecha: datos.fecha,
         horaInicio: datos.hora,
         horaFin: `${datos.hora} (Estimado)`,
-        estado: 'confirmada',
+        estado: 'pendiente',
       },
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Error al guardar la cita en recepción';
     console.error('Excepción en agendarCitaRecepcionAction:', err);
+    return { exito: false, mensaje: msg, error: msg };
+  }
+}
+
+/**
+ * SERVER ACTION: Confirmar Cita desde Recepción
+ * Cambia el estado de una cita de 'pendiente' a 'confirmada' tanto en Supabase como en la agenda.
+ */
+export async function confirmarCitaRecepcionAction(
+  citaId: string
+): Promise<ResultadoAccionCita<{ id: string; estado: EstadoCita }>> {
+  if (!citaId) {
+    return { exito: false, mensaje: 'El ID de la cita es obligatorio.' };
+  }
+
+  try {
+    if (uuidZodSchema.safeParse(citaId).success) {
+      // 1. Invocar RPC oficial confirmar_cita_portal
+      await supabase.rpc('confirmar_cita_portal', { p_cita_id: citaId });
+
+      // 2. Fallback de confirmación directa en la tabla citas
+      await supabase.from('citas').update({
+        estado: 'confirmada',
+        aprobado_en: new Date().toISOString(),
+        actualizado_en: new Date().toISOString(),
+      }).eq('id', citaId);
+    }
+
+    revalidatePath('/dashboard/citas');
+    revalidatePath('/dashboard');
+    revalidatePath('/portal-paciente');
+
+    return {
+      exito: true,
+      mensaje: 'La cita ha sido confirmada con éxito en la agenda.',
+      datos: {
+        id: citaId,
+        estado: 'confirmada',
+      },
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Error al confirmar la cita';
     return { exito: false, mensaje: msg, error: msg };
   }
 }

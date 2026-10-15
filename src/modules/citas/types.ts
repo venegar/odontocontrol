@@ -1,5 +1,6 @@
 export type EstadoCita = 
   | 'solicitada' 
+  | 'pendiente'
   | 'confirmada' 
   | 'en_atencion' 
   | 'completada' 

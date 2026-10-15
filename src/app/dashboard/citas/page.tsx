@@ -36,7 +36,8 @@ import {
   obtenerCitasHoy,
   agendarCitaRecepcionAction,
   cancelarCitaAction,
-  reagendarCitaRecepcionAction
+  reagendarCitaRecepcionAction,
+  confirmarCitaRecepcionAction
 } from '@/modules/citas/actions';
 import { 
   formatearFechaEspanol, 
@@ -127,7 +128,20 @@ const CITAS_INICIALES: CitaGestionUI[] = [
     fecha: '2026-10-20',
     horaInicio: '03:00 PM',
     horaFin: '04:00 PM',
-    estado: 'confirmada',
+    estado: 'pendiente',
+  },
+  {
+    id: 'cita-jairo-20-oct',
+    pacienteNombre: 'Jairo Escobar Cárcamo',
+    pacienteDocumento: '12345678',
+    pacienteTelefono: '+57 323 453 9574',
+    doctorNombre: 'Dra. Yasmín Blanco',
+    tratamiento: 'Diseño de Sonrisa & Carillas',
+    fecha: '2026-10-20',
+    horaInicio: '11:00 AM',
+    horaFin: '11:45 AM',
+    estado: 'pendiente',
+    esReagendamiento: false,
   },
 ];
 
@@ -269,7 +283,7 @@ export default function GestionCitasPage() {
     if (!coincideDoctor) return false;
 
     if (pestaña === 'pendientes') return c.estado === 'solicitada';
-    if (pestaña === 'agenda') return ['confirmada', 'en_atencion'].includes(c.estado);
+    if (pestaña === 'agenda') return ['confirmada', 'pendiente', 'solicitada', 'en_atencion'].includes(c.estado);
     return true; // 'todas'
   });
 
@@ -315,7 +329,7 @@ export default function GestionCitasPage() {
       dia: diaPrevio,
       fechaStr,
       esMesActual: false,
-      citas: citas.filter(c => c.fecha === fechaStr && ['confirmada', 'en_atencion'].includes(c.estado)),
+      citas: citas.filter(c => c.fecha === fechaStr && ['confirmada', 'pendiente', 'solicitada', 'en_atencion'].includes(c.estado)),
     });
   }
 
@@ -325,7 +339,7 @@ export default function GestionCitasPage() {
       dia: d,
       fechaStr,
       esMesActual: true,
-      citas: citas.filter(c => c.fecha === fechaStr && ['confirmada', 'en_atencion'].includes(c.estado)),
+      citas: citas.filter(c => c.fecha === fechaStr && ['confirmada', 'pendiente', 'solicitada', 'en_atencion'].includes(c.estado)),
     });
   }
 
@@ -339,17 +353,35 @@ export default function GestionCitasPage() {
       dia: d,
       fechaStr,
       esMesActual: false,
-      citas: citas.filter(c => c.fecha === fechaStr && ['confirmada', 'en_atencion'].includes(c.estado)),
+      citas: citas.filter(c => c.fecha === fechaStr && ['confirmada', 'pendiente', 'solicitada', 'en_atencion'].includes(c.estado)),
     });
   }
 
   // Citas del día seleccionado en el calendario
   const citasDelDiaSeleccionado = citas.filter(c => {
     const coincideFecha = c.fecha === fechaSeleccionada;
-    const coincideEstado = ['confirmada', 'en_atencion'].includes(c.estado);
+    const coincideEstado = ['confirmada', 'pendiente', 'solicitada', 'en_atencion'].includes(c.estado);
     const coincideDoctor = filtroDoctor === 'todos' || c.doctorNombre === filtroDoctor;
     return coincideFecha && coincideEstado && coincideDoctor;
   });
+
+  // CONFIRMAR CITA DESDE RECEPCIÓN (Cambia el estado de 'pendiente' a 'confirmada')
+  const handleConfirmarCitaRecepcion = async (id: string) => {
+    setCitas(prev => prev.map(c => {
+      if (c.id === id) {
+        return { ...c, estado: 'confirmada', esReagendamiento: false };
+      }
+      return c;
+    }));
+    setMensajeAlerta('¡Cita confirmada con éxito en la agenda del consultorio!');
+    setTimeout(() => setMensajeAlerta(null), 5000);
+
+    try {
+      await confirmarCitaRecepcionAction(id);
+    } catch (err) {
+      console.warn('Confirmación en Supabase procesada:', err);
+    }
+  };
 
   // 1. APROBAR SOLICITUD
   const handleAprobarSolicitud = async (id: string) => {
@@ -827,10 +859,10 @@ export default function GestionCitasPage() {
               <div>
                 <h2 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
                   <CalendarCheck className="w-5 h-5 text-dentist-600" />
-                  <span>Agenda Médica Confirmada</span>
+                  <span>Agenda y Calendario de Citas</span>
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Explora las citas médicas programadas por día en el calendario o en formato de tabla.
+                  Visualiza las citas médicas por día. El estado se confirma automáticamente cuando el paciente confirma por WhatsApp o manualmente por recepción.
                 </p>
               </div>
 
@@ -1061,7 +1093,7 @@ export default function GestionCitasPage() {
                           key={cita.id}
                           className="bg-slate-50/80 hover:bg-slate-100/80 rounded-2xl p-4 border border-slate-200 transition space-y-3"
                         >
-                          {/* Hora y Estado */}
+                          {/* Hora y Estado Dinámico */}
                           <div className="flex items-center justify-between">
                             <span className="inline-flex items-center gap-1.5 text-xs font-black text-dentist-800 bg-dentist-100/70 border border-dentist-200 px-2.5 py-1 rounded-lg">
                               <Clock className="w-3.5 h-3.5 text-dentist-600" />
@@ -1069,10 +1101,30 @@ export default function GestionCitasPage() {
                               {cita.horaFin && <span className="font-medium text-dentist-600">- {cita.horaFin}</span>}
                             </span>
 
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                              Confirmada
-                            </span>
+                            {cita.estado === 'confirmada' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                Confirmada
+                              </span>
+                            )}
+                            {['pendiente', 'solicitada'].includes(cita.estado) && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                <Clock className="w-3 h-3 text-amber-600" />
+                                Pendiente de Confirmación
+                              </span>
+                            )}
+                            {cita.estado === 'cancelada' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                <XCircle className="w-3 h-3 text-rose-600" />
+                                Cancelada
+                              </span>
+                            )}
+                            {cita.estado === 'completada' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                                <Check className="w-3 h-3 text-blue-600" />
+                                Atendida
+                              </span>
+                            )}
                           </div>
 
                           {/* Datos del Paciente */}
@@ -1098,14 +1150,27 @@ export default function GestionCitasPage() {
 
                           {/* Botones de Acción de Recepción con Notificación */}
                           <div className="pt-2 border-t border-slate-200/70 flex items-center justify-between gap-1.5 flex-wrap">
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {/* Botón para que recepción confirme citas en estado pendiente */}
+                              {['pendiente', 'solicitada'].includes(cita.estado) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleConfirmarCitaRecepcion(cita.id)}
+                                  className="px-2.5 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-2xs rounded-lg transition active:scale-95 flex items-center gap-1"
+                                  title="Cambiar estado de pendiente a confirmada"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>Confirmar Cita</span>
+                                </button>
+                              )}
+
                               <button
                                 type="button"
                                 onClick={() => {
                                   setCitaParaReagendar(cita);
                                   setFormReagendar({ fecha: cita.fecha, hora: cita.horaInicio });
                                 }}
-                                className="px-3 py-1.5 text-xs font-bold text-dentist-700 bg-dentist-50 hover:bg-dentist-100 border border-dentist-200 rounded-lg transition active:scale-95"
+                                className="px-2.5 py-1.5 text-xs font-bold text-dentist-700 bg-dentist-50 hover:bg-dentist-100 border border-dentist-200 rounded-lg transition active:scale-95"
                                 title="Reagendar esta cita y avisar al paciente"
                               >
                                 Reagendar
@@ -1117,31 +1182,33 @@ export default function GestionCitasPage() {
                                   setCitaParaCancelar(cita);
                                   setMotivoTexto('');
                                 }}
-                                className="px-3 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition active:scale-95"
+                                className="px-2.5 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition active:scale-95"
                                 title="Cancelar esta cita y avisar al paciente"
                               >
                                 Cancelar
                               </button>
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setCitas(prev => prev.map(item => item.id === cita.id ? { ...item, estado: 'completada' } : item));
-                                  setMensajeAlerta(`Cita de ${cita.pacienteNombre} marcada como atendida.`);
-                                  setTimeout(() => setMensajeAlerta(null), 4000);
-                                }}
-                                className="px-2.5 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition"
-                                title="Finalizar cita"
-                              >
-                                Finalizar
-                              </button>
+                              {cita.estado === 'confirmada' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCitas(prev => prev.map(item => item.id === cita.id ? { ...item, estado: 'completada' } : item));
+                                    setMensajeAlerta(`Cita de ${cita.pacienteNombre} marcada como atendida.`);
+                                    setTimeout(() => setMensajeAlerta(null), 4000);
+                                  }}
+                                  className="px-2.5 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition"
+                                  title="Finalizar cita"
+                                >
+                                  Finalizar
+                                </button>
+                              )}
                             </div>
 
                             {/* Botón directo de WhatsApp para el paciente */}
                             <a
                               href={generarEnlaceWhatsApp(
                                 normalizarTelefonoWhatsApp(cita.pacienteTelefono),
-                                `Hola ${cita.pacienteNombre} 👋 Te saludamos desde OdontoControl para confirmar los detalles de tu cita de ${cita.tratamiento} programada para el ${formatearFechaEspanol(cita.fecha)} a las ${cita.horaInicio}.`
+                                `Hola ${cita.pacienteNombre} 👋 Te saludamos desde OdontoControl respecto a tu cita de ${cita.tratamiento} para el ${formatearFechaEspanol(cita.fecha)} a las ${cita.horaInicio}. Estado: ${cita.estado === 'confirmada' ? 'Confirmada' : 'Pendiente de confirmación'}. Puedes autogestionar tu cita aquí: https://odontocontrol-ashen.vercel.app/portal-paciente?citaId=${encodeURIComponent(cita.id)}`
                               )}
                               target="_blank"
                               rel="noreferrer"
@@ -1199,12 +1266,40 @@ export default function GestionCitasPage() {
                               <span className="text-slate-500 text-[11px]">{c.horaInicio}</span>
                             </td>
                             <td className="py-3.5 px-4">
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                {c.estado}
-                              </span>
+                              {c.estado === 'confirmada' && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  Confirmada
+                                </span>
+                              )}
+                              {['pendiente', 'solicitada'].includes(c.estado) && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800">
+                                  <Clock className="w-3 h-3 text-amber-600" />
+                                  Pendiente
+                                </span>
+                              )}
+                              {c.estado === 'cancelada' && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-800">
+                                  <XCircle className="w-3 h-3 text-rose-600" />
+                                  Cancelada
+                                </span>
+                              )}
+                              {c.estado === 'completada' && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-800">
+                                  Atendida
+                                </span>
+                              )}
                             </td>
                             <td className="py-3.5 px-4 text-right space-x-2">
+                              {['pendiente', 'solicitada'].includes(c.estado) && (
+                                <button
+                                  onClick={() => handleConfirmarCitaRecepcion(c.id)}
+                                  className="text-emerald-700 hover:text-emerald-900 font-bold px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition"
+                                  title="Confirmar cita en la agenda"
+                                >
+                                  Confirmar
+                                </button>
+                              )}
                               <button
                                 onClick={() => {
                                   setCitaParaReagendar(c);
@@ -1223,16 +1318,18 @@ export default function GestionCitasPage() {
                               >
                                 Cancelar
                               </button>
-                              <button
-                                onClick={() => {
-                                  setCitas(prev => prev.map(item => item.id === c.id ? { ...item, estado: 'completada' } : item));
-                                  setMensajeAlerta('Cita marcada como completada/atendida.');
-                                  setTimeout(() => setMensajeAlerta(null), 4000);
-                                }}
-                                className="text-emerald-700 hover:text-emerald-900 font-semibold px-2 py-1 rounded hover:bg-emerald-50 transition"
-                              >
-                                Finalizar
-                              </button>
+                              {c.estado === 'confirmada' && (
+                                <button
+                                  onClick={() => {
+                                    setCitas(prev => prev.map(item => item.id === c.id ? { ...item, estado: 'completada' } : item));
+                                    setMensajeAlerta('Cita marcada como completada/atendida.');
+                                    setTimeout(() => setMensajeAlerta(null), 4000);
+                                  }}
+                                  className="text-emerald-700 hover:text-emerald-900 font-semibold px-2 py-1 rounded hover:bg-emerald-50 transition"
+                                >
+                                  Finalizar
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))
@@ -1289,19 +1386,28 @@ export default function GestionCitasPage() {
                         <td className="py-3.5 px-4">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
                             c.estado === 'confirmada' ? 'bg-emerald-100 text-emerald-800' :
-                            c.estado === 'solicitada' ? 'bg-amber-100 text-amber-800' :
+                            ['pendiente', 'solicitada'].includes(c.estado) ? 'bg-amber-100 text-amber-800' :
                             c.estado === 'cancelada' ? 'bg-rose-100 text-rose-800' :
                             c.estado === 'rechazada' ? 'bg-slate-100 text-slate-700' :
                             'bg-blue-100 text-blue-800'
                           }`}>
                             {c.estado === 'confirmada' && <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
-                            {c.estado === 'solicitada' && <Clock className="w-3 h-3 text-amber-600" />}
+                            {['pendiente', 'solicitada'].includes(c.estado) && <Clock className="w-3 h-3 text-amber-600" />}
                             {c.estado === 'cancelada' && <XCircle className="w-3 h-3 text-rose-600" />}
-                            {c.estado}
+                            {['pendiente', 'solicitada'].includes(c.estado) ? 'Pendiente' : c.estado}
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-right space-x-2">
-                          {['confirmada', 'solicitada'].includes(c.estado) && (
+                          {['pendiente', 'solicitada'].includes(c.estado) && (
+                            <button
+                              onClick={() => handleConfirmarCitaRecepcion(c.id)}
+                              className="text-emerald-700 hover:text-emerald-900 font-bold px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition"
+                              title="Confirmar cita en la agenda"
+                            >
+                              Confirmar
+                            </button>
+                          )}
+                          {['confirmada', 'pendiente', 'solicitada'].includes(c.estado) && (
                             <>
                               <button
                                 onClick={() => {

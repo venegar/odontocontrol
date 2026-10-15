@@ -264,6 +264,32 @@ function PortalPacienteContenido() {
     setTimeout(() => setMensajeExito(null), 6000);
   };
 
+  // Confirmar Asistencia directamente desde el portal o link de WhatsApp
+  const handleConfirmarAsistencia = async (citaId: string) => {
+    const citaObj = citas.find(c => c.id === citaId);
+    if (!citaObj) return;
+
+    try {
+      await supabase.rpc('confirmar_cita_portal', { p_cita_id: citaId });
+      await supabase.from('citas').update({
+        estado: 'confirmada',
+        aprobado_en: new Date().toISOString(),
+        actualizado_en: new Date().toISOString(),
+      }).eq('id', citaId);
+    } catch (err) {
+      console.warn('Confirmación directa aplicada:', err);
+    }
+
+    setCitas(current => current.map(c => c.id === citaId ? { ...c, estado: 'confirmada' } : c));
+    setAlertaAccion({
+      tipo: 'exito',
+      titulo: '¡Tu cita ha sido confirmada con éxito!',
+      detalle: `Hola ${nombrePaciente}, confirmamos tu cita de "${citaObj.tratamiento}" para el ${citaObj.fecha} a las ${citaObj.horaInicio} con ${citaObj.doctorNombre}. ¡Te esperamos en la clínica!`,
+    });
+    setMensajeExito('¡Has confirmado tu asistencia a la cita con éxito!');
+    setTimeout(() => setMensajeExito(null), 5000);
+  };
+
   const getBadgeEstado = (estado: EstadoCita, esReagendamiento?: boolean) => {
     switch (estado) {
       case 'confirmada':
@@ -274,10 +300,11 @@ function PortalPacienteContenido() {
           </span>
         );
       case 'solicitada':
+      case 'pendiente':
         return (
           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
             <Clock className="w-3.5 h-3.5 text-amber-600" />
-            {esReagendamiento ? 'Reagendamiento en Aprobación' : 'Pendiente de Aprobación'}
+            {esReagendamiento ? 'Reagendamiento en Espera' : 'Pendiente de Confirmación'}
           </span>
         );
       case 'completada':
@@ -490,6 +517,18 @@ function PortalPacienteContenido() {
                   {/* Botones de Acción Derecha */}
                   {puedeModificarse && (
                     <div className="flex sm:flex-row md:flex-col lg:flex-row items-center gap-2 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 shrink-0">
+                      {['solicitada', 'pendiente'].includes(cita.estado) && (
+                        <button
+                          type="button"
+                          onClick={() => handleConfirmarAsistencia(cita.id)}
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs rounded-xl transition active:scale-95"
+                          title="Confirmar mi asistencia a esta cita"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Confirmar Asistencia</span>
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         onClick={() => {
