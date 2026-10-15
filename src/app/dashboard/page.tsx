@@ -48,7 +48,8 @@ import {
   Loader2,
   Copy,
   CheckCheck,
-  Eye
+  Eye,
+  Mail
 } from 'lucide-react';
 import ModalCrearCitasPrueba, { CitaPruebaGenerada } from '@/modules/citas/components/ModalCrearCitasPrueba';
 import { 
