@@ -698,6 +698,7 @@ export default function GestionCitasPage() {
         nombres: partes[0] || 'Paciente',
         apellidos: partes.slice(1).join(' ') || 'Registrado',
         eps: epsNuevoPaciente,
+        email: '',
         telefono: nuevoPaciente.telefono,
         fechaNacimiento: '1990-01-01',
         genero: 'Otro',

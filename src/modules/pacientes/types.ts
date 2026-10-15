@@ -7,7 +7,7 @@ export interface Paciente {
   numeroDocumento: string;
   nombres: string;
   apellidos: string;
-  email: string;
+  email?: string;
   telefono: string;
   fechaNacimiento: string;
   fotoUrl?: string;
