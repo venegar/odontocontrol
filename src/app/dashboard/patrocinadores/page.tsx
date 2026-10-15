@@ -277,9 +277,9 @@ export default function PatrocinadoresDashboardPage() {
               <div className="relative h-14 sm:h-16 w-48 sm:w-60">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/brand/logo-yasmin-blanco.png"
+                  src="/brand/logo-yasmin-blanco-transparente.png"
                   alt="Dra. Yasmín Blanco"
-                  className="h-full w-full object-contain object-left"
+                  className="h-full w-full object-contain object-left mix-blend-multiply"
                 />
               </div>
             </Link>

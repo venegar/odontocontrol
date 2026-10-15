@@ -39,11 +39,11 @@ export default function HomePage() {
           <Link href="/" className="flex items-center gap-3 group focus:outline-none">
             <div className="relative h-20 sm:h-24 md:h-28 w-64 sm:w-80 md:w-96 transition-transform duration-200 group-hover:scale-[1.02]">
               <Image
-                src="/brand/logo-yasmin-blanco.png"
+                src="/brand/logo-yasmin-blanco-transparente.png"
                 alt="Logotipo Dra. Yasmín Blanco | Odontología Avanzada y Estética Dental"
                 fill
                 priority
-                className="object-contain object-left"
+                className="object-contain object-left mix-blend-multiply"
               />
             </div>
           </Link>
@@ -972,10 +972,10 @@ export default function HomePage() {
             <Link href="/" className="inline-block">
               <div className="relative h-20 sm:h-24 w-72 sm:w-80">
                 <Image
-                  src="/brand/logo-yasmin-blanco.png"
+                  src="/brand/logo-yasmin-blanco-transparente.png"
                   alt="Logotipo Dra. Yasmín Blanco"
                   fill
-                  className="object-contain object-left"
+                  className="object-contain object-left mix-blend-multiply"
                 />
               </div>
             </Link>
