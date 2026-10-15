@@ -748,10 +748,34 @@ export default function DashboardPrincipalPage() {
     if (filtroEstado === 'todos') return true;
     if (filtroEstado === 'notificados') return p.notificacion.estado === 'notificado';
     if (filtroEstado === 'pendientes_notificacion') return p.notificacion.estado === 'pendiente';
+    if (filtroEstado === 'pendientes_atencion') {
+      return p.estadoCita === 'en_espera' || p.estadoCita === 'por_atender' || p.estadoCita === 'en_atencion';
+    }
     if (filtroEstado === 'en_espera') return p.estadoCita === 'en_espera';
     if (filtroEstado === 'completadas') return p.estadoCita === 'completada';
     return true;
   });
+
+  // Funciones de navegación rápida con scroll suave hacia las secciones del dashboard
+  const irASeccion = (elementId: string) => {
+    if (typeof window !== 'undefined') {
+      const el = document.getElementById(elementId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  };
+
+  const irACitasHoy = (filtro: string = 'todos') => {
+    setJornadaActiva('hoy');
+    setFiltroEstado(filtro);
+    irASeccion('seccion-control-recordatorios');
+  };
+
+  const irACitasManana = () => {
+    setJornadaActiva('manana');
+    irASeccion('seccion-citas-manana');
+  };
 
   // Función para enviar recordatorio de WhatsApp inmediato con Server Action y validación Zod
   const handleEnviarRecordatorioWhatsApp = async (paciente: PacienteDia) => {
@@ -1817,88 +1841,160 @@ export default function DashboardPrincipalPage() {
                 
                 {/* 1. Total Citas Hoy */}
                 <div 
-                  onClick={() => setJornadaActiva('hoy')}
-                  className={`bg-white rounded-2xl p-5 border shadow-2xs hover:shadow-xs transition cursor-pointer ${
-                    jornadaActiva === 'hoy' ? 'border-dentist-500 ring-2 ring-dentist-200' : 'border-slate-200'
+                  onClick={() => irACitasHoy('todos')}
+                  className={`group bg-white rounded-2xl p-5 border shadow-2xs hover:shadow-md transition cursor-pointer flex flex-col justify-between ${
+                    jornadaActiva === 'hoy' && filtroEstado === 'todos' ? 'border-dentist-500 ring-2 ring-dentist-200' : 'border-slate-200'
                   }`}
+                  title="Clic para ver todas las citas agendadas para el día de hoy"
                 >
-                  <div className="flex items-center justify-between text-slate-500 mb-2">
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Total Citas Hoy</span>
-                    <div className="w-8 h-8 rounded-lg bg-sky-50 text-dentist-600 flex items-center justify-center">
-                      <CalendarIcon className="w-4 h-4" />
+                  <div>
+                    <div className="flex items-center justify-between text-slate-500 mb-2">
+                      <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Total Citas Hoy</span>
+                      <div className="w-8 h-8 rounded-lg bg-sky-50 text-dentist-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <CalendarIcon className="w-4 h-4" />
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-slate-900">{totalCitasHoy}</span>
-                    <span className="text-xs text-slate-500 font-medium">hoy ({fechaHoy})</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-slate-900">{totalCitasHoy}</span>
+                      <span className="text-xs text-slate-500 font-medium">hoy ({fechaHoy})</span>
+                    </div>
                   </div>
                   <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 pt-3 border-t border-slate-100">
                     <span>{citasCompletadas} completadas</span>
-                    <span className="text-dentist-700 font-bold">Ver agenda hoy →</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        irACitasHoy('todos');
+                      }}
+                      className="text-dentist-700 font-bold group-hover:text-dentist-900 inline-flex items-center gap-1 hover:underline"
+                    >
+                      <span>Ver agenda hoy</span>
+                      <span>→</span>
+                    </button>
                   </div>
                 </div>
 
                 {/* 2. Citas del Día Siguiente (Mañana) */}
                 <div 
-                  onClick={() => setJornadaActiva('manana')}
-                  className={`bg-white rounded-2xl p-5 border shadow-2xs hover:shadow-xs transition cursor-pointer ${
+                  onClick={irACitasManana}
+                  className={`group bg-white rounded-2xl p-5 border shadow-2xs hover:shadow-md transition cursor-pointer flex flex-col justify-between ${
                     jornadaActiva === 'manana' ? 'border-amber-500 ring-2 ring-amber-200' : 'border-slate-200'
                   }`}
+                  title="Clic para ver las citas programadas para el día de mañana"
                 >
-                  <div className="flex items-center justify-between text-slate-500 mb-2">
-                    <span className="text-xs font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1">
-                      <Sun className="w-3.5 h-3.5 text-amber-500" />
-                      Citas de Mañana
-                    </span>
-                    <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-                      <Sun className="w-4 h-4" />
+                  <div>
+                    <div className="flex items-center justify-between text-slate-500 mb-2">
+                      <span className="text-xs font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1">
+                        <Sun className="w-3.5 h-3.5 text-amber-500" />
+                        Citas de Mañana
+                      </span>
+                      <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Sun className="w-4 h-4" />
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-amber-600">{totalCitasManana}</span>
-                    <span className="text-xs text-slate-500 font-medium">para mañana ({fechaManana})</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-amber-600">{totalCitasManana}</span>
+                      <span className="text-xs text-slate-500 font-medium">para mañana ({fechaManana})</span>
+                    </div>
                   </div>
                   <div className="mt-3 flex items-center justify-between text-[11px] pt-3 border-t border-slate-100">
                     <span className="text-amber-700 font-bold">{totalPendientesNotificacionManana} pendientes de aviso</span>
-                    <span className="text-amber-800 font-bold">Ver mañana →</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        irACitasManana();
+                      }}
+                      className="text-amber-800 font-bold group-hover:text-amber-950 inline-flex items-center gap-1 hover:underline"
+                    >
+                      <span>Ver mañana</span>
+                      <span>→</span>
+                    </button>
                   </div>
                 </div>
 
                 {/* 3. Citas Pendientes de Atención (Hoy) */}
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs hover:shadow-xs transition">
-                  <div className="flex items-center justify-between text-slate-500 mb-2">
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Citas Pendientes Hoy</span>
-                    <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
-                      <Clock className="w-4 h-4" />
+                <div 
+                  onClick={() => irACitasHoy('pendientes_atencion')}
+                  className={`group bg-white rounded-2xl p-5 border shadow-2xs hover:shadow-md transition cursor-pointer flex flex-col justify-between ${
+                    jornadaActiva === 'hoy' && filtroEstado === 'pendientes_atencion' ? 'border-sky-500 ring-2 ring-sky-200' : 'border-slate-200'
+                  }`}
+                  title="Clic para ver los pacientes por atender hoy (en sala y en turno)"
+                >
+                  <div>
+                    <div className="flex items-center justify-between text-slate-500 mb-2">
+                      <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Citas Pendientes Hoy</span>
+                      <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Clock className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-sky-600">{totalPendientesAtencion}</span>
+                      <span className="text-xs text-slate-500 font-medium">por atender</span>
                     </div>
                   </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-sky-600">{totalPendientesAtencion}</span>
-                    <span className="text-xs text-slate-500 font-medium">por atender</span>
-                  </div>
                   <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 pt-3 border-t border-slate-100">
-                    <span className="text-sky-700 font-semibold">{citasEnEspera} en sala</span>
-                    <span className="text-slate-400">• {citasPorAtender} turno tarde</span>
+                    <span className="text-sky-700 font-semibold">{citasEnEspera} en sala • {citasPorAtender} turno tarde</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        irACitasHoy('pendientes_atencion');
+                      }}
+                      className="text-sky-700 font-bold group-hover:text-sky-950 inline-flex items-center gap-1 hover:underline"
+                    >
+                      <span>Ver pendientes</span>
+                      <span>→</span>
+                    </button>
                   </div>
                 </div>
 
                 {/* 4. Notificaciones WhatsApp Enviadas */}
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs hover:shadow-xs transition">
-                  <div className="flex items-center justify-between text-slate-500 mb-2">
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Notificaciones WhatsApp</span>
-                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                      <MessageCircle className="w-4 h-4" />
+                <div 
+                  onClick={() => irACitasHoy('pendientes_notificacion')}
+                  className={`group bg-white rounded-2xl p-5 border shadow-2xs hover:shadow-md transition cursor-pointer flex flex-col justify-between ${
+                    jornadaActiva === 'hoy' && filtroEstado === 'pendientes_notificacion' ? 'border-emerald-500 ring-2 ring-emerald-200' : 'border-slate-200'
+                  }`}
+                  title="Clic para ver las citas pendientes de recordatorio por WhatsApp"
+                >
+                  <div>
+                    <div className="flex items-center justify-between text-slate-500 mb-2">
+                      <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Notificaciones WhatsApp</span>
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <MessageCircle className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-slate-900">{totalNotificados}</span>
+                      <span className="text-xs text-slate-500 font-medium">de {totalCitasHoy} notificados</span>
                     </div>
                   </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-slate-900">{totalNotificados}</span>
-                    <span className="text-xs text-slate-500 font-medium">de {totalCitasHoy} notificados</span>
-                  </div>
                   <div className="mt-3 flex items-center justify-between text-[11px] pt-3 border-t border-slate-100">
-                    <span className="text-emerald-600 font-semibold">
-                      {totalCitasHoy > 0 ? Math.round((totalNotificados / totalCitasHoy) * 100) : 100}% de hoy
-                    </span>
-                    <span className="text-amber-700 font-bold">{totalPendientesNotificacion} pendientes hoy</span>
+                    <span className="text-amber-700 font-bold">{totalPendientesNotificacion} pendientes</span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          irACitasHoy('pendientes_notificacion');
+                        }}
+                        className="text-emerald-700 font-bold group-hover:text-emerald-950 inline-flex items-center gap-0.5 hover:underline"
+                      >
+                        <span>Ver citas</span>
+                        <span>→</span>
+                      </button>
+                      <span className="text-slate-300">|</span>
+                      <Link
+                        href="/dashboard/recordatorios"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-slate-500 hover:text-emerald-700 font-semibold inline-flex items-center gap-0.5 hover:underline"
+                        title="Ir a la pantalla de Recordatorios Automáticos de WhatsApp"
+                      >
+                        <span>Envíos</span>
+                        <span>↗</span>
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1906,7 +2002,7 @@ export default function DashboardPrincipalPage() {
               {/* ============================================================== */}
               {/* SECCIÓN DESTACADA: CITAS DEL DÍA SIGUIENTE (MAÑANA) */}
               {/* ============================================================== */}
-              <div className="bg-gradient-to-br from-amber-50/70 via-white to-sky-50/40 rounded-3xl p-6 border border-amber-200/80 shadow-xs space-y-4">
+              <div id="seccion-citas-manana" className="scroll-mt-6 bg-gradient-to-br from-amber-50/70 via-white to-sky-50/40 rounded-3xl p-6 border border-amber-200/80 shadow-xs space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-amber-100">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-sm shrink-0">
@@ -2130,7 +2226,7 @@ export default function DashboardPrincipalPage() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
                 {/* 1. LISTA / TABLA DE PACIENTES DEL DÍA CON ACCIONES WHATSAPP (2 COLUMNAS) */}
-                <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col justify-between">
+                <div id="seccion-control-recordatorios" className="scroll-mt-6 lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col justify-between">
                   <div>
                     {/* Encabezado y Filtros con Selector de Jornada */}
                     <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/50">
@@ -2193,6 +2289,7 @@ export default function DashboardPrincipalPage() {
                           className="text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 font-medium focus:outline-none focus:border-dentist-600 shadow-2xs"
                         >
                           <option value="todos">Todos los estados</option>
+                          <option value="pendientes_atencion">Pendientes por Atender (Sala + Turno)</option>
                           <option value="pendientes_notificacion">Pendientes de WhatsApp</option>
                           <option value="notificados">Notificados</option>
                           <option value="en_espera">En Sala de Espera</option>
@@ -2493,61 +2590,114 @@ export default function DashboardPrincipalPage() {
 
               {/* Métricas del Dr. Carlos Ruiz */}
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Citas Asignadas Hoy
-                  </span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-slate-900">{CITAS_DOCTOR_RUIZ.length}</span>
-                    <span className="text-xs text-slate-500 font-medium">pacientes</span>
-                  </div>
-                  <span className="text-[11px] text-dentist-600 font-semibold block mt-2">
-                    8:00 AM - 4:30 PM
-                  </span>
-                </div>
-
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    En Sala de Espera
-                  </span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-amber-600">
-                      {CITAS_DOCTOR_RUIZ.filter(c => c.estado === 'en_espera').length}
+                
+                {/* 1. Citas Asignadas Hoy */}
+                <div 
+                  onClick={() => irASeccion('agenda-sillon-hoy')}
+                  className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs hover:shadow-md transition cursor-pointer flex flex-col justify-between group"
+                  title="Clic para ver la agenda completa del sillón para hoy"
+                >
+                  <div>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                      Citas Asignadas Hoy
                     </span>
-                    <span className="text-xs text-slate-500 font-medium">pacientes listos</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-slate-900">{CITAS_DOCTOR_RUIZ.length}</span>
+                      <span className="text-xs text-slate-500 font-medium">pacientes</span>
+                    </div>
                   </div>
-                  <span className="text-[11px] text-amber-700 font-bold block mt-2">
-                    Próximo: Carlos Mendoza (Endodoncia)
-                  </span>
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500">8:00 AM - 4:30 PM</span>
+                    <button 
+                      type="button" 
+                      onClick={(e) => { e.stopPropagation(); irASeccion('agenda-sillon-hoy'); }}
+                      className="text-dentist-700 font-bold group-hover:text-dentist-900 group-hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>Ver agenda</span>
+                      <span>→</span>
+                    </button>
+                  </div>
                 </div>
 
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Pacientes Atendidos
-                  </span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-emerald-600">
-                      {CITAS_DOCTOR_RUIZ.filter(c => c.estado === 'completada').length}
+                {/* 2. En Sala de Espera */}
+                <div 
+                  onClick={() => irASeccion('agenda-sillon-hoy')}
+                  className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs hover:shadow-md transition cursor-pointer flex flex-col justify-between group"
+                  title="Clic para ver los pacientes en sala de espera"
+                >
+                  <div>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                      En Sala de Espera
                     </span>
-                    <span className="text-xs text-slate-500 font-medium">completados</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-amber-600">
+                        {CITAS_DOCTOR_RUIZ.filter(c => c.estado === 'en_espera').length}
+                      </span>
+                      <span className="text-xs text-slate-500 font-medium">pacientes listos</span>
+                    </div>
                   </div>
-                  <span className="text-[11px] text-emerald-600 font-semibold block mt-2">
-                    Evoluciones registradas al día
-                  </span>
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                    <span className="text-amber-700 font-bold truncate max-w-[130px]">Próximo: Carlos M.</span>
+                    <button 
+                      type="button" 
+                      onClick={(e) => { e.stopPropagation(); irASeccion('agenda-sillon-hoy'); }}
+                      className="text-amber-800 font-bold group-hover:text-amber-950 group-hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>Ver sala</span>
+                      <span>→</span>
+                    </button>
+                  </div>
                 </div>
 
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Tiempo Promedio / Cita
-                  </span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-dentist-700">38</span>
-                    <span className="text-xs text-slate-500 font-medium">minutos</span>
+                {/* 3. Pacientes Atendidos */}
+                <Link
+                  href="/dashboard/historias"
+                  className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs hover:shadow-md transition flex flex-col justify-between group"
+                  title="Ir a Odontograma e Historias Clínicas"
+                >
+                  <div>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                      Pacientes Atendidos
+                    </span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-emerald-600">
+                        {CITAS_DOCTOR_RUIZ.filter(c => c.estado === 'completada').length}
+                      </span>
+                      <span className="text-xs text-slate-500 font-medium">completados</span>
+                    </div>
                   </div>
-                  <span className="text-[11px] text-slate-500 block mt-2">
-                    Ritmo de atención óptimo (+5m margen)
-                  </span>
-                </div>
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                    <span className="text-emerald-700 font-semibold">Evoluciones al día</span>
+                    <span className="text-dentist-700 font-bold group-hover:underline inline-flex items-center gap-1">
+                      <span>Ver historias</span>
+                      <span>→</span>
+                    </span>
+                  </div>
+                </Link>
+
+                {/* 4. Tiempo Promedio / Cita */}
+                <Link
+                  href="/dashboard/reportes"
+                  className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs hover:shadow-md transition flex flex-col justify-between group"
+                  title="Ir a Reportes de Rendimiento Clínico"
+                >
+                  <div>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                      Tiempo Promedio / Cita
+                    </span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-dentist-700">38</span>
+                      <span className="text-xs text-slate-500 font-medium">minutos</span>
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500">Ritmo óptimo (+5m)</span>
+                    <span className="text-dentist-700 font-bold group-hover:underline inline-flex items-center gap-1">
+                      <span>Ver reportes</span>
+                      <span>→</span>
+                    </span>
+                  </div>
+                </Link>
               </div>
 
               {/* Paciente en Atención y Próximo Paciente */}
@@ -2556,7 +2706,7 @@ export default function DashboardPrincipalPage() {
                 {/* Paciente Actual en Sillón 1 */}
                 <div className="lg:col-span-1 bg-gradient-to-b from-white to-sky-50/40 rounded-2xl border-2 border-dentist-300 p-6 shadow-sm flex flex-col justify-between space-y-4">
                   <div>
-                    <div className="flex items-center justify-between pb-3 border-b border-dentist-100">
+                    <div className="flex items-center justify-between pb-3 border-dentist-100">
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-dentist-100 text-dentist-800">
                         <span className="w-2 h-2 rounded-full bg-dentist-600 animate-ping" />
                         Paciente en Sillón (Actual)
@@ -2608,7 +2758,7 @@ export default function DashboardPrincipalPage() {
                 </div>
 
                 {/* Lista Completa del Sillón del Dr. Carlos Ruiz */}
-                <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 space-y-4">
+                <div id="agenda-sillon-hoy" className="scroll-mt-6 lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                     <div>
                       <h2 className="text-base font-bold text-slate-900">
@@ -2744,82 +2894,127 @@ export default function DashboardPrincipalPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 
                 {/* 1. Ingresos del Mes */}
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
-                  <div className="flex items-center justify-between text-slate-500 mb-2">
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Ingresos del Mes</span>
-                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                      <DollarSign className="w-4 h-4" />
+                <Link
+                  href="/dashboard/reportes"
+                  className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs hover:shadow-md transition flex flex-col justify-between group"
+                  title="Clic para ver el reporte financiero detallado de ingresos"
+                >
+                  <div>
+                    <div className="flex items-center justify-between text-slate-500 mb-2">
+                      <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Ingresos del Mes</span>
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <DollarSign className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-2xl sm:text-3xl font-black text-slate-900">$18,450,000</span>
+                      <span className="text-xs text-slate-500 font-bold">COP</span>
                     </div>
                   </div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl sm:text-3xl font-black text-slate-900">$18,450,000</span>
-                    <span className="text-xs text-slate-500 font-bold">COP</span>
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-emerald-600 font-bold">
+                    <div className="flex items-center gap-1.5">
+                      <TrendingUp className="w-3.5 h-3.5" />
+                      <span>+14.2% vs mes anterior</span>
+                    </div>
+                    <span className="text-dentist-700 font-bold group-hover:underline text-[11px] inline-flex items-center gap-0.5">
+                      <span>Ver ingresos</span>
+                      <span>→</span>
+                    </span>
                   </div>
-                  <div className="mt-3 flex items-center gap-1.5 text-xs text-emerald-600 font-bold pt-3 border-t border-slate-100">
-                    <TrendingUp className="w-3.5 h-3.5" />
-                    <span>+14.2% vs mes anterior</span>
-                  </div>
-                </div>
+                </Link>
 
                 {/* 2. Ocupación de Sillones */}
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
-                  <div className="flex items-center justify-between text-slate-500 mb-2">
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Ocupación de Sillones</span>
-                    <div className="w-8 h-8 rounded-lg bg-sky-50 text-dentist-600 flex items-center justify-center">
-                      <Building2 className="w-4 h-4" />
+                <div 
+                  onClick={() => irASeccion('rendimiento-equipo-medico')}
+                  className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs hover:shadow-md transition cursor-pointer flex flex-col justify-between group"
+                  title="Clic para ver el rendimiento y ocupación de los sillones odontológicos"
+                >
+                  <div>
+                    <div className="flex items-center justify-between text-slate-500 mb-2">
+                      <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Ocupación de Sillones</span>
+                      <div className="w-8 h-8 rounded-lg bg-sky-50 text-dentist-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Building2 className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-dentist-700">88%</span>
+                      <span className="text-xs text-slate-500 font-medium">promedio general</span>
                     </div>
                   </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-dentist-700">88%</span>
-                    <span className="text-xs text-slate-500 font-medium">promedio general</span>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 pt-3 border-t border-slate-100">
-                    <span>Sillón 1: 92%</span>
-                    <span>Sillón 2: 85%</span>
-                    <span>Sillón 3: 78%</span>
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                    <span>S1: 92% • S2: 85% • S3: 78%</span>
+                    <button 
+                      type="button" 
+                      onClick={(e) => { e.stopPropagation(); irASeccion('rendimiento-equipo-medico'); }}
+                      className="text-dentist-700 font-bold group-hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>Ver sillones</span>
+                      <span>→</span>
+                    </button>
                   </div>
                 </div>
 
                 {/* 3. Citas Totales del Mes */}
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
-                  <div className="flex items-center justify-between text-slate-500 mb-2">
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Citas del Mes</span>
-                    <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                      <CalendarIcon className="w-4 h-4" />
+                <Link
+                  href="/dashboard/citas"
+                  className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs hover:shadow-md transition flex flex-col justify-between group"
+                  title="Clic para ver el calendario y la agenda completa de citas"
+                >
+                  <div>
+                    <div className="flex items-center justify-between text-slate-500 mb-2">
+                      <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Citas del Mes</span>
+                      <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <CalendarIcon className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-slate-900">142</span>
+                      <span className="text-xs text-slate-500 font-medium">consultas</span>
                     </div>
                   </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-slate-900">142</span>
-                    <span className="text-xs text-slate-500 font-medium">consultas</span>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 pt-3 border-t border-slate-100">
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                     <span className="text-emerald-600 font-bold">94.5% asistencia</span>
-                    <span>5.5% cancelaciones</span>
+                    <span className="text-dentist-700 font-bold group-hover:underline inline-flex items-center gap-1">
+                      <span>Ver citas</span>
+                      <span>→</span>
+                    </span>
                   </div>
-                </div>
+                </Link>
 
                 {/* 4. Pacientes Nuevos */}
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
-                  <div className="flex items-center justify-between text-slate-500 mb-2">
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Pacientes Nuevos</span>
-                    <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
-                      <Users className="w-4 h-4" />
+                <Link
+                  href="/dashboard/pacientes"
+                  className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs hover:shadow-md transition flex flex-col justify-between group"
+                  title="Clic para ver la base de datos de pacientes registrados"
+                >
+                  <div>
+                    <div className="flex items-center justify-between text-slate-500 mb-2">
+                      <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Pacientes Nuevos</span>
+                      <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Users className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-purple-700">+38</span>
+                      <span className="text-xs text-slate-500 font-medium">este mes</span>
                     </div>
                   </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-purple-700">+38</span>
-                    <span className="text-xs text-slate-500 font-medium">este mes</span>
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-purple-700 font-semibold">
+                    <div className="flex items-center gap-1.5">
+                      <Smile className="w-3.5 h-3.5" />
+                      <span>72% recomendados</span>
+                    </div>
+                    <span className="text-dentist-700 font-bold group-hover:underline text-[11px] inline-flex items-center gap-0.5">
+                      <span>Ver pacientes</span>
+                      <span>→</span>
+                    </span>
                   </div>
-                  <div className="mt-3 flex items-center gap-1.5 text-xs text-purple-700 font-semibold pt-3 border-t border-slate-100">
-                    <Smile className="w-3.5 h-3.5" />
-                    <span>72% referidos por recomendación</span>
-                  </div>
-                </div>
+                </Link>
 
               </div>
 
               {/* TABLA DE RENDIMIENTO DEL EQUIPO MÉDICO */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 space-y-4">
+              <div id="rendimiento-equipo-medico" className="scroll-mt-6 bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
                   <div>
                     <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
