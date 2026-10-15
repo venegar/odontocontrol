@@ -105,3 +105,63 @@ export function formatearFechaEspanol(fechaStr: string): string {
   });
 }
 
+/**
+ * Genera el mensaje oficial de WhatsApp para notificar al paciente sobre la reprogramación de su cita.
+ */
+export function generarMensajeReagendamiento(datos: {
+  pacienteNombre: string;
+  tratamiento: string;
+  doctorNombre: string;
+  nuevaFecha: string;
+  nuevaHora: string;
+  clinicaNombre?: string;
+  clinicaTelefono?: string;
+  citaId?: string;
+}): string {
+  const clinica = datos.clinicaNombre || 'Clínica Dental Dra. Yasmín Blanco';
+  const telefono = datos.clinicaTelefono || '+57 323 453 9574';
+  const fechaLegible = formatearFechaEspanol(datos.nuevaFecha);
+  const portal = datos.citaId 
+    ? `https://odontocontrol-ashen.vercel.app/portal-paciente?citaId=${encodeURIComponent(datos.citaId)}`
+    : 'https://odontocontrol-ashen.vercel.app/portal-paciente';
+
+  return [
+    `¡Hola ${datos.pacienteNombre}! 👋`,
+    `Te informamos que tu cita de *${datos.tratamiento}* con el/la *${datos.doctorNombre}* en *${clinica}* ha sido *reprogramada con éxito*.`,
+    '',
+    `📅 *Nueva Fecha:* ${fechaLegible}`,
+    `⏰ *Nueva Hora:* ${datos.nuevaHora}`,
+    '',
+    '👉 Puedes consultar los detalles de tu cita y recomendaciones en tu portal:',
+    portal,
+    '',
+    `Si tienes alguna pregunta o requieres otro horario, comunícate a nuestra línea ${telefono}. ¡Te esperamos!`,
+  ].join('\n');
+}
+
+/**
+ * Genera el mensaje oficial de WhatsApp para notificar al paciente sobre la cancelación de su cita.
+ */
+export function generarMensajeCancelacion(datos: {
+  pacienteNombre: string;
+  tratamiento: string;
+  fecha: string;
+  motivo?: string;
+  clinicaNombre?: string;
+  clinicaTelefono?: string;
+}): string {
+  const clinica = datos.clinicaNombre || 'Clínica Dental Dra. Yasmín Blanco';
+  const telefono = datos.clinicaTelefono || '+57 323 453 9574';
+  const fechaLegible = formatearFechaEspanol(datos.fecha);
+
+  return [
+    `¡Hola ${datos.pacienteNombre}! 👋`,
+    `Te informamos que tu cita de *${datos.tratamiento}* programada para el *${fechaLegible}* en *${clinica}* ha sido *cancelada*.`,
+    datos.motivo ? `\n• Motivo: ${datos.motivo}\n` : '',
+    'Si deseas solicitar un nuevo horario en nuestra agenda, puedes hacerlo en cualquier momento en nuestro sitio web:',
+    'https://odontocontrol-ashen.vercel.app/#solicitar-cita',
+    '',
+    `O escríbenos directamente a nuestra línea de atención: ${telefono}. ¡Estamos atentos para servirte!`,
+  ].join('\n');
+}
+

@@ -663,3 +663,54 @@ export async function agendarCitaRecepcionAction(datos: {
   }
 }
 
+/**
+ * SERVER ACTION: Reagendar Cita desde Recepción
+ * Actualiza la fecha y hora en Supabase y la mantiene confirmada en la agenda.
+ */
+export async function reagendarCitaRecepcionAction(
+  citaId: string,
+  nuevaFecha: string,
+  nuevaHora: string,
+  motivo?: string
+): Promise<ResultadoAccionCita<{ id: string; fecha: string; hora: string }>> {
+  if (!citaId || !nuevaFecha || !nuevaHora) {
+    return { exito: false, mensaje: 'Faltan parámetros obligatorios para reagendar la cita.' };
+  }
+
+  try {
+    const hora24 = normalizarHoraA24(nuevaHora);
+    const motivoFinal = (motivo || 'Reagendada por recepción').trim();
+
+    // 1. Invocar RPC reagendar_cita_portal en Supabase si es UUID
+    if (uuidZodSchema.safeParse(citaId).success) {
+      await supabase.rpc('reagendar_cita_portal', {
+        p_cita_id: citaId,
+        p_nueva_fecha: nuevaFecha,
+        p_nueva_hora: hora24,
+        p_motivo: motivoFinal,
+      });
+
+      // Asegurar estado confirmada en Supabase ya que es reagendada directamente por recepción
+      await supabase.from('citas').update({
+        estado: 'confirmada',
+        fecha: nuevaFecha,
+        hora_inicio: hora24,
+        motivo: motivoFinal,
+        actualizado_en: new Date().toISOString(),
+      }).eq('id', citaId);
+    }
+
+    revalidatePath('/dashboard/citas');
+    revalidatePath('/dashboard');
+
+    return {
+      exito: true,
+      mensaje: `Cita reprogramada con éxito para el ${nuevaFecha} a las ${nuevaHora}.`,
+      datos: { id: citaId, fecha: nuevaFecha, hora: nuevaHora },
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Error al reagendar la cita';
+    return { exito: false, mensaje: msg, error: msg };
+  }
+}
+

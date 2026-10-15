@@ -18,6 +18,14 @@ import {
   X, 
   SlidersHorizontal,
   ChevronRight,
+  ChevronLeft,
+  CalendarDays,
+  CalendarRange,
+  MessageCircle,
+  Send,
+  Copy,
+  ExternalLink,
+  Eye,
   AlertTriangle,
   Loader2
 } from 'lucide-react';
@@ -27,8 +35,17 @@ import {
   rechazarCita, 
   obtenerCitasHoy,
   agendarCitaRecepcionAction,
-  cancelarCitaAction
+  cancelarCitaAction,
+  reagendarCitaRecepcionAction
 } from '@/modules/citas/actions';
+import { 
+  formatearFechaEspanol, 
+  generarEnlaceWhatsApp, 
+  generarMensajeReagendamiento, 
+  generarMensajeCancelacion,
+  normalizarTelefonoWhatsApp
+} from '@/modules/recordatorios/utils';
+import { obtenerDatosConsultorio } from '@/modules/configuracion/consultorioService';
 import { supabase } from '@/lib/supabase';
 
 interface CitaGestionUI {
@@ -47,7 +64,7 @@ interface CitaGestionUI {
   motivoRechazoCancelacion?: string;
 }
 
-// Citas iniciales de demostración
+// Citas iniciales de demostración (incluyendo citas para el 20 de octubre)
 const CITAS_INICIALES: CitaGestionUI[] = [
   {
     id: 'cita-sol-1',
@@ -59,9 +76,8 @@ const CITAS_INICIALES: CitaGestionUI[] = [
     fecha: '2026-10-20',
     horaInicio: '09:30 AM',
     horaFin: '10:15 AM',
-    estado: 'solicitada',
-    esReagendamiento: true,
-    motivoSolicitud: 'Reagendamiento: Cambio de horario por compromiso laboral.',
+    estado: 'confirmada',
+    esReagendamiento: false,
   },
   {
     id: 'cita-sol-2',
@@ -99,6 +115,18 @@ const CITAS_INICIALES: CitaGestionUI[] = [
     fecha: '2026-10-14',
     horaInicio: '11:30 AM',
     horaFin: '12:00 PM',
+    estado: 'confirmada',
+  },
+  {
+    id: 'cita-conf-20-oct',
+    pacienteNombre: 'David Alejandro Castro',
+    pacienteDocumento: '75892341',
+    pacienteTelefono: '+57 317 345 6789',
+    doctorNombre: 'Dr. Carlos Ruiz',
+    tratamiento: 'Blanqueamiento Dental LED',
+    fecha: '2026-10-20',
+    horaInicio: '03:00 PM',
+    horaFin: '04:00 PM',
     estado: 'confirmada',
   },
 ];
@@ -195,6 +223,22 @@ export default function GestionCitasPage() {
   const [guardandoNuevaCita, setGuardandoNuevaCita] = useState(false);
   const [errorModalCita, setErrorModalCita] = useState<string | null>(null);
 
+  // Estados para la Vista Calendario de la Agenda Confirmada
+  const [fechaSeleccionada, setFechaSeleccionada] = useState<string>('2026-10-20');
+  const [mesVisualizado, setMesVisualizado] = useState<Date>(new Date(2026, 9, 1)); // Octubre 2026 (mes 9 en JS = Octubre)
+  const [vistaAgenda, setVistaAgenda] = useState<'calendario' | 'tabla'>('calendario');
+
+  // Modal para envío de WhatsApp de reagendamiento / cancelación
+  const [modalWhatsApp, setModalWhatsApp] = useState<{
+    pacienteNombre: string;
+    telefono: string;
+    urlWaMe: string;
+    urlWhatsAppWeb: string;
+    mensaje: string;
+    tipoAccion: 'reagendamiento' | 'cancelacion' | 'recordatorio';
+  } | null>(null);
+  const [copiadoExito, setCopiadoExito] = useState(false);
+
   // Formulario Nueva Cita Directa
   const [nuevoPaciente, setNuevoPaciente] = useState({
     nombre: '',
@@ -202,7 +246,7 @@ export default function GestionCitasPage() {
     telefono: '',
     doctor: ODONTOLOGOS[0],
     tratamiento: TRATAMIENTOS[0],
-    fecha: '',
+    fecha: '2026-10-20',
     hora: '09:00 AM',
     notas: '',
   });
@@ -227,6 +271,84 @@ export default function GestionCitasPage() {
     if (pestaña === 'pendientes') return c.estado === 'solicitada';
     if (pestaña === 'agenda') return ['confirmada', 'en_atencion'].includes(c.estado);
     return true; // 'todas'
+  });
+
+  // Cálculos y cuadrícula del calendario
+  const anio = mesVisualizado.getFullYear();
+  const mes = mesVisualizado.getMonth();
+  const nombreMes = mesVisualizado.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+
+  const handleMesAnterior = () => {
+    setMesVisualizado(new Date(anio, mes - 1, 1));
+  };
+
+  const handleMesSiguiente = () => {
+    setMesVisualizado(new Date(anio, mes + 1, 1));
+  };
+
+  const handleIrAHoy = () => {
+    const hoy = new Date();
+    setMesVisualizado(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+    const a = hoy.getFullYear();
+    const m = String(hoy.getMonth() + 1).padStart(2, '0');
+    const d = String(hoy.getDate()).padStart(2, '0');
+    setFechaSeleccionada(`${a}-${m}-${d}`);
+  };
+
+  const diasEnMes = new Date(anio, mes + 1, 0).getDate();
+  const diaSemanaInicio = (new Date(anio, mes, 1).getDay() + 6) % 7;
+  const diasMesAnterior = new Date(anio, mes, 0).getDate();
+
+  const celdasDias: Array<{
+    dia: number;
+    fechaStr: string;
+    esMesActual: boolean;
+    citas: CitaGestionUI[];
+  }> = [];
+
+  for (let i = diaSemanaInicio - 1; i >= 0; i--) {
+    const diaPrevio = diasMesAnterior - i;
+    const mesPrev = mes === 0 ? 11 : mes - 1;
+    const anioPrev = mes === 0 ? anio - 1 : anio;
+    const fechaStr = `${anioPrev}-${String(mesPrev + 1).padStart(2, '0')}-${String(diaPrevio).padStart(2, '0')}`;
+    celdasDias.push({
+      dia: diaPrevio,
+      fechaStr,
+      esMesActual: false,
+      citas: citas.filter(c => c.fecha === fechaStr && ['confirmada', 'en_atencion'].includes(c.estado)),
+    });
+  }
+
+  for (let d = 1; d <= diasEnMes; d++) {
+    const fechaStr = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    celdasDias.push({
+      dia: d,
+      fechaStr,
+      esMesActual: true,
+      citas: citas.filter(c => c.fecha === fechaStr && ['confirmada', 'en_atencion'].includes(c.estado)),
+    });
+  }
+
+  const totalCeldas = Math.ceil(celdasDias.length / 7) * 7;
+  const diasFaltantes = totalCeldas - celdasDias.length;
+  for (let d = 1; d <= diasFaltantes; d++) {
+    const mesNext = mes === 11 ? 0 : mes + 1;
+    const anioNext = mes === 11 ? anio + 1 : anio;
+    const fechaStr = `${anioNext}-${String(mesNext + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    celdasDias.push({
+      dia: d,
+      fechaStr,
+      esMesActual: false,
+      citas: citas.filter(c => c.fecha === fechaStr && ['confirmada', 'en_atencion'].includes(c.estado)),
+    });
+  }
+
+  // Citas del día seleccionado en el calendario
+  const citasDelDiaSeleccionado = citas.filter(c => {
+    const coincideFecha = c.fecha === fechaSeleccionada;
+    const coincideEstado = ['confirmada', 'en_atencion'].includes(c.estado);
+    const coincideDoctor = filtroDoctor === 'todos' || c.doctorNombre === filtroDoctor;
+    return coincideFecha && coincideEstado && coincideDoctor;
   });
 
   // 1. APROBAR SOLICITUD
@@ -275,10 +397,11 @@ export default function GestionCitasPage() {
     }
   };
 
-  // 3. CANCELAR CITA EXISTENTE
+  // 3. CANCELAR CITA EXISTENTE CON NOTIFICACIÓN AL PACIENTE
   const handleConfirmarCancelacion = async () => {
     if (!citaParaCancelar) return;
-    const idCita = citaParaCancelar.id;
+    const citaActual = citaParaCancelar;
+    const idCita = citaActual.id;
     const motivoFinal = motivoTexto || 'Cancelada por recepción';
 
     setCitas(prev => prev.map(c => {
@@ -291,37 +414,104 @@ export default function GestionCitasPage() {
       }
       return c;
     }));
-    setMensajeAlerta('Cita cancelada con éxito. El horario ha quedado disponible en la agenda.');
-    setCitaParaCancelar(null);
-    setMotivoTexto('');
-    setTimeout(() => setMensajeAlerta(null), 5000);
 
     try {
       await cancelarCitaAction(idCita, motivoFinal);
     } catch (err) {
       console.warn('Cancelación en Supabase procesada:', err);
     }
+
+    // Generar mensaje oficial de WhatsApp de cancelación
+    const datosConsultorio = obtenerDatosConsultorio();
+    const mensajeWA = generarMensajeCancelacion({
+      pacienteNombre: citaActual.pacienteNombre,
+      tratamiento: citaActual.tratamiento,
+      fecha: citaActual.fecha,
+      motivo: motivoFinal,
+      clinicaNombre: datosConsultorio.nombreConsultorio,
+      clinicaTelefono: datosConsultorio.telefonoPrincipal,
+    });
+
+    const telNormalizado = normalizarTelefonoWhatsApp(citaActual.pacienteTelefono);
+    const urlWaMe = generarEnlaceWhatsApp(telNormalizado, mensajeWA);
+    const textoCodificado = encodeURIComponent(mensajeWA);
+    const urlWhatsAppWeb = `https://web.whatsapp.com/send?phone=${telNormalizado}&text=${textoCodificado}`;
+
+    setCitaParaCancelar(null);
+    setMotivoTexto('');
+    setMensajeAlerta('Cita cancelada con éxito. Se ha preparado el mensaje de WhatsApp para notificar al paciente.');
+    setTimeout(() => setMensajeAlerta(null), 6000);
+
+    // Abrir modal de despacho para que recepción envíe la notificación
+    setModalWhatsApp({
+      pacienteNombre: citaActual.pacienteNombre,
+      telefono: citaActual.pacienteTelefono,
+      urlWaMe,
+      urlWhatsAppWeb,
+      mensaje: mensajeWA,
+      tipoAccion: 'cancelacion',
+    });
   };
 
-  // 4. REAGENDAR CITA
-  const handleConfirmarReagendar = (e: React.FormEvent) => {
+  // 4. REAGENDAR CITA CON NOTIFICACIÓN AL PACIENTE
+  const handleConfirmarReagendar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!citaParaReagendar || !formReagendar.fecha) return;
+    const citaActual = citaParaReagendar;
+    const nuevaFecha = formReagendar.fecha;
+    const nuevaHora = formReagendar.hora;
+
     setCitas(prev => prev.map(c => {
-      if (c.id === citaParaReagendar.id) {
+      if (c.id === citaActual.id) {
         return {
           ...c,
-          fecha: formReagendar.fecha,
-          horaInicio: formReagendar.hora,
-          horaFin: `${formReagendar.hora} (Estimado)`,
-          estado: 'confirmada', // Como lo hace recepción, queda confirmada de una vez
+          fecha: nuevaFecha,
+          horaInicio: nuevaHora,
+          horaFin: `${nuevaHora} (Estimado)`,
+          estado: 'confirmada',
         };
       }
       return c;
     }));
-    setMensajeAlerta('Cita reagendada exitosamente por recepción.');
+
+    try {
+      await reagendarCitaRecepcionAction(citaActual.id, nuevaFecha, nuevaHora);
+    } catch (err) {
+      console.warn('Reagendamiento en base de datos:', err);
+    }
+
+    // Generar mensaje oficial de WhatsApp de reprogramación
+    const datosConsultorio = obtenerDatosConsultorio();
+    const mensajeWA = generarMensajeReagendamiento({
+      pacienteNombre: citaActual.pacienteNombre,
+      tratamiento: citaActual.tratamiento,
+      doctorNombre: citaActual.doctorNombre,
+      nuevaFecha,
+      nuevaHora,
+      clinicaNombre: datosConsultorio.nombreConsultorio,
+      clinicaTelefono: datosConsultorio.telefonoPrincipal,
+      citaId: citaActual.id,
+    });
+
+    const telNormalizado = normalizarTelefonoWhatsApp(citaActual.pacienteTelefono);
+    const urlWaMe = generarEnlaceWhatsApp(telNormalizado, mensajeWA);
+    const textoCodificado = encodeURIComponent(mensajeWA);
+    const urlWhatsAppWeb = `https://web.whatsapp.com/send?phone=${telNormalizado}&text=${textoCodificado}`;
+
+    setFechaSeleccionada(nuevaFecha);
     setCitaParaReagendar(null);
-    setTimeout(() => setMensajeAlerta(null), 5000);
+    setMensajeAlerta(`¡Cita reagendada para el ${formatearFechaEspanol(nuevaFecha)} a las ${nuevaHora}! Mensaje preparado para el paciente.`);
+    setTimeout(() => setMensajeAlerta(null), 6000);
+
+    // Abrir modal de despacho
+    setModalWhatsApp({
+      pacienteNombre: citaActual.pacienteNombre,
+      telefono: citaActual.pacienteTelefono,
+      urlWaMe,
+      urlWhatsAppWeb,
+      mensaje: mensajeWA,
+      tipoAccion: 'reagendamiento',
+    });
   };
 
   // 5. CREAR NUEVA CITA DIRECTA CON GUARDADO EN SUPABASE
@@ -627,8 +817,438 @@ export default function GestionCitasPage() {
           </div>
         )}
 
-        {/* TAB 2 & 3: TABLA DE AGENDA Y TODAS LAS CITAS */}
-        {(pestaña === 'agenda' || pestaña === 'todas') && (
+        {/* ============================================================== */}
+        {/* TAB 2: AGENDA CONFIRMADA CON VISTA TIPO CALENDARIO Y TABLA */}
+        {/* ============================================================== */}
+        {pestaña === 'agenda' && (
+          <div className="space-y-4">
+            {/* Barra de Herramientas de la Agenda */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+              <div>
+                <h2 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                  <CalendarCheck className="w-5 h-5 text-dentist-600" />
+                  <span>Agenda Médica Confirmada</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Explora las citas médicas programadas por día en el calendario o en formato de tabla.
+                </p>
+              </div>
+
+              {/* Conmutador de Modo de Vista */}
+              <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl self-start sm:self-auto border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setVistaAgenda('calendario')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition flex items-center gap-1.5 ${
+                    vistaAgenda === 'calendario'
+                      ? 'bg-white text-dentist-700 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <CalendarDays className="w-3.5 h-3.5 text-dentist-600" />
+                  <span>Vista Calendario</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVistaAgenda('tabla')}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 ${
+                    vistaAgenda === 'tabla'
+                      ? 'bg-white text-dentist-700 shadow-xs font-bold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <CalendarRange className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Vista Lista / Tabla</span>
+                </button>
+              </div>
+            </div>
+
+            {/* VISTA 1: CALENDARIO INTERACTIVO POR DÍA */}
+            {vistaAgenda === 'calendario' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                
+                {/* Cuadrícula del Calendario Mensual (Columna Izquierda 7 cols) */}
+                <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+                  {/* Encabezado del Mes con Controles */}
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="p-2 rounded-xl bg-dentist-50 text-dentist-700">
+                        <CalendarIcon className="w-4 h-4" />
+                      </span>
+                      <div>
+                        <h3 className="font-bold text-sm sm:text-base text-slate-900 capitalize">
+                          {nombreMes}
+                        </h3>
+                        <p className="text-[11px] text-slate-400">
+                          Haz clic en cualquier día para ver sus citas programadas
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={handleIrAHoy}
+                        className="px-2.5 py-1 text-xs font-bold text-dentist-700 bg-dentist-50 hover:bg-dentist-100 rounded-lg transition border border-dentist-200"
+                        title="Ir a la fecha actual"
+                      >
+                        Hoy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleMesAnterior}
+                        className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
+                        title="Mes anterior"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleMesSiguiente}
+                        className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
+                        title="Mes siguiente"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Nombres de los Días de la Semana */}
+                  <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <span>Lun</span>
+                    <span>Mar</span>
+                    <span>Mié</span>
+                    <span>Jue</span>
+                    <span>Vie</span>
+                    <span className="text-amber-600">Sáb</span>
+                    <span className="text-rose-500">Dom</span>
+                  </div>
+
+                  {/* Celdas de los Días del Calendario */}
+                  <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+                    {celdasDias.map((celda, idx) => {
+                      const esSeleccionado = celda.fechaStr === fechaSeleccionada;
+                      const tieneCitas = celda.citas.length > 0;
+                      const hoyStr = new Date().toISOString().split('T')[0];
+                      const esHoy = celda.fechaStr === hoyStr;
+
+                      return (
+                        <button
+                          key={`${celda.fechaStr}-${idx}`}
+                          type="button"
+                          onClick={() => setFechaSeleccionada(celda.fechaStr)}
+                          className={`min-h-[64px] sm:min-h-[74px] p-1.5 rounded-xl text-left flex flex-col justify-between transition-all relative border ${
+                            esSeleccionado
+                              ? 'bg-dentist-600 text-white font-bold border-dentist-700 shadow-md ring-2 ring-dentist-300 scale-[1.02] z-10'
+                              : esHoy
+                              ? 'bg-amber-50/70 border-amber-300 text-slate-900 hover:bg-amber-100/50'
+                              : celda.esMesActual
+                              ? 'bg-slate-50/60 border-slate-200 text-slate-800 hover:bg-slate-100/80 hover:border-slate-300'
+                              : 'bg-slate-50/20 border-slate-100 text-slate-400 opacity-60 hover:opacity-100'
+                          }`}
+                        >
+                          {/* Número del día e indicador 'Hoy' */}
+                          <div className="flex items-center justify-between w-full">
+                            <span className={`text-xs sm:text-sm font-bold ${
+                              esSeleccionado ? 'text-white' : 'text-slate-800'
+                            }`}>
+                              {celda.dia}
+                            </span>
+                            {esHoy && (
+                              <span className={`text-[9px] font-extrabold uppercase px-1 rounded ${
+                                esSeleccionado ? 'bg-white/20 text-white' : 'bg-amber-200 text-amber-900'
+                              }`}>
+                                Hoy
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Indicador de citas del día */}
+                          {tieneCitas ? (
+                            <div className="w-full mt-1">
+                              <span className={`inline-flex items-center gap-1 w-full truncate text-[10px] sm:text-[11px] font-bold px-1.5 py-0.5 rounded-md ${
+                                esSeleccionado
+                                  ? 'bg-white/20 text-white'
+                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                  esSeleccionado ? 'bg-white' : 'bg-emerald-600'
+                                }`} />
+                                <span className="truncate">{celda.citas.length} {celda.citas.length === 1 ? 'cita' : 'citas'}</span>
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="block h-4" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Leyenda de Ayuda */}
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 flex-wrap gap-2">
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                        <span>Día con citas confirmadas</span>
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-dentist-600" />
+                        <span>Día seleccionado</span>
+                      </span>
+                    </div>
+                    <span>Día activo: <strong>{fechaSeleccionada}</strong></span>
+                  </div>
+                </div>
+
+                {/* Panel de Citas del Día Seleccionado (Columna Derecha 5 cols) */}
+                <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+                  
+                  {/* Encabezado del Día */}
+                  <div className="border-b border-slate-100 pb-3 flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-dentist-100 text-dentist-800">
+                          Día Seleccionado
+                        </span>
+                        <span className="text-[11px] font-bold text-slate-500">
+                          {citasDelDiaSeleccionado.length} {citasDelDiaSeleccionado.length === 1 ? 'Cita' : 'Citas'}
+                        </span>
+                      </div>
+                      <h3 className="font-bold text-sm sm:text-base text-slate-900 mt-1 capitalize">
+                        {formatearFechaEspanol(fechaSeleccionada) || fechaSeleccionada}
+                      </h3>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNuevoPaciente(prev => ({ ...prev, fecha: fechaSeleccionada }));
+                        setModalNuevaCitaAbierto(true);
+                      }}
+                      className="px-2.5 py-1.5 text-xs font-bold text-dentist-700 bg-dentist-50 hover:bg-dentist-100 rounded-xl transition border border-dentist-200 flex items-center gap-1"
+                      title="Agendar cita para este día"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5" />
+                      <span>Agendar</span>
+                    </button>
+                  </div>
+
+                  {/* Listado de Citas del Día Seleccionado */}
+                  {citasDelDiaSeleccionado.length === 0 ? (
+                    <div className="py-12 px-4 text-center rounded-2xl bg-slate-50/70 border border-slate-200/80">
+                      <CalendarDays className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                      <h4 className="font-bold text-sm text-slate-700">Sin citas para este día</h4>
+                      <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+                        No hay citas confirmadas para el {formatearFechaEspanol(fechaSeleccionada)}. Puedes agendar una cita directamente.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNuevoPaciente(prev => ({ ...prev, fecha: fechaSeleccionada }));
+                          setModalNuevaCitaAbierto(true);
+                        }}
+                        className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-dentist-600 hover:bg-dentist-700 text-white rounded-xl shadow-xs transition"
+                      >
+                        <PlusCircle className="w-3.5 h-3.5" />
+                        <span>Agendar Cita en este Día</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[580px] overflow-y-auto pr-1">
+                      {citasDelDiaSeleccionado.map((cita) => (
+                        <div
+                          key={cita.id}
+                          className="bg-slate-50/80 hover:bg-slate-100/80 rounded-2xl p-4 border border-slate-200 transition space-y-3"
+                        >
+                          {/* Hora y Estado */}
+                          <div className="flex items-center justify-between">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-black text-dentist-800 bg-dentist-100/70 border border-dentist-200 px-2.5 py-1 rounded-lg">
+                              <Clock className="w-3.5 h-3.5 text-dentist-600" />
+                              <span>{cita.horaInicio}</span>
+                              {cita.horaFin && <span className="font-medium text-dentist-600">- {cita.horaFin}</span>}
+                            </span>
+
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              Confirmada
+                            </span>
+                          </div>
+
+                          {/* Datos del Paciente */}
+                          <div>
+                            <h4 className="font-bold text-sm text-slate-900 leading-tight">
+                              {cita.pacienteNombre}
+                            </h4>
+                            <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 flex-wrap">
+                              <span>Doc: {cita.pacienteDocumento}</span>
+                              <span>•</span>
+                              <span className="flex items-center gap-1 text-slate-700 font-semibold">
+                                <Phone className="w-3 h-3 text-dentist-600" />
+                                {cita.pacienteTelefono}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Tratamiento y Doctor */}
+                          <div className="p-2.5 rounded-xl bg-white border border-slate-200/80 text-xs space-y-0.5">
+                            <p className="font-semibold text-slate-900 truncate">{cita.tratamiento}</p>
+                            <p className="text-[11px] text-dentist-700 font-medium">{cita.doctorNombre}</p>
+                          </div>
+
+                          {/* Botones de Acción de Recepción con Notificación */}
+                          <div className="pt-2 border-t border-slate-200/70 flex items-center justify-between gap-1.5 flex-wrap">
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCitaParaReagendar(cita);
+                                  setFormReagendar({ fecha: cita.fecha, hora: cita.horaInicio });
+                                }}
+                                className="px-3 py-1.5 text-xs font-bold text-dentist-700 bg-dentist-50 hover:bg-dentist-100 border border-dentist-200 rounded-lg transition active:scale-95"
+                                title="Reagendar esta cita y avisar al paciente"
+                              >
+                                Reagendar
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCitaParaCancelar(cita);
+                                  setMotivoTexto('');
+                                }}
+                                className="px-3 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition active:scale-95"
+                                title="Cancelar esta cita y avisar al paciente"
+                              >
+                                Cancelar
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCitas(prev => prev.map(item => item.id === cita.id ? { ...item, estado: 'completada' } : item));
+                                  setMensajeAlerta(`Cita de ${cita.pacienteNombre} marcada como atendida.`);
+                                  setTimeout(() => setMensajeAlerta(null), 4000);
+                                }}
+                                className="px-2.5 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition"
+                                title="Finalizar cita"
+                              >
+                                Finalizar
+                              </button>
+                            </div>
+
+                            {/* Botón directo de WhatsApp para el paciente */}
+                            <a
+                              href={generarEnlaceWhatsApp(
+                                normalizarTelefonoWhatsApp(cita.pacienteTelefono),
+                                `Hola ${cita.pacienteNombre} 👋 Te saludamos desde OdontoControl para confirmar los detalles de tu cita de ${cita.tratamiento} programada para el ${formatearFechaEspanol(cita.fecha)} a las ${cita.horaInicio}.`
+                              )}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition"
+                              title="Abrir chat de WhatsApp con el paciente"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* VISTA 2: LISTA / TABLA TRADICIONAL DE CITAS CONFIRMADAS */}
+            {vistaAgenda === 'tabla' && (
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
+                      <tr>
+                        <th className="py-3.5 px-4">Paciente</th>
+                        <th className="py-3.5 px-4">Tratamiento</th>
+                        <th className="py-3.5 px-4">Odontólogo</th>
+                        <th className="py-3.5 px-4">Fecha y Hora</th>
+                        <th className="py-3.5 px-4">Estado</th>
+                        <th className="py-3.5 px-4 text-right">Acciones de Recepción</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {citasFiltradas.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="text-center py-8 text-slate-400">
+                            No se encontraron citas confirmadas con los filtros seleccionados.
+                          </td>
+                        </tr>
+                      ) : (
+                        citasFiltradas.map((c) => (
+                          <tr key={c.id} className="hover:bg-slate-50/80 transition">
+                            <td className="py-3.5 px-4">
+                              <span className="font-semibold text-slate-900 block">{c.pacienteNombre}</span>
+                              <span className="text-slate-400 text-[11px]">{c.pacienteTelefono}</span>
+                            </td>
+                            <td className="py-3.5 px-4 text-slate-700 font-medium">
+                              {c.tratamiento}
+                            </td>
+                            <td className="py-3.5 px-4 text-slate-700">
+                              {c.doctorNombre}
+                            </td>
+                            <td className="py-3.5 px-4 text-slate-700">
+                              <span className="font-semibold block text-slate-900">{c.fecha}</span>
+                              <span className="text-slate-500 text-[11px]">{c.horaInicio}</span>
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                {c.estado}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-right space-x-2">
+                              <button
+                                onClick={() => {
+                                  setCitaParaReagendar(c);
+                                  setFormReagendar({ fecha: c.fecha, hora: c.horaInicio });
+                                }}
+                                className="text-dentist-600 hover:text-dentist-800 font-semibold px-2 py-1 rounded hover:bg-dentist-50 transition"
+                              >
+                                Reagendar
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setCitaParaCancelar(c);
+                                  setMotivoTexto('');
+                                }}
+                                className="text-rose-600 hover:text-rose-800 font-semibold px-2 py-1 rounded hover:bg-rose-50 transition"
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setCitas(prev => prev.map(item => item.id === c.id ? { ...item, estado: 'completada' } : item));
+                                  setMensajeAlerta('Cita marcada como completada/atendida.');
+                                  setTimeout(() => setMensajeAlerta(null), 4000);
+                                }}
+                                className="text-emerald-700 hover:text-emerald-900 font-semibold px-2 py-1 rounded hover:bg-emerald-50 transition"
+                              >
+                                Finalizar
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* TAB 3: HISTORIAL GENERAL DE TODAS LAS CITAS */}
+        {/* ============================================================== */}
+        {pestaña === 'todas' && (
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
@@ -646,7 +1266,7 @@ export default function GestionCitasPage() {
                   {citasFiltradas.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="text-center py-8 text-slate-400">
-                        No se encontraron citas con los filtros seleccionados.
+                        No se encontraron registros de citas.
                       </td>
                     </tr>
                   ) : (
@@ -1000,6 +1620,113 @@ export default function GestionCitasPage() {
                   Sí, Cancelar Cita
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL: NOTIFICACIÓN DE WHATSAPP (REAGENDAMIENTO O CANCELACIÓN) */}
+      {/* ============================================================== */}
+      {modalWhatsApp && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-scale-up">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                  <MessageCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">
+                    Notificar al Paciente por WhatsApp
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    {modalWhatsApp.tipoAccion === 'reagendamiento' ? 'Reprogramación de cita médica' : 'Cancelación de cita médica'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setModalWhatsApp(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex justify-between items-center text-xs mb-1.5">
+                  <span className="font-semibold text-slate-700">Destinatario:</span>
+                  <span className="text-slate-900 font-bold">{modalWhatsApp.pacienteNombre} ({modalWhatsApp.telefono})</span>
+                </div>
+                <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Mensaje listo para enviar con un clic
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Mensaje generado automáticamente:
+                </label>
+                <div className="relative">
+                  <pre className="text-xs bg-emerald-50/50 border border-emerald-100 rounded-xl p-3.5 text-slate-800 whitespace-pre-wrap font-sans max-h-48 overflow-y-auto leading-relaxed">
+                    {modalWhatsApp.mensaje}
+                  </pre>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(modalWhatsApp.mensaje);
+                      setCopiadoExito(true);
+                      setTimeout(() => setCopiadoExito(false), 2500);
+                    }}
+                    className="absolute top-2 right-2 text-xs bg-white/90 hover:bg-white text-slate-700 border border-slate-200 rounded-lg px-2.5 py-1 flex items-center gap-1 shadow-sm transition"
+                  >
+                    {copiadoExito ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <span className="text-emerald-700 font-semibold">Copiado</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copiar</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                <a
+                  href={modalWhatsApp.urlWhatsAppWeb}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Abrir WhatsApp Web</span>
+                </a>
+                <a
+                  href={modalWhatsApp.urlWaMe}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-300 text-emerald-800 hover:bg-emerald-50 font-semibold text-xs transition"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Abrir App (wa.me)</span>
+                </a>
+              </div>
+            </div>
+
+            <div className="pt-4 mt-4 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setModalWhatsApp(null)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+              >
+                Cerrar Ventana
+              </button>
             </div>
           </div>
         </div>
