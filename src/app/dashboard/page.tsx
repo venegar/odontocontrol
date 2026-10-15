@@ -99,7 +99,7 @@ interface BitacoraEnvio {
   telefono: string;
   tratamiento: string;
   doctor: string;
-  canal: 'WhatsApp';
+  canal: 'WhatsApp' | 'Email';
   estado: 'Entregado' | 'Enviado';
 }
 
@@ -2248,8 +2248,10 @@ export default function DashboardPrincipalPage() {
                               <Phone className="w-3 h-3 text-slate-400" />
                               {item.telefono}
                             </span>
-                            <span className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                              <CheckCircle2 className="w-3 h-3" /> WhatsApp {item.estado}
+                            <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full ${
+                              item.canal === 'Email' ? 'text-sky-700 bg-sky-50' : 'text-emerald-700 bg-emerald-50'
+                            }`}>
+                              <CheckCircle2 className="w-3 h-3" /> {item.canal} {item.estado}
                             </span>
                           </div>
                         </div>
