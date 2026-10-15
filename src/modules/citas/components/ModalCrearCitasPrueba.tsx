@@ -13,16 +13,19 @@ import {
   Sun, 
   Calendar as CalendarIcon,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { 
   obtenerFechaHoy, 
   obtenerFechaManana, 
-  formatearFechaEspanol, 
-  generarEnlaceWhatsApp, 
-  generarEnlaceEmail, 
-  generarEnlacesAccionCita 
+  formatearFechaEspanol 
 } from '@/modules/recordatorios/utils';
+import { DatosEnvioRecordatorio } from '@/modules/recordatorios/types';
+import { 
+  enviarRecordatorioWhatsAppAction, 
+  enviarRecordatorioEmailAction 
+} from '@/modules/recordatorios/actions';
 import { supabase } from '@/lib/supabase';
 import { obtenerDatosConsultorio } from '@/modules/configuracion/consultorioService';
 
@@ -65,6 +68,8 @@ export default function ModalCrearCitasPrueba({
     manana: CitaPruebaGenerada;
   } | null>(null);
   const [alerta, setAlerta] = useState<string | null>(null);
+  const [enviandoAccion, setEnviandoAccion] = useState<string | null>(null);
+  const [feedbackEnvio, setFeedbackEnvio] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null);
 
   if (!abierto) return null;
 
@@ -76,6 +81,7 @@ export default function ModalCrearCitasPrueba({
     e.preventDefault();
     setGuardando(true);
     setAlerta(null);
+    setFeedbackEnvio(null);
 
     const idHoy = `prueba-hoy-${Date.now()}`;
     const idManana = `prueba-manana-${Date.now() + 1}`;
@@ -153,36 +159,92 @@ export default function ModalCrearCitasPrueba({
     }
   };
 
-  // Enviar WhatsApp para una cita de prueba
-  const handleEnviarWhatsAppPrueba = (cita: CitaPruebaGenerada, esManana: boolean) => {
-    const enlaces = generarEnlacesAccionCita(cita.id);
-    const nombreClinica = datosConsultorio.nombreConsultorio || datosConsultorio.nombre || 'Clínica Dental Dra. Yasmín Blanco';
-    const momento = esManana 
-      ? `mañana (${formatearFechaEspanol(cita.fecha)})` 
-      : `hoy (${formatearFechaEspanol(cita.fecha)})`;
+  // Enviar WhatsApp para una cita de prueba utilizando Server Action y validación Zod
+  const handleEnviarWhatsAppPrueba = async (cita: CitaPruebaGenerada, esManana: boolean) => {
+    const claveAccion = esManana ? 'wa-manana' : 'wa-hoy';
+    setEnviandoAccion(claveAccion);
+    setFeedbackEnvio(null);
 
-    const texto = `¡Hola ${cita.nombre}! 👋 Te recordamos tu cita odontológica para ${momento} a las ${cita.hora} para "${cita.tratamiento}" con ${cita.doctor} en ${nombreClinica}.\n\n📅 Fecha: ${cita.fecha}\n⏰ Hora: ${cita.hora}\n📍 Sede: ${datosConsultorio.direccion}\n\nPor favor autogestiona tu asistencia en 1 clic:\n✅ Confirmar Cita: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nTeléfono consultorio: ${datosConsultorio.telefonoPrincipal}. ¡Te esperamos!`;
+    try {
+      const payload: DatosEnvioRecordatorio = {
+        citaId: cita.id,
+        pacienteNombre: cita.nombre,
+        pacienteTelefono: cita.telefono,
+        pacienteEmail: cita.email,
+        doctorNombre: cita.doctor,
+        tratamiento: cita.tratamiento,
+        fechaCita: cita.fecha,
+        horaCita: cita.hora,
+      };
 
-    const url = generarEnlaceWhatsApp(cita.telefono, texto);
-    window.open(url, '_blank');
+      const resultado = await enviarRecordatorioWhatsAppAction(payload);
+
+      if (!resultado.exito) {
+        setFeedbackEnvio({
+          tipo: 'error',
+          texto: resultado.mensaje || 'Error en la validación de datos para WhatsApp.',
+        });
+        return;
+      }
+
+      setFeedbackEnvio({
+        tipo: 'exito',
+        texto: resultado.mensaje || 'Enlace de WhatsApp generado y registrado exitosamente.',
+      });
+
+      if (resultado.urlAccion) {
+        window.open(resultado.urlAccion, '_blank');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al procesar envío de WhatsApp';
+      setFeedbackEnvio({ tipo: 'error', texto: msg });
+    } finally {
+      setEnviandoAccion(null);
+    }
   };
 
-  // Enviar Email para una cita de prueba
-  const handleEnviarEmailPrueba = (cita: CitaPruebaGenerada, esManana: boolean) => {
-    if (!cita.email) {
-      alert('Por favor ingresa un correo electrónico para realizar el envío por email.');
-      return;
+  // Enviar Email para una cita de prueba utilizando Server Action (Resend / mailto fallback)
+  const handleEnviarEmailPrueba = async (cita: CitaPruebaGenerada, esManana: boolean) => {
+    const claveAccion = esManana ? 'email-manana' : 'email-hoy';
+    setEnviandoAccion(claveAccion);
+    setFeedbackEnvio(null);
+
+    try {
+      const payload: DatosEnvioRecordatorio = {
+        citaId: cita.id,
+        pacienteNombre: cita.nombre,
+        pacienteTelefono: cita.telefono,
+        pacienteEmail: cita.email,
+        doctorNombre: cita.doctor,
+        tratamiento: cita.tratamiento,
+        fechaCita: cita.fecha,
+        horaCita: cita.hora,
+      };
+
+      const resultado = await enviarRecordatorioEmailAction(payload);
+
+      if (!resultado.exito) {
+        setFeedbackEnvio({
+          tipo: 'error',
+          texto: resultado.mensaje || 'Error en la validación de datos para correo electrónico.',
+        });
+        return;
+      }
+
+      setFeedbackEnvio({
+        tipo: 'exito',
+        texto: resultado.mensaje || 'Correo electrónico procesado exitosamente.',
+      });
+
+      if (resultado.metodo === 'mailto' && resultado.urlAccion) {
+        window.location.href = resultado.urlAccion;
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al procesar envío de correo';
+      setFeedbackEnvio({ tipo: 'error', texto: msg });
+    } finally {
+      setEnviandoAccion(null);
     }
-    const enlaces = generarEnlacesAccionCita(cita.id);
-    const nombreClinica = datosConsultorio.nombreConsultorio || datosConsultorio.nombre || 'Clínica Dental Dra. Yasmín Blanco';
-    const asunto = esManana
-      ? `Recordatorio Preventivo 24h: Tu cita odontológica es mañana a las ${cita.hora} - ${nombreClinica}`
-      : `Recordatorio: Tu cita odontológica de hoy a las ${cita.hora} - ${nombreClinica}`;
-
-    const cuerpo = `Hola ${cita.nombre},\n\nTe recordamos tu cita odontológica agendada en ${nombreClinica}:\n\n• Especialista: ${cita.doctor}\n• Tratamiento: ${cita.tratamiento}\n• Horario: ${cita.hora}\n• Fecha: ${cita.fecha}\n• Sede: ${datosConsultorio.direccion}\n\nOpciones de autogestión directa:\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nAtentamente,\nEquipo Médico ${nombreClinica}`;
-
-    const url = generarEnlaceEmail(cita.email, asunto, cuerpo);
-    window.location.href = url;
   };
 
   return (
@@ -217,9 +279,24 @@ export default function ModalCrearCitasPrueba({
         </div>
 
         {alerta && (
-          <div className="mb-6 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+          <div className="mb-4 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>{alerta}</span>
+          </div>
+        )}
+
+        {feedbackEnvio && (
+          <div className={`mb-4 p-3.5 rounded-2xl text-xs font-semibold flex items-center gap-2 border ${
+            feedbackEnvio.tipo === 'exito'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-rose-50 border-rose-200 text-rose-800'
+          }`}>
+            {feedbackEnvio.tipo === 'exito' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span>{feedbackEnvio.texto}</span>
           </div>
         )}
 
@@ -247,20 +324,40 @@ export default function ModalCrearCitasPrueba({
                 <div className="pt-2 border-t border-slate-200 flex flex-col gap-2">
                   <button
                     type="button"
+                    disabled={Boolean(enviandoAccion)}
                     onClick={() => handleEnviarWhatsAppPrueba(citasGeneradas.hoy, false)}
-                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition"
+                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs shadow-xs transition"
                   >
-                    <MessageCircle className="w-4 h-4" />
-                    <span>Enviar WhatsApp (Hoy)</span>
+                    {enviandoAccion === 'wa-hoy' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Validando y generando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <MessageCircle className="w-4 h-4" />
+                        <span>Enviar WhatsApp (Hoy)</span>
+                      </>
+                    )}
                   </button>
 
                   <button
                     type="button"
+                    disabled={Boolean(enviandoAccion)}
                     onClick={() => handleEnviarEmailPrueba(citasGeneradas.hoy, false)}
-                    className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-white hover:bg-slate-100 text-slate-700 font-semibold text-xs border border-slate-200 transition"
+                    className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-white hover:bg-slate-100 disabled:opacity-50 text-slate-700 font-semibold text-xs border border-slate-200 transition"
                   >
-                    <Mail className="w-4 h-4 text-slate-500" />
-                    <span>Enviar Email (Hoy)</span>
+                    {enviandoAccion === 'email-hoy' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+                        <span>Enviando correo...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4 text-slate-500" />
+                        <span>Enviar Email (Hoy)</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -285,20 +382,40 @@ export default function ModalCrearCitasPrueba({
                 <div className="pt-2 border-t border-amber-200 flex flex-col gap-2">
                   <button
                     type="button"
+                    disabled={Boolean(enviandoAccion)}
                     onClick={() => handleEnviarWhatsAppPrueba(citasGeneradas.manana, true)}
-                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition"
+                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs shadow-xs transition"
                   >
-                    <MessageCircle className="w-4 h-4" />
-                    <span>Enviar WhatsApp (Mañana)</span>
+                    {enviandoAccion === 'wa-manana' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Validando y generando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <MessageCircle className="w-4 h-4" />
+                        <span>Enviar WhatsApp (Mañana)</span>
+                      </>
+                    )}
                   </button>
 
                   <button
                     type="button"
+                    disabled={Boolean(enviandoAccion)}
                     onClick={() => handleEnviarEmailPrueba(citasGeneradas.manana, true)}
-                    className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-white hover:bg-slate-100 text-slate-700 font-semibold text-xs border border-slate-200 transition"
+                    className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-white hover:bg-slate-100 disabled:opacity-50 text-slate-700 font-semibold text-xs border border-slate-200 transition"
                   >
-                    <Mail className="w-4 h-4 text-slate-500" />
-                    <span>Enviar Email (Mañana)</span>
+                    {enviandoAccion === 'email-manana' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+                        <span>Enviando correo...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4 text-slate-500" />
+                        <span>Enviar Email (Mañana)</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

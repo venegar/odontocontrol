@@ -23,15 +23,21 @@ import {
   AlertCircle,
   RefreshCw,
   Sun,
-  FlaskConical
+  FlaskConical,
+  Loader2
 } from 'lucide-react';
 import ModalCrearCitasPrueba, { CitaPruebaGenerada } from '@/modules/citas/components/ModalCrearCitasPrueba';
 import { 
   CanalRecordatorio, 
   PlantillaRecordatorio, 
   RecordatorioItem, 
-  VariablesCita 
+  VariablesCita,
+  DatosEnvioRecordatorio
 } from '@/modules/recordatorios/types';
+import { 
+  enviarRecordatorioEmailAction, 
+  enviarRecordatorioWhatsAppAction 
+} from '@/modules/recordatorios/actions';
 import { 
   interpolarMensaje, 
   generarEnlaceWhatsApp,
@@ -165,10 +171,16 @@ export default function RecordatoriosPage() {
   const [plantillas, setPlantillas] = useState<PlantillaRecordatorio[]>(PLANTILLAS_INICIALES);
   const [cola, setCola] = useState<RecordatorioItem[]>(COLA_INICIAL);
   const [plantillaActivaId, setPlantillaActivaId] = useState(PLANTILLAS_INICIALES[0].id);
-  const [mensajeAlerta, setMensajeAlerta] = useState<string | null>(null);
+  const [alerta, setAlerta] = useState<{ tipo: 'exito' | 'error' | 'info'; mensaje: string } | null>(null);
+  const [enviandoId, setEnviandoId] = useState<string | null>(null);
   const [cargandoDB, setCargandoDB] = useState<boolean>(false);
   const [filtroFechaCola, setFiltroFechaCola] = useState<'manana' | 'hoy' | 'todas'>('manana');
   const [modalPruebaAbierto, setModalPruebaAbierto] = useState<boolean>(false);
+
+  const mostrarAlerta = (mensaje: string, tipo: 'exito' | 'error' | 'info' = 'info', duracionMs = 5000) => {
+    setAlerta({ tipo, mensaje });
+    setTimeout(() => setAlerta(null), duracionMs);
+  };
 
   const fechaHoy = obtenerFechaHoy();
   const fechaManana = obtenerFechaManana();
@@ -213,8 +225,7 @@ export default function RecordatoriosPage() {
     };
 
     setCola((prev) => [itemManana, itemHoy, ...prev]);
-    setMensajeAlerta('¡Citas de prueba creadas! 1 para Hoy y 1 para Mañana agregadas a tu lista de envíos.');
-    setTimeout(() => setMensajeAlerta(null), 6000);
+    mostrarAlerta('¡Citas de prueba creadas! 1 para Hoy y 1 para Mañana agregadas a tu lista de envíos.', 'exito', 6000);
   };
 
   // Sincronización en vivo con Supabase (Cargar citas reales como la de Pedro Pérez)
@@ -294,98 +305,114 @@ export default function RecordatoriosPage() {
     return interpolarMensaje(plantilla.contenido, variables);
   };
 
-  // Disparo manual de recordatorio por WhatsApp adaptado según si es para mañana o hoy
-  const handleEnviarWhatsApp = (item: RecordatorioItem) => {
-    const esManana = item.fechaCita === fechaManana;
-    const enlaces = generarEnlacesAccionCita(item.citaId);
-    const datosConsultorio = obtenerDatosConsultorio();
-    const nombreClinica = datosConsultorio.nombreConsultorio || datosConsultorio.nombre || 'Clínica Dental Dra. Yasmín Blanco';
+  // Disparo de recordatorio por WhatsApp con validación Zod y registro en Supabase
+  const handleEnviarWhatsApp = async (item: RecordatorioItem) => {
+    setEnviandoId(`wa-${item.id}`);
+    try {
+      const payload: DatosEnvioRecordatorio = {
+        citaId: item.citaId,
+        pacienteNombre: item.pacienteNombre,
+        pacienteTelefono: item.pacienteTelefono,
+        pacienteEmail: item.pacienteEmail || '',
+        doctorNombre: item.doctorNombre,
+        tratamiento: item.tratamiento,
+        fechaCita: item.fechaCita,
+        horaCita: item.horaCita,
+      };
 
-    const momentoTexto = esManana ? `mañana (${formatearFechaEspanol(item.fechaCita)})` : `el ${item.fechaCita}`;
-    const texto = `¡Hola ${item.pacienteNombre}! 👋 Te recordamos tu cita odontológica para ${momentoTexto} a las ${item.horaCita} para "${item.tratamiento}" con ${item.doctorNombre} en ${nombreClinica}.\n\n📅 Fecha: ${item.fechaCita}\n⏰ Hora: ${item.horaCita}\n📍 Dirección: ${datosConsultorio.direccion}\n\nOpciones de autogestión directa de tu cita:\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nSi necesitas ayuda, comunícate al ${datosConsultorio.telefonoPrincipal}. ¡Te esperamos!`;
+      const res = await enviarRecordatorioWhatsAppAction(payload);
 
-    const enlace = generarEnlaceWhatsApp(item.pacienteTelefono, texto);
+      if (!res.exito) {
+        mostrarAlerta(res.mensaje || 'Error de validación en los datos del paciente para WhatsApp.', 'error', 7000);
+        return;
+      }
 
-    // Marcar como enviado en la cola
-    setCola(prev => prev.map(r => r.id === item.id ? { 
-      ...r, 
-      estado: 'enviado', 
-      enviadoEn: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) 
-    } : r));
+      // Marcar como enviado en la cola
+      setCola(prev => prev.map(r => r.id === item.id ? { 
+        ...r, 
+        estado: 'enviado', 
+        enviadoEn: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) 
+      } : r));
 
-    setMensajeAlerta(`Abriendo WhatsApp para enviar recordatorio de ${esManana ? 'mañana' : 'cita'} a ${item.pacienteNombre}...`);
-    setTimeout(() => setMensajeAlerta(null), 5000);
+      mostrarAlerta(res.mensaje || `Enlace generado con éxito. Abriendo WhatsApp para ${item.pacienteNombre}...`, 'exito', 5000);
 
-    // Abrir WhatsApp en nueva pestaña
-    window.open(enlace, '_blank');
+      // Abrir WhatsApp en nueva pestaña
+      if (res.urlAccion) {
+        window.open(res.urlAccion, '_blank');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error inesperado al procesar recordatorio';
+      mostrarAlerta(`No fue posible procesar el recordatorio: ${msg}`, 'error', 6000);
+    } finally {
+      setEnviandoId(null);
+    }
   };
 
-  // Disparo real de Correo Electrónico
-  const handleEnviarEmail = (item: RecordatorioItem) => {
-    const esManana = item.fechaCita === fechaManana;
-    const enlaces = generarEnlacesAccionCita(item.citaId);
-    const datosConsultorio = obtenerDatosConsultorio();
-    const nombreClinica = datosConsultorio.nombreConsultorio || datosConsultorio.nombre || 'Clínica Dental Dra. Yasmín Blanco';
+  // Disparo de recordatorio por Correo Electrónico (Resend + Respaldo mailto:)
+  const handleEnviarEmail = async (item: RecordatorioItem) => {
+    setEnviandoId(`email-${item.id}`);
+    try {
+      const payload: DatosEnvioRecordatorio = {
+        citaId: item.citaId,
+        pacienteNombre: item.pacienteNombre,
+        pacienteTelefono: item.pacienteTelefono || '',
+        pacienteEmail: item.pacienteEmail,
+        doctorNombre: item.doctorNombre,
+        tratamiento: item.tratamiento,
+        fechaCita: item.fechaCita,
+        horaCita: item.horaCita,
+      };
 
-    const asunto = esManana 
-      ? `Recordatorio: Tu cita odontológica es mañana a las ${item.horaCita} - ${nombreClinica}`
-      : `Recordatorio de Cita Odontológica (${item.fechaCita}) - ${nombreClinica}`;
+      const res = await enviarRecordatorioEmailAction(payload);
 
-    const cuerpo = `Hola ${item.pacienteNombre},\n\nTe recordamos tu cita odontológica agendada en ${nombreClinica} para ${esManana ? 'mañana' : item.fechaCita}:\n\n• Especialista: ${item.doctorNombre}\n• Tratamiento: ${item.tratamiento}\n• Horario: ${item.horaCita}\n• Sede: ${datosConsultorio.direccion}\n\nPor favor autogestiona tu cita seleccionando una opción:\n\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nTeléfono de atención: ${datosConsultorio.telefonoPrincipal}\n\nAtentamente,\nEquipo de ${nombreClinica}`;
+      if (!res.exito) {
+        mostrarAlerta(res.mensaje || 'Error de validación en los datos del paciente para el correo.', 'error', 7000);
+        return;
+      }
 
-    const enlaceMail = generarEnlaceEmail(item.pacienteEmail, asunto, cuerpo);
+      // Marcar como enviado en la cola
+      setCola(prev => prev.map(r => r.id === item.id ? { 
+        ...r, 
+        estado: 'enviado', 
+        enviadoEn: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) 
+      } : r));
 
-    // Marcar como enviado en la cola
-    setCola(prev => prev.map(r => r.id === item.id ? { 
-      ...r, 
-      estado: 'enviado', 
-      enviadoEn: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) 
-    } : r));
-
-    setMensajeAlerta(`Abriendo cliente de correo para ${item.pacienteNombre} (${item.pacienteEmail})...`);
-    setTimeout(() => setMensajeAlerta(null), 5000);
-
-    // Abrir cliente de correo
-    window.location.href = enlaceMail;
+      if (res.metodo === 'resend') {
+        mostrarAlerta(`✅ ${res.mensaje}`, 'exito', 7000);
+      } else {
+        mostrarAlerta(`📧 ${res.mensaje}`, 'info', 6000);
+        if (res.urlAccion) {
+          window.location.href = res.urlAccion;
+        }
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error inesperado al enviar el correo';
+      mostrarAlerta(`No fue posible enviar el correo: ${msg}`, 'error', 6000);
+    } finally {
+      setEnviandoId(null);
+    }
   };
 
   // Disparar en lote los recordatorios de mañana (Prioridad 24h)
-  const handleDispararAutomaticos = () => {
+  const handleDispararAutomaticos = async () => {
     const pendientesParaManana = cola.filter(r => r.fechaCita === fechaManana && r.estado === 'pendiente');
     
     if (pendientesParaManana.length === 0) {
       const otrosPendientes = cola.filter(r => r.estado === 'pendiente');
       if (otrosPendientes.length === 0) {
-        setMensajeAlerta('No hay recordatorios pendientes en la cola por despachar.');
+        mostrarAlerta('No hay recordatorios pendientes en la cola por despachar.', 'info', 4000);
       } else {
-        setMensajeAlerta(`Todos los recordatorios de mañana (${formatearFechaEspanol(fechaManana)}) ya fueron enviados. Quedan ${otrosPendientes.length} citas en otras fechas.`);
+        mostrarAlerta(`Todos los recordatorios de mañana (${formatearFechaEspanol(fechaManana)}) ya fueron enviados. Quedan ${otrosPendientes.length} citas en otras fechas.`, 'info', 5000);
       }
-      setTimeout(() => setMensajeAlerta(null), 4000);
       return;
     }
 
-    setCola(prev => prev.map(r => {
-      if (r.fechaCita === fechaManana && r.estado === 'pendiente') {
-        return {
-          ...r,
-          estado: 'enviado',
-          enviadoEn: 'Hoy a las ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-        };
-      }
-      return r;
-    }));
+    mostrarAlerta(`Despachando recordatorios de mañana para ${pendientesParaManana.length} paciente(s)...`, 'info', 4000);
 
-    // Abrir la primera cita de mañana para envío por WhatsApp en nueva pestaña
-    const primera = pendientesParaManana[0];
-    const enlaces = generarEnlacesAccionCita(primera.citaId);
-    const datos = obtenerDatosConsultorio();
-    const clinicaNombre = datos.nombreConsultorio || datos.nombre || 'Clínica Dental Dra. Yasmín Blanco';
-    const texto = `¡Hola ${primera.pacienteNombre}! 👋 Te recordamos tu cita odontológica para mañana (${primera.fechaCita}) a las ${primera.horaCita} para "${primera.tratamiento}" con ${primera.doctorNombre} en ${clinicaNombre}.\n\n📅 Fecha: ${primera.fechaCita}\n⏰ Hora: ${primera.horaCita}\n📍 Sede: ${datos.direccion}\n\nOpciones de autogestión directa:\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\n¡Te esperamos!`;
-    const enlaceWA = generarEnlaceWhatsApp(primera.pacienteTelefono, texto);
-    window.open(enlaceWA, '_blank');
-
-    setMensajeAlerta(`¡Recordatorios de mañana enviados a ${pendientesParaManana.length} paciente(s)! Abriendo chat para ${primera.pacienteNombre}.`);
-    setTimeout(() => setMensajeAlerta(null), 6000);
+    // Despachar el primer pendiente abriendo WhatsApp
+    if (pendientesParaManana.length > 0) {
+      await handleEnviarWhatsApp(pendientesParaManana[0]);
+    }
   };
 
   // Insertar variable en el cursor de la plantilla
@@ -463,14 +490,31 @@ export default function RecordatoriosPage() {
         </div>
       </header>
 
-      {/* Alerta de Éxito */}
-      {mensajeAlerta && (
+      {/* Alerta Visual de Notificación */}
+      {alerta && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 w-full pt-4">
-          <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between text-xs font-semibold shadow-sm animate-fade-in">
+          <div
+            className={`p-3.5 rounded-2xl border flex items-center justify-between text-xs font-semibold shadow-sm animate-fade-in ${
+              alerta.tipo === 'exito'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : alerta.tipo === 'error'
+                ? 'bg-rose-50 border-rose-200 text-rose-800'
+                : 'bg-sky-50 border-sky-200 text-sky-800'
+            }`}
+          >
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>{mensajeAlerta}</span>
+              {alerta.tipo === 'exito' && <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
+              {alerta.tipo === 'error' && <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />}
+              {alerta.tipo === 'info' && <Bell className="w-4 h-4 text-sky-600 shrink-0" />}
+              <span>{alerta.mensaje}</span>
             </div>
+            <button
+              type="button"
+              onClick={() => setAlerta(null)}
+              className="text-xs font-bold opacity-60 hover:opacity-100 px-2 py-0.5 rounded-lg transition"
+            >
+              ✕
+            </button>
           </div>
         </div>
       )}
@@ -723,24 +767,42 @@ export default function RecordatoriosPage() {
                           <td className="py-3.5 px-4 text-right space-x-2">
                             <button
                               onClick={() => handleEnviarWhatsApp(item)}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg shadow-2xs transition ${
+                              disabled={enviandoId === `wa-${item.id}`}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg shadow-2xs transition disabled:opacity-50 active:scale-95 ${
                                 item.estado === 'enviado'
                                   ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                  : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
                               }`}
                               title={`Abrir WhatsApp con recordatorio para ${item.pacienteNombre}`}
                             >
-                              <MessageCircle className="w-3.5 h-3.5" />
-                              <span>{item.estado === 'enviado' ? 'Reenviar' : 'Enviar WhatsApp'}</span>
+                              {enviandoId === `wa-${item.id}` ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <MessageCircle className="w-3.5 h-3.5" />
+                              )}
+                              <span>
+                                {enviandoId === `wa-${item.id}`
+                                  ? 'Validando...'
+                                  : item.estado === 'enviado'
+                                  ? 'Reenviar'
+                                  : 'Enviar WhatsApp'}
+                              </span>
                             </button>
 
                             <button
                               onClick={() => handleEnviarEmail(item)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
-                              title="Enviar por Correo Electrónico"
+                              disabled={enviandoId === `email-${item.id}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition disabled:opacity-50 active:scale-95"
+                              title="Enviar por Correo Electrónico (Resend / Mailto)"
                             >
-                              <Mail className="w-3.5 h-3.5 text-slate-500" />
-                              <span>Email</span>
+                              {enviandoId === `email-${item.id}` ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-500" />
+                              ) : (
+                                <Mail className="w-3.5 h-3.5 text-slate-500" />
+                              )}
+                              <span>
+                                {enviandoId === `email-${item.id}` ? 'Enviando...' : 'Email'}
+                              </span>
                             </button>
                           </td>
                         </tr>

@@ -44,7 +44,8 @@ import {
   FileCheck,
   Sun,
   CalendarDays,
-  FlaskConical
+  FlaskConical,
+  Loader2
 } from 'lucide-react';
 import ModalCrearCitasPrueba, { CitaPruebaGenerada } from '@/modules/citas/components/ModalCrearCitasPrueba';
 import { 
@@ -55,6 +56,11 @@ import {
   obtenerFechaManana,
   formatearFechaEspanol
 } from '@/modules/recordatorios/utils';
+import { 
+  enviarRecordatorioWhatsAppAction, 
+  enviarRecordatorioEmailAction 
+} from '@/modules/recordatorios/actions';
+import { DatosEnvioRecordatorio } from '@/modules/recordatorios/types';
 import { supabase } from '@/lib/supabase';
 import {
   obtenerDatosConsultorio,
@@ -491,6 +497,7 @@ export default function DashboardPrincipalPage() {
   const [filtroEstado, setFiltroEstado] = useState<string>('todos');
   const [jornadaActiva, setJornadaActiva] = useState<'hoy' | 'manana' | 'todas'>('hoy');
   const [modalPruebaAbierto, setModalPruebaAbierto] = useState<boolean>(false);
+  const [enviandoRecordatorioId, setEnviandoRecordatorioId] = useState<string | null>(null);
 
   const fechaHoy = obtenerFechaHoy();
   const fechaManana = obtenerFechaManana();
@@ -660,69 +667,94 @@ export default function DashboardPrincipalPage() {
     return true;
   });
 
-  // Función para enviar recordatorio de WhatsApp inmediato con enlaces de autogestión
-  const handleEnviarRecordatorioWhatsApp = (paciente: PacienteDia) => {
-    const horaActual = new Date().toLocaleTimeString('es-CO', { 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      hour12: true 
-    });
+  // Función para enviar recordatorio de WhatsApp inmediato con Server Action y validación Zod
+  const handleEnviarRecordatorioWhatsApp = async (paciente: PacienteDia) => {
+    const idAccion = `wa-${paciente.id}`;
+    setEnviandoRecordatorioId(idAccion);
 
-    const clinicaNombre = datosConsultorio.nombreConsultorio || datosConsultorio.nombre || 'Clínica Dental Dra. Yasmín Blanco';
-    const esManana = paciente.fecha === fechaManana;
-    const momentoTexto = esManana ? `mañana (${formatearFechaEspanol(paciente.fecha || fechaManana)})` : `hoy`;
-    const enlaces = generarEnlacesAccionCita(paciente.id);
-    const mensajeWhatsApp = `¡Hola ${paciente.nombre}! 👋 Te recordamos tu cita odontológica para ${momentoTexto} a las ${paciente.hora} para "${paciente.tratamiento}" con ${paciente.doctor} en ${clinicaNombre}.\n\n📅 Fecha: ${paciente.fecha || fechaHoy}\n⏰ Hora: ${paciente.hora}\n📍 Lugar: ${datosConsultorio.direccion} (${paciente.sillon})\n\nPuedes autogestionar tu cita fácilmente:\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nSi necesitas ayuda adicional, contáctanos al ${datosConsultorio.telefonoPrincipal}. ¡Te esperamos!`;
+    try {
+      const payload: DatosEnvioRecordatorio = {
+        citaId: paciente.id,
+        pacienteNombre: paciente.nombre,
+        pacienteTelefono: paciente.telefono,
+        pacienteEmail: paciente.email || '',
+        doctorNombre: paciente.doctor,
+        tratamiento: paciente.tratamiento,
+        fechaCita: paciente.fecha || fechaHoy,
+        horaCita: paciente.hora,
+      };
 
-    // Generar enlace oficial funcional
-    const urlEnlace = generarEnlaceWhatsApp(paciente.telefono, mensajeWhatsApp);
+      const resultado = await enviarRecordatorioWhatsAppAction(payload);
 
-    // Abrir WhatsApp Web / App
-    window.open(urlEnlace, '_blank');
-
-    // Actualizar estado del paciente en vivo
-    setPacientes(prev => prev.map(p => {
-      if (p.id === paciente.id) {
-        return {
-          ...p,
-          notificacion: {
-            estado: 'notificado',
-            horaEnvio: horaActual,
-          },
-        };
+      if (!resultado.exito) {
+        setAlertaExito(resultado.mensaje || 'Error en la validación de datos para WhatsApp.');
+        setTimeout(() => setAlertaExito(null), 7000);
+        return;
       }
-      return p;
-    }));
 
-    // Registrar en la Bitácora en vivo
-    const nuevoRegistro: BitacoraEnvio = {
-      id: `bit-${Date.now()}`,
-      hora: horaActual,
-      pacienteNombre: paciente.nombre,
-      telefono: paciente.telefono,
-      tratamiento: paciente.tratamiento,
-      doctor: paciente.doctor,
-      canal: 'WhatsApp',
-      estado: 'Enviado',
-    };
+      const horaActual = new Date().toLocaleTimeString('es-CO', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: true 
+      });
 
-    setBitacora(prev => [nuevoRegistro, ...prev]);
+      // Actualizar estado del paciente en vivo
+      setPacientes(prev => prev.map(p => {
+        if (p.id === paciente.id) {
+          return {
+            ...p,
+            notificacion: {
+              estado: 'notificado',
+              horaEnvio: horaActual,
+            },
+          };
+        }
+        return p;
+      }));
 
-    // Mensaje de éxito
-    setAlertaExito(`Recordatorio enviado con éxito por WhatsApp a ${paciente.nombre} (${paciente.telefono})`);
-    setTimeout(() => {
-      setAlertaExito(null);
-    }, 5000);
+      // Registrar en la Bitácora en vivo
+      const nuevoRegistro: BitacoraEnvio = {
+        id: `bit-${Date.now()}`,
+        hora: horaActual,
+        pacienteNombre: paciente.nombre,
+        telefono: paciente.telefono,
+        tratamiento: paciente.tratamiento,
+        doctor: paciente.doctor,
+        canal: 'WhatsApp',
+        estado: 'Enviado',
+      };
+
+      setBitacora(prev => [nuevoRegistro, ...prev]);
+
+      // Mensaje de éxito
+      setAlertaExito(resultado.mensaje || `Recordatorio despachado para ${paciente.nombre}.`);
+      setTimeout(() => {
+        setAlertaExito(null),
+      }, 5000);
+
+      if (resultado.urlAccion) {
+        window.open(resultado.urlAccion, '_blank');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error inesperado al enviar WhatsApp';
+      setAlertaExito(`Error: ${msg}`);
+      setTimeout(() => setAlertaExito(null), 6000);
+    } finally {
+      setEnviandoRecordatorioId(null);
+    }
   };
 
   // Función para enviar notificación a TODOS los pendientes de mañana
-  const handleEnviarTodosLosPendientesManana = () => {
+  const handleEnviarTodosLosPendientesManana = async () => {
     const pendientes = pacientesManana.filter(p => p.notificacion.estado === 'pendiente');
     if (pendientes.length === 0) {
       setAlertaExito(`Todos los pacientes de mañana (${formatearFechaEspanol(fechaManana)}) ya han sido notificados.`);
       setTimeout(() => setAlertaExito(null), 4000);
       return;
     }
+
+    const primerPaciente = pendientes[0];
+    await handleEnviarRecordatorioWhatsApp(primerPaciente);
 
     const horaActual = new Date().toLocaleTimeString('es-CO', { 
       hour: '2-digit', 
@@ -743,38 +775,70 @@ export default function DashboardPrincipalPage() {
       return p;
     }));
 
-    // Abrir WhatsApp con el primer paciente de mañana
-    const primerPaciente = pendientes[0];
-    const clinicaNombre = datosConsultorio.nombreConsultorio || datosConsultorio.nombre || 'Clínica Dental Dra. Yasmín Blanco';
-    const enlaces = generarEnlacesAccionCita(primerPaciente.id);
-    const mensaje = `¡Hola ${primerPaciente.nombre}! 👋 Te recordamos tu cita odontológica para mañana (${formatearFechaEspanol(primerPaciente.fecha || fechaManana)}) a las ${primerPaciente.hora} para "${primerPaciente.tratamiento}" con ${primerPaciente.doctor} en ${clinicaNombre}.\n\n📅 Fecha: ${primerPaciente.fecha || fechaManana}\n⏰ Hora: ${primerPaciente.hora}\n📍 Lugar: ${datosConsultorio.direccion}\n\nOpciones de autogestión directa:\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\n¡Te esperamos!`;
-    const urlWA = generarEnlaceWhatsApp(primerPaciente.telefono, mensaje);
-    window.open(urlWA, '_blank');
-
-    setAlertaExito(`¡Recordatorios de mañana enviados a ${pendientes.length} paciente(s)! Abriendo chat de ${primerPaciente.nombre}.`);
+    setAlertaExito(`¡Marcados ${pendientes.length} recordatorio(s) de mañana! Se abrió el chat para ${primerPaciente.nombre}.`);
     setTimeout(() => setAlertaExito(null), 5000);
   };
 
-  // Función para enviar recordatorio por Correo Electrónico con opciones de autogestión
-  const handleEnviarRecordatorioEmail = (paciente: PacienteDia) => {
-    if (!paciente.email) {
-      setAlertaExito(`El paciente ${paciente.nombre} no tiene registrado correo electrónico.`);
-      setTimeout(() => setAlertaExito(null), 4000);
-      return;
+  // Función para enviar recordatorio por Correo Electrónico (Resend + mailto fallback)
+  const handleEnviarRecordatorioEmail = async (paciente: PacienteDia) => {
+    const idAccion = `email-${paciente.id}`;
+    setEnviandoRecordatorioId(idAccion);
+
+    try {
+      const payload: DatosEnvioRecordatorio = {
+        citaId: paciente.id,
+        pacienteNombre: paciente.nombre,
+        pacienteTelefono: paciente.telefono || '',
+        pacienteEmail: paciente.email || '',
+        doctorNombre: paciente.doctor,
+        tratamiento: paciente.tratamiento,
+        fechaCita: paciente.fecha || fechaHoy,
+        horaCita: paciente.hora,
+      };
+
+      const resultado = await enviarRecordatorioEmailAction(payload);
+
+      if (!resultado.exito) {
+        setAlertaExito(resultado.mensaje || 'Error en validación de datos para el correo.');
+        setTimeout(() => setAlertaExito(null), 7000);
+        return;
+      }
+
+      const horaActual = new Date().toLocaleTimeString('es-CO', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: true 
+      });
+
+      // Actualizar paciente en la vista
+      setPacientes(prev => prev.map(p => {
+        if (p.id === paciente.id) {
+          return {
+            ...p,
+            notificacion: {
+              estado: 'notificado',
+              horaEnvio: horaActual,
+            },
+          };
+        }
+        return p;
+      }));
+
+      setAlertaExito(resultado.mensaje || `Recordatorio por correo procesado para ${paciente.nombre}.`);
+      setTimeout(() => {
+        setAlertaExito(null);
+      }, 5000);
+
+      if (resultado.metodo === 'mailto' && resultado.urlAccion) {
+        window.location.href = resultado.urlAccion;
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error inesperado al enviar correo';
+      setAlertaExito(`Error: ${msg}`);
+      setTimeout(() => setAlertaExito(null), 6000);
+    } finally {
+      setEnviandoRecordatorioId(null);
     }
-
-    const clinicaNombre = datosConsultorio.nombreConsultorio || datosConsultorio.nombre || 'Clínica Dental Dra. Yasmín Blanco';
-    const enlaces = generarEnlacesAccionCita(paciente.id);
-    const asunto = `Recordatorio de Cita Odontológica - ${clinicaNombre}`;
-    const cuerpo = `Hola ${paciente.nombre},\n\nTe recordamos tu cita odontológica programada en ${clinicaNombre}:\n\n• Especialista: ${paciente.doctor}\n• Tratamiento: ${paciente.tratamiento}\n• Horario: ${paciente.hora}\n• Ubicación: ${datosConsultorio.direccion}\n\nOpciones de autogestión directa de tu cita:\n\n✅ Confirmar Asistencia: ${enlaces.confirmar}\n🔄 Solicitar Reagendamiento: ${enlaces.reagendar}\n❌ Cancelar Cita: ${enlaces.cancelar}\n\nCualquier consulta adicional, comunícate al ${datosConsultorio.telefonoPrincipal}.\n\nSaludos cordiales,\n${clinicaNombre}`;
-
-    const urlMail = generarEnlaceEmail(paciente.email, asunto, cuerpo);
-    window.location.href = urlMail;
-
-    setAlertaExito(`Abriendo cliente de correo para ${paciente.nombre} (${paciente.email})`);
-    setTimeout(() => {
-      setAlertaExito(null);
-    }, 5000);
   };
 
   // Función para enviar notificación a TODOS los pendientes
@@ -1004,8 +1068,16 @@ export default function DashboardPrincipalPage() {
 
       {/* TOAST DE ALERTA O ÉXITO FLOTANTE */}
       {alertaExito && (
-        <div className="bg-emerald-600 text-white px-4 py-2.5 text-xs font-semibold flex items-center justify-center gap-2 shadow-sm animate-in fade-in slide-in-from-top-1 sticky top-16 z-50">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
+        <div className={`px-4 py-2.5 text-xs font-semibold flex items-center justify-center gap-2 shadow-sm animate-in fade-in slide-in-from-top-1 sticky top-16 z-50 ${
+          alertaExito.toLowerCase().includes('error') || alertaExito.toLowerCase().includes('fallida')
+            ? 'bg-rose-600 text-white'
+            : 'bg-emerald-600 text-white'
+        }`}>
+          {alertaExito.toLowerCase().includes('error') || alertaExito.toLowerCase().includes('fallida') ? (
+            <AlertCircle className="w-4 h-4 shrink-0" />
+          ) : (
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+          )}
           <span>{alertaExito}</span>
         </div>
       )}
@@ -1751,25 +1823,40 @@ export default function DashboardPrincipalPage() {
                           <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
                             <button
                               type="button"
+                              disabled={Boolean(enviandoRecordatorioId)}
                               onClick={() => handleEnviarRecordatorioWhatsApp(p)}
-                              className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition shadow-2xs ${
+                              className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition shadow-2xs disabled:opacity-50 ${
                                 yaNotificado
                                   ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                                   : 'bg-emerald-600 hover:bg-emerald-700 text-white'
                               }`}
                               title={`Enviar recordatorio de WhatsApp para mañana a ${p.nombre}`}
                             >
-                              <MessageCircle className="w-3.5 h-3.5" />
-                              <span>{yaNotificado ? 'Reenviar WA' : 'Enviar WhatsApp'}</span>
+                              {enviandoRecordatorioId === `wa-${p.id}` ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  <span>Enviando...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <MessageCircle className="w-3.5 h-3.5" />
+                                  <span>{yaNotificado ? 'Reenviar WA' : 'Enviar WhatsApp'}</span>
+                                </>
+                              )}
                             </button>
 
                             <button
                               type="button"
+                              disabled={Boolean(enviandoRecordatorioId)}
                               onClick={() => handleEnviarRecordatorioEmail(p)}
-                              className="px-2.5 py-2 rounded-xl text-xs font-semibold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition"
+                              className="px-2.5 py-2 rounded-xl text-xs font-semibold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition disabled:opacity-50"
                               title="Enviar por Correo Electrónico"
                             >
-                              <Mail className="w-3.5 h-3.5" />
+                              {enviandoRecordatorioId === `email-${p.id}` ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-600" />
+                              ) : (
+                                <Mail className="w-3.5 h-3.5" />
+                              )}
                             </button>
                           </div>
                         </div>
@@ -2022,31 +2109,51 @@ export default function DashboardPrincipalPage() {
                                   )}
                                 </td>
 
-                                {/* Botón Acción */}
+                                 {/* Botón Acción */}
                                 <td className="py-3 px-4 text-right whitespace-nowrap">
                                   <div className="flex items-center justify-end gap-1.5">
                                     <button
                                       type="button"
+                                      disabled={Boolean(enviandoRecordatorioId)}
                                       onClick={() => handleEnviarRecordatorioWhatsApp(paciente)}
-                                      className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition shadow-2xs ${
+                                      className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition shadow-2xs disabled:opacity-50 ${
                                         yaNotificado
                                           ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                                           : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200'
                                       }`}
                                       title={`Abrir WhatsApp para ${paciente.nombre}`}
                                     >
-                                      <MessageCircle className="w-3.5 h-3.5" />
-                                      <span>{yaNotificado ? 'Reenviar' : 'WhatsApp'}</span>
+                                      {enviandoRecordatorioId === `wa-${paciente.id}` ? (
+                                        <>
+                                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                          <span>Enviando...</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <MessageCircle className="w-3.5 h-3.5" />
+                                          <span>{yaNotificado ? 'Reenviar' : 'WhatsApp'}</span>
+                                        </>
+                                      )}
                                     </button>
 
                                     <button
                                       type="button"
+                                      disabled={Boolean(enviandoRecordatorioId)}
                                       onClick={() => handleEnviarRecordatorioEmail(paciente)}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition"
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition disabled:opacity-50"
                                       title={`Enviar correo con botones de Confirmar / Reagendar a ${paciente.nombre}`}
                                     >
-                                      <Mail className="w-3.5 h-3.5" />
-                                      <span>Email</span>
+                                      {enviandoRecordatorioId === `email-${paciente.id}` ? (
+                                        <>
+                                          <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-600" />
+                                          <span>Enviando...</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Mail className="w-3.5 h-3.5" />
+                                          <span>Email</span>
+                                        </>
+                                      )}
                                     </button>
                                   </div>
                                 </td>

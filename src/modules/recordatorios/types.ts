@@ -42,3 +42,25 @@ export interface VariablesCita {
   enlace_cancelar: string;
 }
 
+export interface DatosEnvioRecordatorio {
+  citaId: string;
+  pacienteNombre: string;
+  pacienteTelefono: string;
+  pacienteEmail: string;
+  doctorNombre: string;
+  tratamiento: string;
+  fechaCita: string;
+  horaCita: string;
+  sillon?: string;
+}
+
+export interface ResultadoEnvioRecordatorio {
+  exito: boolean;
+  canal: CanalRecordatorio;
+  metodo: 'resend' | 'mailto' | 'cloud_api' | 'wa.me';
+  mensaje: string;
+  urlAccion?: string;
+  idEnvio?: string;
+  erroresValidacion?: string[];
+}
+
