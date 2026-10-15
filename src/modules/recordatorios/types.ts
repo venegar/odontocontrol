@@ -25,6 +25,9 @@ export interface RecordatorioItem {
   mensajeGenerado: string;
   estado: EstadoRecordatorio;
   enviadoEn?: string;
+  vistoEn?: string;
+  canalVisto?: 'whatsapp' | 'email';
+  citaEstado?: string;
   programadoPara: string;
 }
 
@@ -37,6 +40,7 @@ export interface VariablesCita {
   consultorio_telefono: string;
   consultorio_direccion?: string;
   enlace_portal: string;
+  enlace_ver_cita?: string;
   enlace_confirmar: string;
   enlace_reagendar: string;
   enlace_cancelar: string;

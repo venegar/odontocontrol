@@ -38,14 +38,22 @@ export function generarEnlaceWhatsApp(telefono: string, mensaje: string): string
 }
 
 /**
- * Genera los 3 enlaces web oficiales para que el paciente confirme, reagende o cancele su cita.
+ * Genera los enlaces oficiales con tracking automático para que el paciente
+ * vea los detalles, confirme, reagende o cancele su cita.
  */
-export function generarEnlacesAccionCita(citaId: string, baseUrl = 'https://odontocontrol-ashen.vercel.app') {
-  const rutaBase = `${baseUrl}/portal-paciente`;
+export function generarEnlacesAccionCita(
+  citaId: string, 
+  baseUrl = 'https://odontocontrol-ashen.vercel.app',
+  canal: 'whatsapp' | 'email' = 'whatsapp'
+) {
+  const rutaTracking = `${baseUrl}/api/recordatorios/tracking`;
+  const citaEncoded = encodeURIComponent(citaId);
   return {
-    confirmar: `${rutaBase}?accion=confirmar&citaId=${encodeURIComponent(citaId)}`,
-    reagendar: `${rutaBase}?accion=reagendar&citaId=${encodeURIComponent(citaId)}`,
-    cancelar: `${rutaBase}?accion=cancelar&citaId=${encodeURIComponent(citaId)}`,
+    verCita: `${rutaTracking}?citaId=${citaEncoded}&canal=${canal}&accion=ver`,
+    confirmar: `${rutaTracking}?citaId=${citaEncoded}&canal=${canal}&accion=confirmar`,
+    reagendar: `${rutaTracking}?citaId=${citaEncoded}&canal=${canal}&accion=reagendar`,
+    cancelar: `${rutaTracking}?citaId=${citaEncoded}&canal=${canal}&accion=cancelar`,
+    portalDirecto: `${baseUrl}/portal-paciente?citaId=${citaEncoded}`,
   };
 }
 

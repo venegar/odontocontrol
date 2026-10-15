@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { EstadoCita } from '@/modules/citas/types';
 import { supabase } from '@/lib/supabase';
+import { marcarCitaVistaAction } from '@/modules/recordatorios/actions';
 
 interface CitaPacienteUI {
   id: string;
@@ -136,8 +137,9 @@ function PortalPacienteContenido() {
             esReagendamiento: Boolean(c.es_reagendamiento),
           }));
 
-          // Si hay citaId en la URL, asociar el nombre del paciente
+          // Si hay citaId en la URL, registrar la visualización y asociar el nombre del paciente
           if (citaIdParam) {
+            marcarCitaVistaAction(citaIdParam, 'whatsapp').catch(() => {});
             const citaEnfocada = data.find((c: any) => c.id === citaIdParam);
             if (citaEnfocada && citaEnfocada.paciente_nombre) {
               setNombrePaciente(citaEnfocada.paciente_nombre);

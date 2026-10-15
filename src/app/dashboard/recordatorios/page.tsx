@@ -17,6 +17,8 @@ import {
   Sparkles, 
   Copy, 
   Check, 
+  CheckCheck,
+  Eye,
   Zap, 
   Smartphone,
   ShieldCheck,
@@ -236,21 +238,84 @@ export default function RecordatoriosPage() {
     mostrarAlerta('¡Citas de prueba creadas! 1 para Hoy y 1 para Mañana agregadas a tu lista de envíos.', 'exito', 6000);
   };
 
-  // Sincronización en vivo con Supabase (Cargar citas reales como la de Pedro Pérez)
-  React.useEffect(() => {
-    let montado = true;
-    async function sincronizarCitasReales() {
-      try {
-        setCargandoDB(true);
-        const { data, error } = await supabase.rpc('obtener_citas_gestion');
-        if (!error && Array.isArray(data) && data.length > 0 && montado) {
-          // Excluir citas canceladas o rechazadas de la cola de recordatorios
-          const citasActivas = data.filter((c: any) => c.estado !== 'cancelada' && c.estado !== 'rechazada');
-          const idsInactivas = new Set(
-            data.filter((c: any) => c.estado === 'cancelada' || c.estado === 'rechazada').map((c: any) => c.id)
-          );
+  // Sincronización en vivo con Supabase y detección de lecturas de recordatorios
+  const sincronizarCitasReales = React.useCallback(async (silencioso = false) => {
+    try {
+      if (!silencioso) setCargandoDB(true);
+      const { data, error } = await supabase.rpc('obtener_citas_gestion');
+      if (!error && Array.isArray(data) && data.length > 0) {
+        // Excluir citas canceladas o rechazadas de la cola de recordatorios
+        const citasActivas = data.filter((c: any) => c.estado !== 'cancelada' && c.estado !== 'rechazada');
+        const idsInactivas = new Set(
+          data.filter((c: any) => c.estado === 'cancelada' || c.estado === 'rechazada').map((c: any) => c.id)
+        );
 
-          const citasDB: RecordatorioItem[] = citasActivas.map((c: any) => ({
+        // Recuperar envíos locales si existen en el navegador
+        let enviosLocales: Record<string, { enviadoEn?: string; vistoEn?: string; canalVisto?: 'whatsapp' | 'email' }> = {};
+        if (typeof window !== 'undefined') {
+          try {
+            const raw = localStorage.getItem('odonto_envios_locales');
+            if (raw) enviosLocales = JSON.parse(raw);
+          } catch {}
+        }
+
+        const citasDB: RecordatorioItem[] = citasActivas.map((c: any) => {
+          let vistoEn: string | undefined = undefined;
+          let canalVisto: 'whatsapp' | 'email' | undefined = undefined;
+
+          // 1. Extraer desde campos RPC si ya están en base de datos
+          if (c.recordatorio_visto_en) {
+            const d = new Date(c.recordatorio_visto_en);
+            vistoEn = !isNaN(d.getTime()) 
+              ? d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true }) 
+              : 'Reciente';
+            canalVisto = (c.recordatorio_canal_visto as 'whatsapp' | 'email') || 'whatsapp';
+          }
+
+          // 2. Extraer desde la etiqueta [VISTO_... en notas si existe
+          if (!vistoEn && c.notas && typeof c.notas === 'string') {
+            const matchWA = c.notas.match(/\[VISTO_WHATSAPP:\s*([^\]]+)\]/i);
+            const matchEmail = c.notas.match(/\[VISTO_EMAIL:\s*([^\]]+)\]/i);
+            if (matchWA) {
+              const partes = matchWA[1].trim().split(' ');
+              vistoEn = partes.length > 1 ? partes[1] : matchWA[1];
+              canalVisto = 'whatsapp';
+            } else if (matchEmail) {
+              const partes = matchEmail[1].trim().split(' ');
+              vistoEn = partes.length > 1 ? partes[1] : matchEmail[1];
+              canalVisto = 'email';
+            }
+          }
+
+          // 3. Extraer desde la memoria local del navegador
+          const local = enviosLocales[c.id];
+          if (local) {
+            if (local.vistoEn && !vistoEn) vistoEn = local.vistoEn;
+            if (local.canalVisto && !canalVisto) canalVisto = local.canalVisto;
+          }
+
+          // 4. Si la cita ya está confirmada por el paciente, se da por leída y confirmada
+          if (c.estado === 'confirmada' && !vistoEn) {
+            vistoEn = 'Confirmada';
+            canalVisto = 'whatsapp';
+          }
+
+          // Detección de hora de envío
+          let enviadoEn: string | undefined = undefined;
+          if (c.recordatorio_enviado_en) {
+            const d = new Date(c.recordatorio_enviado_en);
+            enviadoEn = !isNaN(d.getTime()) 
+              ? d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true }) 
+              : 'Enviado';
+          } else if (local?.enviadoEn) {
+            enviadoEn = local.enviadoEn;
+          } else if (c.estado === 'confirmada' || vistoEn) {
+            enviadoEn = 'Enviado';
+          }
+
+          const estaEnviado = Boolean(enviadoEn || vistoEn || c.estado === 'confirmada');
+
+          return {
             id: `rec-db-${c.id}`,
             citaId: c.id,
             pacienteNombre: c.paciente_nombre || 'Paciente sin nombre',
@@ -262,25 +327,36 @@ export default function RecordatoriosPage() {
             horaCita: c.hora_inicio || '08:00 AM',
             canal: 'whatsapp',
             mensajeGenerado: '',
-            estado: c.estado === 'confirmada' ? 'enviado' : 'pendiente',
+            estado: estaEnviado ? 'enviado' : 'pendiente',
+            enviadoEn,
+            vistoEn,
+            canalVisto,
+            citaEstado: c.estado,
             programadoPara: `${c.fecha} ${c.hora_inicio || ''}`,
-          }));
+          };
+        });
 
-          setCola(prev => {
-            const idsDB = new Set(citasDB.map(r => r.citaId));
-            const prevFiltradas = prev.filter(p => !idsDB.has(p.citaId) && !idsInactivas.has(p.citaId));
-            return [...citasDB, ...prevFiltradas];
-          });
-        }
-      } catch (err) {
-        console.warn('Citas reales de Supabase en proceso:', err);
-      } finally {
-        if (montado) setCargandoDB(false);
+        setCola(prev => {
+          const idsDB = new Set(citasDB.map(r => r.citaId));
+          const prevFiltradas = prev.filter(p => !idsDB.has(p.citaId) && !idsInactivas.has(p.citaId));
+          return [...citasDB, ...prevFiltradas];
+        });
       }
+    } catch (err) {
+      console.warn('Citas reales de Supabase en proceso:', err);
+    } finally {
+      if (!silencioso) setCargandoDB(false);
     }
-    sincronizarCitasReales();
-    return () => { montado = false; };
   }, []);
+
+  React.useEffect(() => {
+    sincronizarCitasReales();
+    // Sondeo periódico cada 15 segundos para detectar lecturas en tiempo real
+    const intervalo = setInterval(() => {
+      sincronizarCitasReales(true);
+    }, 15000);
+    return () => clearInterval(intervalo);
+  }, [sincronizarCitasReales]);
 
   // Plantilla seleccionada para editar
   const plantillaSeleccionada = plantillas.find(p => p.id === plantillaActivaId) || plantillas[0];
@@ -345,11 +421,23 @@ export default function RecordatoriosPage() {
         return;
       }
 
+      const horaEnvio = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+      // Persistir envío en caché del navegador
+      if (typeof window !== 'undefined') {
+        try {
+          const raw = localStorage.getItem('odonto_envios_locales') || '{}';
+          const parsed = JSON.parse(raw);
+          parsed[item.citaId] = { ...(parsed[item.citaId] || {}), enviadoEn: horaEnvio, canalVisto: 'whatsapp' };
+          localStorage.setItem('odonto_envios_locales', JSON.stringify(parsed));
+        } catch {}
+      }
+
       // Marcar como enviado en la cola
       setCola(prev => prev.map(r => r.id === item.id ? { 
         ...r, 
         estado: 'enviado', 
-        enviadoEn: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) 
+        enviadoEn: horaEnvio
       } : r));
 
       mostrarAlerta(res.mensaje || `Enlace generado con éxito. Abriendo WhatsApp para ${item.pacienteNombre}...`, 'exito', 5000);
@@ -403,11 +491,23 @@ export default function RecordatoriosPage() {
         return;
       }
 
+      const horaEnvio = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+      // Persistir envío en caché del navegador
+      if (typeof window !== 'undefined') {
+        try {
+          const raw = localStorage.getItem('odonto_envios_locales') || '{}';
+          const parsed = JSON.parse(raw);
+          parsed[item.citaId] = { ...(parsed[item.citaId] || {}), enviadoEn: horaEnvio, canalVisto: 'email' };
+          localStorage.setItem('odonto_envios_locales', JSON.stringify(parsed));
+        } catch {}
+      }
+
       // Marcar como enviado en la cola
       setCola(prev => prev.map(r => r.id === item.id ? { 
         ...r, 
         estado: 'enviado', 
-        enviadoEn: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) 
+        enviadoEn: horaEnvio
       } : r));
 
       if (res.metodo === 'resend') {
@@ -705,45 +805,61 @@ export default function RecordatoriosPage() {
                 </p>
               </div>
 
-              {/* Conmutador de Fechas */}
-              <div className="flex items-center gap-1 bg-slate-200/80 p-1 rounded-xl self-start md:self-auto">
+              <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
                 <button
                   type="button"
-                  onClick={() => setFiltroFechaCola('manana')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                    filtroFechaCola === 'manana'
-                      ? 'bg-white text-dentist-700 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  onClick={() => {
+                    sincronizarCitasReales();
+                    mostrarAlerta('Comprobando lecturas y aperturas de pacientes...', 'info', 3000);
+                  }}
+                  disabled={cargandoDB}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition disabled:opacity-50 active:scale-95"
+                  title="Comprobar en tiempo real si los pacientes abrieron los recordatorios"
                 >
-                  <Sun className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Mañana ({colaManana.length})</span>
+                  <RefreshCw className={`w-3.5 h-3.5 text-dentist-600 ${cargandoDB ? 'animate-spin' : ''}`} />
+                  <span>{cargandoDB ? 'Comprobando...' : 'Comprobar Lecturas'}</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => setFiltroFechaCola('hoy')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                    filtroFechaCola === 'hoy'
-                      ? 'bg-white text-dentist-700 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <CalendarIcon className="w-3.5 h-3.5 text-dentist-600" />
-                  <span>Hoy ({colaHoy.length})</span>
-                </button>
+                {/* Conmutador de Fechas */}
+                <div className="flex items-center gap-1 bg-slate-200/80 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setFiltroFechaCola('manana')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                      filtroFechaCola === 'manana'
+                        ? 'bg-white text-dentist-700 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Sun className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Mañana ({colaManana.length})</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => setFiltroFechaCola('todas')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                    filtroFechaCola === 'todas'
-                      ? 'bg-white text-dentist-700 shadow-xs font-bold'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <span>Todas ({cola.length})</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setFiltroFechaCola('hoy')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                      filtroFechaCola === 'hoy'
+                        ? 'bg-white text-dentist-700 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <CalendarIcon className="w-3.5 h-3.5 text-dentist-600" />
+                    <span>Hoy ({colaHoy.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFiltroFechaCola('todas')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      filtroFechaCola === 'todas'
+                        ? 'bg-white text-dentist-700 shadow-xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>Todas ({cola.length})</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -813,15 +929,45 @@ export default function RecordatoriosPage() {
                             </span>
                           </td>
                           <td className="py-3.5 px-4">
-                            {item.estado === 'enviado' ? (
-                              <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-0.5 rounded-full text-[11px]">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                Enviado {item.enviadoEn ? `(${item.enviadoEn})` : ''}
-                              </span>
+                            {item.citaEstado === 'confirmada' ? (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="inline-flex items-center gap-1 text-emerald-800 font-bold bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full text-[11px] shadow-2xs">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                                  Confirmada por Paciente
+                                </span>
+                                {item.vistoEn && (
+                                  <span className="text-[10px] text-emerald-700 font-medium pl-1 flex items-center gap-1">
+                                    <CheckCheck className="w-3 h-3 text-emerald-600" />
+                                    Visto {item.vistoEn}
+                                  </span>
+                                )}
+                              </div>
+                            ) : item.vistoEn ? (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="inline-flex items-center gap-1.5 text-blue-900 font-bold bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full text-[11px] shadow-2xs">
+                                  <CheckCheck className="w-4 h-4 text-blue-600" />
+                                  Visto {item.vistoEn}
+                                </span>
+                                <span className="text-[10px] text-blue-700 font-medium pl-1 flex items-center gap-1">
+                                  <Eye className="w-3 h-3 text-blue-500" />
+                                  Abierto vía {item.canalVisto === 'email' ? 'Correo' : 'WhatsApp'}
+                                </span>
+                              </div>
+                            ) : item.estado === 'enviado' ? (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="inline-flex items-center gap-1 text-slate-700 font-semibold bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full text-[11px]">
+                                  <Check className="w-3.5 h-3.5 text-slate-500" />
+                                  Enviado {item.enviadoEn ? `(${item.enviadoEn})` : ''}
+                                </span>
+                                <span className="text-[10px] text-slate-400 pl-1 flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-slate-400" />
+                                  Aún no abierto
+                                </span>
+                              </div>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-amber-700 font-semibold bg-amber-50 px-2.5 py-0.5 rounded-full text-[11px]">
+                              <span className="inline-flex items-center gap-1 text-amber-700 font-semibold bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full text-[11px]">
                                 <Clock className="w-3.5 h-3.5 text-amber-600" />
-                                {esManana ? 'Programado para aviso 24h' : 'Pendiente'}
+                                {esManana ? 'Programado (aviso 24h)' : 'Pendiente de envío'}
                               </span>
                             )}
                           </td>

@@ -46,7 +46,9 @@ import {
   CalendarDays,
   FlaskConical,
   Loader2,
-  Copy
+  Copy,
+  CheckCheck,
+  Eye
 } from 'lucide-react';
 import ModalCrearCitasPrueba, { CitaPruebaGenerada } from '@/modules/citas/components/ModalCrearCitasPrueba';
 import { 
@@ -90,6 +92,9 @@ interface PacienteDia {
   notificacion: {
     estado: 'notificado' | 'pendiente';
     horaEnvio?: string;
+    vistoEn?: string;
+    canalVisto?: 'whatsapp' | 'email';
+    confirmada?: boolean;
   };
 }
 
@@ -573,7 +578,7 @@ export default function DashboardPrincipalPage() {
     return () => window.removeEventListener('consultorio_actualizado', handleActualizacion);
   }, []);
 
-  // Sincronización en tiempo real de citas reales de Supabase
+  // Sincronización en tiempo real de citas reales de Supabase y seguimiento de lectura
   useEffect(() => {
     let montado = true;
     async function sincronizarCitasDB() {
@@ -586,11 +591,72 @@ export default function DashboardPrincipalPage() {
             data.filter((c: any) => c.estado === 'cancelada' || c.estado === 'rechazada').map((c: any) => c.id)
           );
 
+          // Cargar envíos locales si existen
+          let enviosLocales: Record<string, { enviadoEn?: string; vistoEn?: string; canalVisto?: 'whatsapp' | 'email' }> = {};
+          if (typeof window !== 'undefined') {
+            try {
+              const raw = localStorage.getItem('odonto_envios_locales');
+              if (raw) enviosLocales = JSON.parse(raw);
+            } catch {}
+          }
+
           const citasDB: PacienteDia[] = citasActivas.map((c: any) => {
             let estadoCita: PacienteDia['estadoCita'] = 'por_atender';
             if (c.estado === 'completada') estadoCita = 'completada';
             else if (c.estado === 'en_atencion') estadoCita = 'en_atencion';
             else if (c.estado === 'en_espera') estadoCita = 'en_espera';
+
+            // Detección de lectura
+            let vistoEn: string | undefined = undefined;
+            let canalVisto: 'whatsapp' | 'email' | undefined = undefined;
+
+            if (c.recordatorio_visto_en) {
+              const d = new Date(c.recordatorio_visto_en);
+              vistoEn = !isNaN(d.getTime()) 
+                ? d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true }) 
+                : 'Reciente';
+              canalVisto = (c.recordatorio_canal_visto as 'whatsapp' | 'email') || 'whatsapp';
+            }
+
+            if (!vistoEn && c.notas && typeof c.notas === 'string') {
+              const matchWA = c.notas.match(/\[VISTO_WHATSAPP:\s*([^\]]+)\]/i);
+              const matchEmail = c.notas.match(/\[VISTO_EMAIL:\s*([^\]]+)\]/i);
+              if (matchWA) {
+                const partes = matchWA[1].trim().split(' ');
+                vistoEn = partes.length > 1 ? partes[1] : matchWA[1];
+                canalVisto = 'whatsapp';
+              } else if (matchEmail) {
+                const partes = matchEmail[1].trim().split(' ');
+                vistoEn = partes.length > 1 ? partes[1] : matchEmail[1];
+                canalVisto = 'email';
+              }
+            }
+
+            const local = enviosLocales[c.id];
+            if (local) {
+              if (local.vistoEn && !vistoEn) vistoEn = local.vistoEn;
+              if (local.canalVisto && !canalVisto) canalVisto = local.canalVisto;
+            }
+
+            if (c.estado === 'confirmada' && !vistoEn) {
+              vistoEn = 'Confirmada';
+              canalVisto = 'whatsapp';
+            }
+
+            // Detección de hora de envío
+            let horaEnvio: string | undefined = undefined;
+            if (c.recordatorio_enviado_en) {
+              const d = new Date(c.recordatorio_enviado_en);
+              horaEnvio = !isNaN(d.getTime()) 
+                ? d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true }) 
+                : 'Enviado';
+            } else if (local?.enviadoEn) {
+              horaEnvio = local.enviadoEn;
+            } else if (c.estado === 'confirmada' || vistoEn) {
+              horaEnvio = 'Enviado';
+            }
+
+            const estaNotificado = Boolean(horaEnvio || vistoEn || c.estado === 'confirmada');
 
             return {
               id: c.id,
@@ -604,14 +670,17 @@ export default function DashboardPrincipalPage() {
               sillon: 'Sillón 1',
               estadoCita,
               notificacion: {
-                estado: c.estado === 'confirmada' ? 'notificado' : 'pendiente',
+                estado: estaNotificado ? 'notificado' : 'pendiente',
+                horaEnvio,
+                vistoEn,
+                canalVisto,
+                confirmada: c.estado === 'confirmada',
               },
             };
           });
 
           setPacientes(prev => {
             const idsDB = new Set(citasDB.map(p => p.id));
-            // Remover citas que hayan sido canceladas o rechazadas en la base de datos
             const demosRestantes = prev.filter(p => !idsDB.has(p.id) && !idsInactivas.has(p.id));
             return [...citasDB, ...demosRestantes];
           });
@@ -621,7 +690,8 @@ export default function DashboardPrincipalPage() {
       }
     }
     sincronizarCitasDB();
-    return () => { montado = false; };
+    const intervalo = setInterval(sincronizarCitasDB, 15000);
+    return () => { montado = false; clearInterval(intervalo); };
   }, [fechaHoy]);
 
   const handleGuardarConsultorio = (e: React.FormEvent) => {
@@ -737,12 +807,23 @@ export default function DashboardPrincipalPage() {
         hour12: true 
       });
 
+      // Persistir envío en caché local para visualización inmediata
+      if (typeof window !== 'undefined') {
+        try {
+          const raw = localStorage.getItem('odonto_envios_locales') || '{}';
+          const parsed = JSON.parse(raw);
+          parsed[paciente.id] = { ...(parsed[paciente.id] || {}), enviadoEn: horaActual, canalVisto: 'whatsapp' };
+          localStorage.setItem('odonto_envios_locales', JSON.stringify(parsed));
+        } catch {}
+      }
+
       // Actualizar estado del paciente en vivo
       setPacientes(prev => prev.map(p => {
         if (p.id === paciente.id) {
           return {
             ...p,
             notificacion: {
+              ...p.notificacion,
               estado: 'notificado',
               horaEnvio: horaActual,
             },
@@ -846,12 +927,23 @@ export default function DashboardPrincipalPage() {
         hour12: true 
       });
 
+      // Persistir envío en caché local para visualización inmediata
+      if (typeof window !== 'undefined') {
+        try {
+          const raw = localStorage.getItem('odonto_envios_locales') || '{}';
+          const parsed = JSON.parse(raw);
+          parsed[paciente.id] = { ...(parsed[paciente.id] || {}), enviadoEn: horaActual, canalVisto: 'email' };
+          localStorage.setItem('odonto_envios_locales', JSON.stringify(parsed));
+        } catch {}
+      }
+
       // Actualizar paciente en la vista
       setPacientes(prev => prev.map(p => {
         if (p.id === paciente.id) {
           return {
             ...p,
             notificacion: {
+              ...p.notificacion,
               estado: 'notificado',
               horaEnvio: horaActual,
             },
@@ -1878,14 +1970,24 @@ export default function DashboardPrincipalPage() {
                                 <Clock className="w-3.5 h-3.5" />
                                 {p.hora}
                               </span>
-                              {yaNotificado ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                              {p.notificacion.confirmada ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200 shadow-2xs">
                                   <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                  Notificado
+                                  Confirmada
+                                </span>
+                              ) : p.notificacion.vistoEn ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-900 bg-blue-100 px-2 py-0.5 rounded-full border border-blue-200 shadow-2xs">
+                                  <CheckCheck className="w-3 h-3 text-blue-600" />
+                                  Visto ({p.notificacion.vistoEn})
+                                </span>
+                              ) : yaNotificado ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                                  <Check className="w-3 h-3 text-slate-500" />
+                                  Enviado {p.notificacion.horaEnvio ? `(${p.notificacion.horaEnvio})` : ''}
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
-                                  <AlertTriangle className="w-3 h-3 text-amber-600" />
+                                  <Clock className="w-3 h-3 text-amber-600" />
                                   Pendiente Recordatorio
                                 </span>
                               )}
@@ -2179,18 +2281,39 @@ export default function DashboardPrincipalPage() {
 
                                 {/* Estado WhatsApp */}
                                 <td className="py-3 px-4 whitespace-nowrap">
-                                  {yaNotificado ? (
+                                  {paciente.notificacion.confirmada ? (
                                     <div className="inline-flex flex-col">
-                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                                        <CheckCircle2 className="w-3 h-3" /> Notificado
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-2xs">
+                                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Confirmada
                                       </span>
-                                      <span className="text-[10px] text-slate-500 mt-0.5 ml-1">
-                                        {paciente.notificacion.horaEnvio}
+                                      {paciente.notificacion.vistoEn && (
+                                        <span className="text-[10px] text-emerald-700 font-medium mt-0.5 ml-1 flex items-center gap-0.5">
+                                          <CheckCheck className="w-2.5 h-2.5" /> Visto {paciente.notificacion.vistoEn}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : paciente.notificacion.vistoEn ? (
+                                    <div className="inline-flex flex-col">
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-900 border border-blue-200 shadow-2xs">
+                                        <CheckCheck className="w-3.5 h-3.5 text-blue-600" /> Visto {paciente.notificacion.vistoEn}
+                                      </span>
+                                      <span className="text-[10px] text-blue-600 font-medium mt-0.5 ml-1 flex items-center gap-1">
+                                        <Eye className="w-2.5 h-2.5 text-blue-500" />
+                                        Vía {paciente.notificacion.canalVisto === 'email' ? 'Correo' : 'WhatsApp'}
+                                      </span>
+                                    </div>
+                                  ) : yaNotificado ? (
+                                    <div className="inline-flex flex-col">
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                        <Check className="w-3 h-3 text-slate-500" /> Enviado {paciente.notificacion.horaEnvio ? `(${paciente.notificacion.horaEnvio})` : ''}
+                                      </span>
+                                      <span className="text-[10px] text-slate-400 mt-0.5 ml-1 flex items-center gap-0.5">
+                                        <Clock className="w-2.5 h-2.5" /> Sin abrir aún
                                       </span>
                                     </div>
                                   ) : (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
-                                      <AlertTriangle className="w-3 h-3" /> Pendiente
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                      <Clock className="w-3 h-3 text-amber-600" /> Pendiente
                                     </span>
                                   )}
                                 </td>

@@ -33,7 +33,7 @@ export function generarPlantillaEmailHtml(params: ParametrosPlantillaEmail): {
     clinicaTelefono,
   } = params;
 
-  const enlaces = generarEnlacesAccionCita(citaId);
+  const enlaces = generarEnlacesAccionCita(citaId, 'https://odontocontrol-ashen.vercel.app', 'email');
   const fechaLegible = formatearFechaEspanol(fechaCita);
   const asunto = `Recordatorio de Cita Odontológica: ${fechaLegible} a las ${horaCita} - ${clinicaNombre}`;
 
@@ -163,6 +163,8 @@ export function generarPlantillaEmailHtml(params: ParametrosPlantillaEmail): {
       </td>
     </tr>
   </table>
+  <!-- Píxel de seguimiento de apertura de correo electrónico -->
+  <img src="https://odontocontrol-ashen.vercel.app/api/recordatorios/tracking?citaId=${encodeURIComponent(citaId)}&canal=email" width="1" height="1" alt="" style="display:none; width:1px; height:1px; border:0;" />
 </body>
 </html>
   `.trim();

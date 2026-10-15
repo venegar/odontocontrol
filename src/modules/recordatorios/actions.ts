@@ -40,28 +40,84 @@ async function registrarEnvioEnSupabase(
 ): Promise<void> {
   try {
     const esUuid = esUuidValido(citaId);
+    if (!esUuid) return;
 
-    // Si la cita tiene un UUID real de base de datos, guardar en public.recordatorios
-    if (esUuid) {
-      await supabase.from('recordatorios').insert({
-        cita_id: citaId,
-        tipo,
-        destinatario,
-        mensaje,
-        programado_para: new Date().toISOString(),
-        estado,
-        enviado_en: estado === 'enviado' ? new Date().toISOString() : null,
-        error_detalle: errorDetalle || null,
-      });
+    // 1. Intentar registrar a través de RPC segura
+    const { error: rpcError } = await supabase.rpc('registrar_envio_notificacion', {
+      p_cita_id: citaId,
+      p_canal: tipo,
+      p_destinatario: destinatario,
+      p_mensaje: mensaje,
+    });
 
-      // Actualizar timestamp en la tabla citas para reflejar la última gestión
-      await supabase.from('citas').update({
-        actualizado_en: new Date().toISOString(),
-      }).eq('id', citaId);
-    }
+    if (!rpcError) return;
+
+    // 2. Fallback: inserción directa si la tabla lo permite
+    await supabase.from('recordatorios').insert({
+      cita_id: citaId,
+      tipo,
+      destinatario,
+      mensaje,
+      programado_para: new Date().toISOString(),
+      estado,
+      enviado_en: estado === 'enviado' ? new Date().toISOString() : null,
+      error_detalle: errorDetalle || null,
+    });
+
+    await supabase.from('citas').update({
+      actualizado_en: new Date().toISOString(),
+    }).eq('id', citaId);
   } catch (err) {
-    // No interrumpir el flujo si la tabla aún no tiene RLS permisivo para anónimos
     console.warn('Registro de recordatorio en Supabase:', err);
+  }
+}
+
+/**
+ * SERVER ACTION: Marcar Recordatorio / Cita como Visto
+ * Se ejecuta automáticamente cuando el paciente:
+ * 1. Abre el enlace de WhatsApp (vía tracking o portal).
+ * 2. Abre el correo electrónico (a través del píxel de tracking 1x1).
+ * 3. Interactúa con cualquier opción de autogestión (confirmar, reagendar, cancelar).
+ */
+export async function marcarCitaVistaAction(
+  citaId: string,
+  canal: 'whatsapp' | 'email' | 'portal' = 'whatsapp'
+): Promise<{ exito: boolean; mensaje: string }> {
+  try {
+    if (!citaId || !esUuidValido(citaId)) {
+      return { exito: false, mensaje: 'ID de cita no válido' };
+    }
+
+    // 1. Invocar función RPC segura en Supabase
+    const { data, error } = await supabase.rpc('marcar_cita_vista', {
+      p_cita_id: citaId,
+      p_canal: canal,
+    });
+
+    if (!error && data?.exito) {
+      return { exito: true, mensaje: 'Lectura registrada con éxito en Supabase' };
+    }
+
+    // 2. Si la RPC aún no está creada, actualizar registro directamente si hay acceso
+    const ahoraIso = new Date().toISOString();
+    try {
+      await supabase.from('recordatorios').update({
+        visto_en: ahoraIso,
+        canal_visto: canal,
+      }).eq('cita_id', citaId);
+
+      await supabase.from('citas').update({
+        actualizado_en: ahoraIso,
+      }).eq('id', citaId);
+    } catch {
+      // tolerante a políticas RLS
+    }
+
+    return { exito: true, mensaje: 'Visualización registrada' };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : 'Error al registrar visualización';
+    console.warn('marcarCitaVistaAction:', errorMsg);
+    return { exito: false, mensaje: errorMsg };
   }
 }
 
@@ -230,7 +286,7 @@ export async function enviarRecordatorioWhatsAppAction(
   const clinicaDireccion = DATOS_CONSULTORIO_DEFAULT.direccion;
   const clinicaTelefono = DATOS_CONSULTORIO_DEFAULT.telefonoPrincipal;
 
-  const enlaces = generarEnlacesAccionCita(datosValidos.citaId);
+  const enlaces = generarEnlacesAccionCita(datosValidos.citaId, 'https://odontocontrol-ashen.vercel.app', 'whatsapp');
   const fechaLegible = formatearFechaEspanol(datosValidos.fechaCita);
 
   const mensajeWhatsApp = [
@@ -240,6 +296,9 @@ export async function enviarRecordatorioWhatsAppAction(
     `• Especialista: ${datosValidos.doctorNombre}`,
     `• Tratamiento: ${datosValidos.tratamiento}`,
     `• Sede: ${clinicaDireccion}`,
+    '',
+    '👉 *Ver detalles de mi cita y preparación:*',
+    `${enlaces.verCita}`,
     '',
     '👉 *Opciones de autogestión en 1 clic:*',
     `✅ Confirmar Asistencia: ${enlaces.confirmar}`,
