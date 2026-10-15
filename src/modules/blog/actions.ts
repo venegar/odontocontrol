@@ -9,6 +9,7 @@ import {
   ResultadoAccionBlog,
   CategoriaBlog 
 } from '@/modules/blog/types';
+import { generarSlug } from './utils';
 
 // ==============================================================================
 // ESQUEMAS DE VALIDACIÓN ZOD (ESTRICTO - SIN 'any')
@@ -23,7 +24,7 @@ const categoriasValidas: [CategoriaBlog, ...CategoriaBlog[]] = [
   'Prevención',
 ];
 
-export const articuloBlogZodSchema = z.object({
+const articuloBlogZodSchema = z.object({
   titulo: z
     .string({ required_error: 'El título del artículo es obligatorio' })
     .trim()
@@ -116,18 +117,6 @@ const ARTICULOS_RESPALDO: ArticuloBlog[] = [
     tiempoLectura: '6 min',
   },
 ];
-
-/**
- * Genera un slug limpio y amigable para SEO a partir de una cadena de texto.
- */
-export function generarSlug(texto: string): string {
-  return texto
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)+/g, '');
-}
 
 /**
  * Mapea una fila de base de datos a la interfaz ArticuloBlog.

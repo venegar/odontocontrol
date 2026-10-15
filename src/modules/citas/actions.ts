@@ -14,7 +14,7 @@ import {
 // ESQUEMAS DE VALIDACIÓN ZOD (ESTRICTO - SIN 'any')
 // ==============================================================================
 
-export const solicitudCitaZodSchema = z.object({
+const solicitudCitaZodSchema = z.object({
   nombres: z
     .string({ required_error: 'Los nombres son obligatorios' })
     .trim()

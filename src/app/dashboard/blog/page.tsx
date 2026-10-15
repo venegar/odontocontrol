@@ -37,9 +37,9 @@ import {
   crearArticuloBlog, 
   actualizarArticuloBlog, 
   eliminarArticuloBlog, 
-  togglePublicacionArticulo,
-  generarSlug 
+  togglePublicacionArticulo
 } from '@/modules/blog/actions';
+import { generarSlug } from '@/modules/blog/utils';
 
 const CATEGORIAS_BLOG: CategoriaBlog[] = [
   'Higiene',
