@@ -729,7 +729,7 @@ export default function DashboardPrincipalPage() {
       // Mensaje de éxito
       setAlertaExito(resultado.mensaje || `Recordatorio despachado para ${paciente.nombre}.`);
       setTimeout(() => {
-        setAlertaExito(null),
+        setAlertaExito(null);
       }, 5000);
 
       if (resultado.urlAccion) {
