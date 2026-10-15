@@ -24,14 +24,12 @@ import {
   Eye,
   CalendarPlus,
   UploadCloud,
-  FileImage,
   Film,
   Trash2,
   Maximize2,
   Download,
   Sparkles,
   Plus,
-  Image as ImageIcon,
   ZoomIn
 } from 'lucide-react';
 import { 
@@ -43,7 +41,7 @@ import {
 } from '@/modules/pacientes/types';
 import { PACIENTES_REGISTRADOS_BASE } from '@/modules/pacientes/datos';
 
-export const TIPOS_IMAGEN_DIAGNOSTICA: { id: TipoImagenDiagnostica; label: string; icon: string }[] = [
+const TIPOS_IMAGEN_DIAGNOSTICA: { id: TipoImagenDiagnostica; label: string; icon: string }[] = [
   { id: 'radiografia_panoramica', label: 'Radiografía Panorámica (Ortopantomografía)', icon: '🦷' },
   { id: 'radiografia_periapical', label: 'Radiografía Periapical', icon: '🔬' },
   { id: 'tomografia_cbct', label: 'Tomografía Computarizada 3D (CBCT)', icon: '🧬' },
@@ -1055,6 +1053,8 @@ export default function GestionPacientesPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+
               {/* Sección 3: Carga de Imágenes Diagnósticas (Arrastrar y Soltar) */}
               <div className="pt-3 border-t border-slate-200">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
