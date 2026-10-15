@@ -294,8 +294,11 @@ export async function enviarRecordatorioWhatsAppAction(
     }
   }
 
-  // 3. Método universal wa.me
+  // 3. Método universal wa.me y web.whatsapp.com
   const urlWhatsApp = generarEnlaceWhatsApp(telNormalizado, mensajeWhatsApp);
+  const textoCodificado = encodeURIComponent(mensajeWhatsApp);
+  const urlWhatsAppWeb = `https://web.whatsapp.com/send?phone=${telNormalizado}&text=${textoCodificado}`;
+  const urlApiWhatsApp = `https://api.whatsapp.com/send?phone=${telNormalizado}&text=${textoCodificado}`;
 
   // Registrar envío en Supabase
   await registrarEnvioEnSupabase(
@@ -311,6 +314,9 @@ export async function enviarRecordatorioWhatsAppAction(
     canal: 'whatsapp',
     metodo: 'wa.me',
     urlAccion: urlWhatsApp,
+    urlWhatsAppWeb,
+    urlApiWhatsApp,
+    mensajeTexto: mensajeWhatsApp,
     mensaje: `Enlace de WhatsApp generado y registrado para +${telNormalizado}.`,
   };
 }

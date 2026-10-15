@@ -61,6 +61,9 @@ export interface ResultadoEnvioRecordatorio {
   mensaje: string;
   urlAccion?: string;
   urlGmailWeb?: string;
+  urlWhatsAppWeb?: string;
+  urlApiWhatsApp?: string;
+  mensajeTexto?: string;
   idEnvio?: string;
   erroresValidacion?: string[];
 }
