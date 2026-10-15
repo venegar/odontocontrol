@@ -45,7 +45,8 @@ import {
   Sun,
   CalendarDays,
   FlaskConical,
-  Loader2
+  Loader2,
+  Copy
 } from 'lucide-react';
 import ModalCrearCitasPrueba, { CitaPruebaGenerada } from '@/modules/citas/components/ModalCrearCitasPrueba';
 import { 
