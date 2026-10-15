@@ -46,13 +46,12 @@ export function generarEnlacesAccionCita(
   baseUrl = 'https://odontocontrol-ashen.vercel.app',
   canal: 'whatsapp' | 'email' = 'whatsapp'
 ) {
-  const rutaTracking = `${baseUrl}/api/recordatorios/tracking`;
   const citaEncoded = encodeURIComponent(citaId);
   return {
-    verCita: `${rutaTracking}?citaId=${citaEncoded}&canal=${canal}&accion=ver`,
-    confirmar: `${rutaTracking}?citaId=${citaEncoded}&canal=${canal}&accion=confirmar`,
-    reagendar: `${rutaTracking}?citaId=${citaEncoded}&canal=${canal}&accion=reagendar`,
-    cancelar: `${rutaTracking}?citaId=${citaEncoded}&canal=${canal}&accion=cancelar`,
+    verCita: `${baseUrl}/c/ver/${citaEncoded}`,
+    confirmar: `${baseUrl}/c/confirmar/${citaEncoded}`,
+    reagendar: `${baseUrl}/c/reagendar/${citaEncoded}`,
+    cancelar: `${baseUrl}/c/cancelar/${citaEncoded}`,
     portalDirecto: `${baseUrl}/portal-paciente?citaId=${citaEncoded}`,
   };
 }

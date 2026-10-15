@@ -186,10 +186,13 @@ function PortalPacienteContenido() {
     return () => { montado = false; };
   }, [accionParam, citaIdParam, nombrePaciente]);
 
+  // Cita enfocada si proviene de un enlace directo de WhatsApp
+  const citaEnfocada = citaIdParam ? citas.find(c => c.id === citaIdParam) : null;
+
   // Filtrado de citas
   const citasFiltradas = citas.filter(c => {
     if (filtro === 'activas') {
-      return ['confirmada', 'solicitada', 'en_atencion'].includes(c.estado);
+      return ['confirmada', 'solicitada', 'pendiente', 'en_atencion'].includes(c.estado);
     }
     return ['completada', 'cancelada', 'rechazada'].includes(c.estado);
   });
@@ -425,6 +428,68 @@ function PortalPacienteContenido() {
             Soporte por WhatsApp
           </Link>
         </div>
+
+        {/* Módulo de Autogestión Directa en 1 Toque (Cuando el paciente abre el link de su cita desde WhatsApp) */}
+        {citaEnfocada && (
+          <div className="mb-8 p-5 bg-white rounded-2xl border-2 border-dentist-500/40 shadow-md">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  {getBadgeEstado(citaEnfocada.estado, citaEnfocada.esReagendamiento)}
+                  <span className="text-xs text-slate-400 font-semibold">•</span>
+                  <span className="text-xs font-bold text-dentist-700">Autogestión de tu Cita</span>
+                </div>
+                <h3 className="text-base font-bold text-slate-900 leading-tight">
+                  {citaEnfocada.tratamiento}
+                </h3>
+                <p className="text-xs text-slate-600 mt-1 flex items-center gap-2 flex-wrap">
+                  <span>📅 <strong>{citaEnfocada.fecha}</strong></span>
+                  <span>⏰ <strong>{citaEnfocada.horaInicio} - {citaEnfocada.horaFin}</strong></span>
+                  <span>🩺 <strong>{citaEnfocada.doctorNombre}</strong></span>
+                </p>
+              </div>
+
+              {/* Botones táctiles grandes para autogestión en 1 solo toque */}
+              <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                {['solicitada', 'pendiente'].includes(citaEnfocada.estado) && (
+                  <button
+                    type="button"
+                    onClick={() => handleConfirmarAsistencia(citaEnfocada.id)}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition active:scale-95 flex items-center gap-1.5"
+                    title="Confirmar inmediatamente que asistirás"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Confirmar Cita</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCitaParaReagendar(citaEnfocada);
+                    setNuevaFecha(citaEnfocada.fecha);
+                    setNuevoHorario(citaEnfocada.horaInicio);
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-dentist-50 hover:bg-dentist-100 text-dentist-700 border border-dentist-200 font-bold text-xs transition active:scale-95 flex items-center gap-1.5"
+                  title="Cambiar fecha u hora de tu cita"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Solicitar Reagendamiento</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCitaParaCancelar(citaEnfocada)}
+                  className="px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition active:scale-95 flex items-center gap-1.5"
+                  title="Cancelar cita y liberar horario"
+                >
+                  <XCircle className="w-4 h-4" />
+                  <span>Cancelar Cita</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Pestañas de Navegación */}
         <div className="flex border-b border-slate-200 mb-6 space-x-6">

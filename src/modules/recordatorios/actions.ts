@@ -291,29 +291,40 @@ export async function enviarRecordatorioWhatsAppAction(
 
   const mensajeWhatsApp = [
     `¡Hola ${datosValidos.pacienteNombre}! 👋`,
-    `Te recordamos tu cita odontológica para *${fechaLegible} a las ${datosValidos.horaCita}* en *${clinicaNombre}*.`,
+    `Te recordamos tu cita odontológica para el *${fechaLegible} a las ${datosValidos.horaCita}* en *${clinicaNombre}*.`,
     '',
-    `• Especialista: ${datosValidos.doctorNombre}`,
-    `• Tratamiento: ${datosValidos.tratamiento}`,
-    `• Sede: ${clinicaDireccion}`,
+    `🦷 *Especialista:* ${datosValidos.doctorNombre}`,
+    `📋 *Tratamiento:* ${datosValidos.tratamiento}`,
+    `📍 *Sede:* ${clinicaDireccion}`,
     '',
-    '👉 *Ver detalles de mi cita y preparación:*',
-    `${enlaces.verCita}`,
+    '👉 *Pulsa la opción que deseas realizar:*',
     '',
-    '👉 *Opciones de autogestión en 1 clic:*',
-    `✅ Confirmar Asistencia: ${enlaces.confirmar}`,
-    `🔄 Solicitar Reagendamiento: ${enlaces.reagendar}`,
-    `❌ Cancelar Cita: ${enlaces.cancelar}`,
+    `✅ *Confirmar Cita:*`,
+    `${enlaces.confirmar}`,
     '',
-    `Si tienes dudas, contáctanos al ${clinicaTelefono}. ¡Te esperamos!`,
+    `🔄 *Solicitar Reagendamiento:*`,
+    `${enlaces.reagendar}`,
+    '',
+    `❌ *Cancelar Cita:*`,
+    `${enlaces.cancelar}`,
+    '',
+    `Si tienes dudas o inquietudes, comunícate al ${clinicaTelefono}.`,
+    '¡Te esperamos!',
   ].join('\n');
 
-  // 2. Estructura preparada para WhatsApp Cloud API oficial de Meta si se configuran variables
+  // 2. Estructura interactiva oficial con botones nativos para Meta WhatsApp Cloud API
   const cloudToken = process.env.WHATSAPP_CLOUD_API_TOKEN;
   const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
   if (cloudToken && phoneId) {
     try {
+      const textoCuerpo = [
+        `¡Hola ${datosValidos.pacienteNombre}! 👋`,
+        `Te recordamos tu cita odontológica para el *${fechaLegible} a las ${datosValidos.horaCita}* con ${datosValidos.doctorNombre} en ${clinicaNombre}.`,
+        '',
+        'Por favor selecciona una de las siguientes opciones:'
+      ].join('\n');
+
       const respuestaMeta = await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
         method: 'POST',
         headers: {
@@ -323,8 +334,36 @@ export async function enviarRecordatorioWhatsAppAction(
         body: JSON.stringify({
           messaging_product: 'whatsapp',
           to: telNormalizado,
-          type: 'text',
-          text: { preview_url: true, body: mensajeWhatsApp },
+          type: 'interactive',
+          interactive: {
+            type: 'button',
+            body: { text: textoCuerpo },
+            action: {
+              buttons: [
+                {
+                  type: 'reply',
+                  reply: {
+                    id: `confirmar_${datosValidos.citaId}`,
+                    title: 'Confirmar Cita'
+                  }
+                },
+                {
+                  type: 'reply',
+                  reply: {
+                    id: `reagendar_${datosValidos.citaId}`,
+                    title: 'Reagendar'
+                  }
+                },
+                {
+                  type: 'reply',
+                  reply: {
+                    id: `cancelar_${datosValidos.citaId}`,
+                    title: 'Cancelar Cita'
+                  }
+                }
+              ]
+            }
+          }
         }),
       });
 
@@ -346,7 +385,7 @@ export async function enviarRecordatorioWhatsAppAction(
         canal: 'whatsapp',
         metodo: 'cloud_api',
         idEnvio: dataMeta?.messages?.[0]?.id,
-        mensaje: `Recordatorio enviado automáticamente por WhatsApp Cloud API al +${telNormalizado}.`,
+        mensaje: `Recordatorio interactivo con botones enviado automáticamente por WhatsApp Cloud API al +${telNormalizado}.`,
       };
     } catch (err: unknown) {
       console.warn('Fallo en WhatsApp Cloud API, fallback a wa.me:', err);
