@@ -406,14 +406,14 @@ function HistoriasClinicasContenido() {
 
           <button
             onClick={() => setPestaña('nueva-evolucion')}
-            className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition flex items-center gap-1.5 whitespace-nowrap ${
+            className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-1.5 whitespace-nowrap ${
               pestaña === 'nueva-evolucion'
                 ? 'bg-dentist-600 text-white shadow-xs'
-                : 'text-dentist-700 bg-dentist-50 hover:bg-dentist-100 border border-dentist-200'
+                : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            <PlusCircle className="w-4 h-4 text-dentist-600" />
-            <span>+ Añadir Nueva Evolución de Cita</span>
+            <Stethoscope className="w-4 h-4" />
+            <span>Nueva Evolución de Cita</span>
           </button>
 
           <button
@@ -433,31 +433,6 @@ function HistoriasClinicasContenido() {
         {/* ========================================================================= */}
         {pestaña === 'odontograma' && (
           <div className="space-y-4">
-            {/* Banner de acceso rápido para registrar evolución */}
-            <div className="bg-gradient-to-r from-dentist-50 to-sky-50 border border-dentist-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-white text-dentist-700 shadow-2xs border border-dentist-100">
-                  <Stethoscope className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-xs sm:text-sm font-bold text-slate-900">
-                    ¿El paciente asistió a una cita o tratamiento?
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Registra la nueva evolución con los procedimientos realizados y actualiza las piezas en este odontograma interactivo.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPestaña('nueva-evolucion')}
-                className="px-4 py-2 bg-dentist-600 hover:bg-dentist-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 shrink-0 self-start sm:self-auto active:scale-95"
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span>+ Añadir Nueva Evolución</span>
-              </button>
-            </div>
-
             {/* Render del Odontograma Interactivo FDI */}
             <OdontogramaVisual 
               dientes={dientesActivos} 
@@ -487,8 +462,8 @@ function HistoriasClinicasContenido() {
         {pestaña === 'historial' && (
           <div className="space-y-4">
             
-            {/* ENCABEZADO Y BOTÓN DE NUEVA EVOLUCIÓN */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+            {/* ENCABEZADO DEL EXPEDIENTE */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
               <div>
                 <h3 className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">
                   <ClipboardList className="w-4 h-4 text-dentist-600" />
@@ -498,15 +473,6 @@ function HistoriasClinicasContenido() {
                   Seguimiento de la evolución del paciente desde su valoración inicial y en cada cita asistida
                 </p>
               </div>
-
-              <button
-                type="button"
-                onClick={() => setPestaña('nueva-evolucion')}
-                className="px-4 py-2 bg-dentist-600 hover:bg-dentist-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 self-start sm:self-auto active:scale-95"
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span>+ Añadir Nueva Evolución</span>
-              </button>
             </div>
 
             {/* BARRA DE FILTROS Y ORDENAMIENTO (CON LAS MÁS RECIENTES ARRIBA) */}
@@ -611,7 +577,7 @@ function HistoriasClinicasContenido() {
                   onClick={() => setPestaña('nueva-evolucion')}
                   className="mt-4 px-4 py-2 bg-dentist-600 text-white rounded-xl text-xs font-bold hover:bg-dentist-700 shadow-xs"
                 >
-                  + Añadir Nueva Evolución de Cita
+                  Registrar primera evolución
                 </button>
               </div>
             ) : (
