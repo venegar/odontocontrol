@@ -43,6 +43,7 @@ import {
   NOMBRES_PIEZAS_FDI 
 } from '@/modules/historias-clinicas/types';
 import { Paciente, ImagenDiagnostica } from '@/modules/pacientes/types';
+import { PACIENTES_REGISTRADOS_BASE } from '@/modules/pacientes/datos';
 import { 
   obtenerPacientesStorage, 
   actualizarDienteOdontogramaStorage,
@@ -55,8 +56,8 @@ function HistoriasClinicasContenido() {
   const citaIdQuery = searchParams.get('citaId');
   const accionQuery = searchParams.get('accion');
 
-  const [pacientes, setPacientes] = useState<Paciente[]>([]);
-  const [pacienteSeleccionadoId, setPacienteSeleccionadoId] = useState<string>('');
+  const [pacientes, setPacientes] = useState<Paciente[]>(() => PACIENTES_REGISTRADOS_BASE);
+  const [pacienteSeleccionadoId, setPacienteSeleccionadoId] = useState<string>(() => PACIENTES_REGISTRADOS_BASE[0]?.id || '');
   const [pestaña, setPestaña] = useState<'odontograma' | 'nueva-evolucion' | 'historial'>('odontograma');
   const [modalNuevoPacienteAbierto, setModalNuevoPacienteAbierto] = useState<boolean>(false);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
@@ -864,14 +865,85 @@ function HistoriasClinicasContenido() {
   );
 }
 
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class HistoriasErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Error capturado por HistoriasErrorBoundary:', error, errorInfo);
+  }
+
+  handleRestablecerStorage = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('consultorio_pacientes_v1');
+      } catch {}
+      window.location.reload();
+    }
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-center">
+          <div className="max-w-md w-full bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-md space-y-4">
+            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <h2 className="text-base font-bold text-slate-900">
+              Expediente Clínico Recuperable
+            </h2>
+            <p className="text-xs text-slate-500">
+              Se detectó un conflicto con los datos almacenados en tu navegador. Puedes restablecerlos para volver a operar normalmente.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+              <button
+                onClick={this.handleRestablecerStorage}
+                className="flex-1 px-4 py-2.5 bg-dentist-600 hover:bg-dentist-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
+              >
+                Restablecer Pacientes y Reintentar
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
+              >
+                Recargar Página
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 export default function HistoriasClinicasPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <p className="text-xs font-semibold text-slate-500">Cargando Historias Clínicas y Odontograma...</p>
-      </div>
-    }>
-      <HistoriasClinicasContenido />
-    </Suspense>
+    <HistoriasErrorBoundary>
+      <Suspense fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+          <p className="text-xs font-semibold text-slate-500">Cargando Historias Clínicas y Odontograma...</p>
+        </div>
+      }>
+        <HistoriasClinicasContenido />
+      </Suspense>
+    </HistoriasErrorBoundary>
   );
 }

@@ -14,8 +14,28 @@ export const EVENTO_PACIENTES_ACTUALIZADOS = 'consultorio:pacientes-actualizados
  * Sanitiza una evolución clínica asegurando que todas sus propiedades de texto y arrays existan.
  */
 function sanitizarEvolucion(e: Partial<EvolucionClinica>): EvolucionClinica {
+  if (!e || typeof e !== 'object') {
+    return {
+      id: `evo-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      pacienteId: '',
+      pacienteNombre: '',
+      fecha: new Date().toISOString().split('T')[0],
+      hora: '10:00 AM',
+      doctorNombre: 'Dra. Yasmín Blanco',
+      doctorRol: 'Odontóloga Especialista',
+      tipoConsulta: 'evolucion_cita',
+      motivoConsulta: '',
+      diagnostico: 'Atención odontológica programada',
+      procedimiento: 'Procedimiento clínico registrado',
+      procedimientosRealizados: [],
+      imagenesAdjuntas: [],
+    };
+  }
+
   return {
     id: String(e.id || `evo-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`),
+    pacienteId: String(e.pacienteId || ''),
+    pacienteNombre: String(e.pacienteNombre || ''),
     fecha: String(e.fecha || new Date().toISOString().split('T')[0]),
     hora: e.hora ? String(e.hora) : '10:00 AM',
     doctorNombre: String(e.doctorNombre || 'Dra. Yasmín Blanco'),
@@ -28,15 +48,15 @@ function sanitizarEvolucion(e: Partial<EvolucionClinica>): EvolucionClinica {
     dienteNumero: typeof e.dienteNumero === 'number' ? e.dienteNumero : undefined,
     nuevoEstadoDiente: e.nuevoEstadoDiente,
     procedimiento: String(e.procedimiento || 'Procedimiento clínico registrado'),
-    procedimientosRealizados: Array.isArray(e.procedimientosRealizados) ? e.procedimientosRealizados.map(String) : [],
+    procedimientosRealizados: Array.isArray(e.procedimientosRealizados) ? e.procedimientosRealizados.filter(Boolean).map(String) : [],
     anestesia: e.anestesia ? String(e.anestesia) : undefined,
     indicaciones: e.indicaciones ? String(e.indicaciones) : undefined,
     prescripcion: e.prescripcion ? String(e.prescripcion) : undefined,
     proximoControl: e.proximoControl ? String(e.proximoControl) : undefined,
-    insumosUtilizados: e.insumosUtilizados ? (Array.isArray(e.insumosUtilizados) ? e.insumosUtilizados.map(String) : String(e.insumosUtilizados)) : undefined,
+    insumosUtilizados: Array.isArray(e.insumosUtilizados) ? e.insumosUtilizados : undefined,
     costoProcedimiento: typeof e.costoProcedimiento === 'number' ? e.costoProcedimiento : undefined,
     estadoPago: e.estadoPago,
-    imagenesAdjuntas: Array.isArray(e.imagenesAdjuntas) ? e.imagenesAdjuntas : [],
+    imagenesAdjuntas: Array.isArray(e.imagenesAdjuntas) ? e.imagenesAdjuntas.filter(Boolean) : [],
   };
 }
 
@@ -44,6 +64,47 @@ function sanitizarEvolucion(e: Partial<EvolucionClinica>): EvolucionClinica {
  * Sanitiza un paciente asegurando integridad en todos sus arrays, cadenas y odontograma.
  */
 export function sanitizarPaciente(p: Partial<Paciente>): Paciente {
+  if (!p || typeof p !== 'object') {
+    return {
+      id: `pac-${Date.now()}`,
+      tipoDocumento: 'CC',
+      numeroDocumento: '00000000',
+      nombres: 'Paciente',
+      apellidos: '',
+      telefono: 'Sin teléfono',
+      fechaNacimiento: '1995-01-01',
+      ciudad: 'Bogotá',
+      direccion: '',
+      eps: 'Particular',
+      genero: 'Otro',
+      alergias: [],
+      enfermedadesPrevias: [],
+      medicamentosActuales: [],
+      grupoSanguineo: 'O+',
+      odontograma: crearOdontogramaInicial(),
+      evoluciones: [],
+      citas: [],
+      imagenesDiagnosticas: [],
+    };
+  }
+
+  let odontogramaSeguro: Record<number, DienteInfo>;
+  if (p.odontograma && typeof p.odontograma === 'object') {
+    odontogramaSeguro = { ...p.odontograma };
+    for (const [key, diente] of Object.entries(odontogramaSeguro)) {
+      const num = parseInt(key, 10);
+      if (!diente || typeof diente !== 'object') {
+        odontogramaSeguro[num] = {
+          numero: num,
+          nombre: NOMBRES_PIEZAS_FDI[num] || `Pieza ${num}`,
+          estado: 'sano',
+        };
+      }
+    }
+  } else {
+    odontogramaSeguro = crearOdontogramaInicial();
+  }
+
   return {
     id: String(p.id || `pac-${Date.now()}`),
     tipoDocumento: (p.tipoDocumento === 'TI' || p.tipoDocumento === 'CE' || p.tipoDocumento === 'Pasaporte') ? p.tipoDocumento : 'CC',
@@ -57,14 +118,16 @@ export function sanitizarPaciente(p: Partial<Paciente>): Paciente {
     direccion: String(p.direccion || ''),
     eps: p.eps === 'Ecopetrol' ? 'Ecopetrol' : 'Particular',
     genero: (p.genero === 'Femenino' || p.genero === 'Masculino') ? p.genero : 'Otro',
-    alergias: Array.isArray(p.alergias) ? p.alergias.map(String) : [],
-    enfermedadesPrevias: Array.isArray(p.enfermedadesPrevias) ? p.enfermedadesPrevias.map(String) : [],
-    medicamentosActuales: Array.isArray(p.medicamentosActuales) ? p.medicamentosActuales.map(String) : [],
+    alergias: Array.isArray(p.alergias) ? p.alergias.filter(Boolean).map(String) : [],
+    enfermedadesPrevias: Array.isArray(p.enfermedadesPrevias) ? p.enfermedadesPrevias.filter(Boolean).map(String) : [],
+    medicamentosActuales: Array.isArray(p.medicamentosActuales) ? p.medicamentosActuales.filter(Boolean).map(String) : [],
     grupoSanguineo: p.grupoSanguineo ? String(p.grupoSanguineo) : 'O+',
-    odontograma: (p.odontograma && typeof p.odontograma === 'object') ? p.odontograma : crearOdontogramaInicial(),
-    evoluciones: Array.isArray(p.evoluciones) ? p.evoluciones.map(sanitizarEvolucion) : [],
-    citas: Array.isArray(p.citas) ? p.citas : [],
-    imagenesDiagnosticas: Array.isArray(p.imagenesDiagnosticas) ? p.imagenesDiagnosticas : [],
+    odontograma: odontogramaSeguro,
+    evoluciones: Array.isArray(p.evoluciones) 
+      ? p.evoluciones.filter((x): x is EvolucionClinica => Boolean(x) && typeof x === 'object').map(sanitizarEvolucion) 
+      : [],
+    citas: Array.isArray(p.citas) ? p.citas.filter(Boolean) : [],
+    imagenesDiagnosticas: Array.isArray(p.imagenesDiagnosticas) ? p.imagenesDiagnosticas.filter(Boolean) : [],
   };
 }
 
@@ -90,9 +153,17 @@ export function obtenerPacientesStorage(): Paciente[] {
       localStorage.setItem(CLAVE_STORAGE, JSON.stringify(baseSanitizada));
       return baseSanitizada;
     }
-    return parsed.map(sanitizarPaciente);
-  } catch {
-    return PACIENTES_REGISTRADOS_BASE.map(sanitizarPaciente);
+    const sanitizados = parsed.filter((p): p is Partial<Paciente> => Boolean(p) && typeof p === 'object').map(sanitizarPaciente);
+    // Auto-reparar el storage guardando la versión sanitizada
+    localStorage.setItem(CLAVE_STORAGE, JSON.stringify(sanitizados));
+    return sanitizados;
+  } catch (error) {
+    console.error('Error al parsear storage, restableciendo a base sanitizada:', error);
+    const baseSanitizada = PACIENTES_REGISTRADOS_BASE.map(sanitizarPaciente);
+    try {
+      localStorage.setItem(CLAVE_STORAGE, JSON.stringify(baseSanitizada));
+    } catch {}
+    return baseSanitizada;
   }
 }
 
