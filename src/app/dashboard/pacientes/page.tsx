@@ -1253,7 +1253,8 @@ export default function GestionPacientesPage() {
                           )}
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
