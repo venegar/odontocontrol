@@ -1329,11 +1329,11 @@ export default function GestionCitasPage() {
                               {['confirmada', 'completada'].includes(cita.estado) && (
                                 <Link
                                   href={`/dashboard/historias?pacienteId=${obtenerIdPacientePorCita(cita.pacienteDocumento, cita.pacienteNombre)}&citaId=${cita.id}&accion=registrar-diagnostico`}
-                                  className="px-2.5 py-1.5 text-xs font-bold text-sky-800 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg transition active:scale-95 flex items-center gap-1"
-                                  title="Registrar diagnóstico de esta cita y actualizar odontograma"
+                                  className="px-2.5 py-1.5 text-xs font-bold text-dentist-800 bg-dentist-50 hover:bg-dentist-100 border border-dentist-200 rounded-lg transition active:scale-95 flex items-center gap-1"
+                                  title="Añadir nueva evolución de cita y registrar procedimientos realizados"
                                 >
-                                  <Stethoscope className="w-3.5 h-3.5 text-sky-600" />
-                                  <span>Diagnóstico</span>
+                                  <Stethoscope className="w-3.5 h-3.5 text-dentist-600" />
+                                  <span>+ Añadir Evolución</span>
                                 </Link>
                               )}
 
@@ -1470,11 +1470,11 @@ export default function GestionCitasPage() {
                               {['confirmada', 'completada'].includes(c.estado) && (
                                 <Link
                                   href={`/dashboard/historias?pacienteId=${obtenerIdPacientePorCita(c.pacienteDocumento, c.pacienteNombre)}&citaId=${c.id}&accion=registrar-diagnostico`}
-                                  className="inline-flex items-center gap-1 text-sky-700 hover:text-sky-900 font-bold px-2 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 transition text-xs"
-                                  title="Registrar diagnóstico de la cita y actualizar odontograma"
+                                  className="inline-flex items-center gap-1 text-dentist-700 hover:text-dentist-900 font-bold px-2 py-1 rounded-lg bg-dentist-50 hover:bg-dentist-100 transition text-xs"
+                                  title="Añadir nueva evolución de cita y registrar procedimientos"
                                 >
-                                  <Stethoscope className="w-3 h-3 text-sky-600" />
-                                  <span>Diagnóstico</span>
+                                  <Stethoscope className="w-3 h-3 text-dentist-600" />
+                                  <span>+ Evolución</span>
                                 </Link>
                               )}
                               {c.estado === 'confirmada' && (
@@ -1591,11 +1591,11 @@ export default function GestionCitasPage() {
                           {['confirmada', 'completada'].includes(c.estado) && (
                             <Link
                               href={`/dashboard/historias?pacienteId=${obtenerIdPacientePorCita(c.pacienteDocumento, c.pacienteNombre)}&citaId=${c.id}&accion=registrar-diagnostico`}
-                              className="inline-flex items-center gap-1 text-sky-700 hover:text-sky-900 font-bold px-2 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 transition text-xs"
-                              title="Registrar diagnóstico de la cita y actualizar odontograma"
+                              className="inline-flex items-center gap-1 text-dentist-700 hover:text-dentist-900 font-bold px-2 py-1 rounded-lg bg-dentist-50 hover:bg-dentist-100 transition text-xs"
+                              title="Añadir nueva evolución de cita y registrar procedimientos"
                             >
-                              <Stethoscope className="w-3 h-3 text-sky-600" />
-                              <span>Diagnóstico</span>
+                              <Stethoscope className="w-3 h-3 text-dentist-600" />
+                              <span>+ Evolución</span>
                             </Link>
                           )}
                           {c.estado === 'confirmada' && (

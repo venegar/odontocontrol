@@ -39,8 +39,33 @@ export interface EvolucionClinica {
     tipo?: string;
     tamano?: string;
   }[];
+  tipoConsulta?: 'valoracion_inicial' | 'evolucion_cita' | 'control_postoperatorio' | 'urgencia';
+  procedimientosRealizados?: string[];
+  numeroCita?: number;
   proximoControl?: string;
 }
+
+export const CATALOGO_PROCEDIMIENTOS_CITA: string[] = [
+  'Profilaxis y Detartraje Ultrasónico',
+  'Apertura Cavitaria y Remoción de Caries',
+  'Aislamiento Absoluto del Campo Operatorio',
+  'Restauración en Resina Fotocurada (1 Superficie)',
+  'Restauración en Resina Fotocurada (2 o más Superficies)',
+  'Tallado y Preparación de Muñón Protésico',
+  'Toma de Impresión Definitiva con Silicona',
+  'Confección y Cementación de Corona Provisional',
+  'Prueba de Estructura / Casquete (Zirconio/Metal)',
+  'Cementación Definitiva de Corona / Incrustación',
+  'Apertura Cameral y Biopulpectomía (Endodoncia)',
+  'Instrumentación Rotatoria y Desinfección de Conductos',
+  'Obturación de Conductos con Gutapercha',
+  'Raspaje y Alisado Radicular Subgingival',
+  'Exodoncia Dental Simple',
+  'Exodoncia Quirúrgica de Resto Radicular',
+  'Ajuste Oclusal y Control de Contactos Prematuros',
+  'Topicación de Flúor Barniz / Remineralización',
+  'Retiro de Sutura y Control Post-Operatorio'
+];
 
 export interface DiagnosticoFrecuente {
   codigoCie10: string;

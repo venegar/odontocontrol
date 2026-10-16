@@ -15,10 +15,12 @@ import {
   CheckCircle2, 
   X, 
   Camera, 
-  Plus,
-  Trash2,
-  Bookmark,
-  Check
+  Plus, 
+  Trash2, 
+  Bookmark, 
+  Check,
+  ListChecks,
+  Tag
 } from 'lucide-react';
 import { 
   EvolucionClinica, 
@@ -26,7 +28,8 @@ import {
   ESTADOS_DIENTE_CONFIG, 
   NOMBRES_PIEZAS_FDI, 
   DIAGNOSTICOS_ODONTOLOGICOS_FRECUENTES,
-  DiagnosticoFrecuente 
+  DiagnosticoFrecuente,
+  CATALOGO_PROCEDIMIENTOS_CITA
 } from '../types';
 import { Paciente, ImagenDiagnostica, TipoImagenDiagnostica } from '@/modules/pacientes/types';
 import { registrarDiagnosticoCitaStorage } from '@/modules/pacientes/storage';
@@ -59,11 +62,16 @@ export default function FormularioRegistroDiagnosticoCita({
   onGuardarExito,
   onCancelar,
 }: FormularioRegistroDiagnosticoCitaProps) {
-  // 1. Estado de la Cita asociada
+  // 1. Tipo de Consulta y Cita asociada
+  const [tipoConsulta, setTipoConsulta] = useState<'valoracion_inicial' | 'evolucion_cita' | 'control_postoperatorio' | 'urgencia'>('evolucion_cita');
   const [citaSeleccionadaId, setCitaSeleccionadaId] = useState<string>(citaIdInicial || '');
   const [doctorNombre, setDoctorNombre] = useState<string>('Dra. Yasmín Blanco');
   const [fecha, setFecha] = useState<string>(new Date().toISOString().split('T')[0]);
   const [hora, setHora] = useState<string>('09:00 AM');
+
+  // Procedimientos realizados en la cita
+  const [procedimientosSeleccionados, setProcedimientosSeleccionados] = useState<string[]>([]);
+  const [otroProcedimiento, setOtroProcedimiento] = useState<string>('');
 
   // 2. Anamnesis y Diagnóstico
   const [motivoConsulta, setMotivoConsulta] = useState<string>('');
@@ -214,6 +222,21 @@ export default function FormularioRegistroDiagnosticoCita({
     setImagenesAdjuntas((prev) => prev.filter((img) => img.id !== id));
   };
 
+  // Manejo de procedimientos realizados en la cita
+  const handleToggleProcedimiento = (proc: string) => {
+    setProcedimientosSeleccionados((prev) =>
+      prev.includes(proc) ? prev.filter((p) => p !== proc) : [...prev, proc]
+    );
+  };
+
+  const handleAgregarOtroProcedimiento = () => {
+    const limpio = otroProcedimiento.trim();
+    if (limpio && !procedimientosSeleccionados.includes(limpio)) {
+      setProcedimientosSeleccionados((prev) => [...prev, limpio]);
+      setOtroProcedimiento('');
+    }
+  };
+
   // Guardar la información diagnóstica
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -232,6 +255,8 @@ export default function FormularioRegistroDiagnosticoCita({
       fecha,
       hora,
       citaId: citaSeleccionadaId || undefined,
+      tipoConsulta,
+      procedimientosRealizados: procedimientosSeleccionados.length > 0 ? procedimientosSeleccionados : undefined,
       motivoConsulta: motivoConsulta || 'Atención y valoración odontológica',
       diagnostico,
       diagnosticoCie10: diagnosticoCie10 || undefined,
@@ -318,7 +343,36 @@ export default function FormularioRegistroDiagnosticoCita({
         <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-4">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider">
             <Calendar className="w-4 h-4 text-dentist-600" />
-            <span>1. Cita Odontológica de Origen y Profesional Tratante</span>
+            <span>1. Cita Odontológica de Origen y Tipo de Consulta</span>
+          </div>
+
+          {/* Selector de Tipo de Consulta / Evolución */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Tipo de Acto Clínico:
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { id: 'evolucion_cita', label: '🩺 Evolución de Cita', desc: 'Progreso y tratamiento en cita programada' },
+                { id: 'valoracion_inicial', label: '📋 Valoración Inicial', desc: 'Diagnóstico general inicial y plan' },
+                { id: 'control_postoperatorio', label: '🩹 Control Post-Operatorio', desc: 'Revisión y ajuste tras intervención' },
+                { id: 'urgencia', label: '🚨 Atención de Urgencia', desc: 'Alivio del dolor / trauma agudo' }
+              ].map((tc) => (
+                <button
+                  key={tc.id}
+                  type="button"
+                  onClick={() => setTipoConsulta(tc.id as 'valoracion_inicial' | 'evolucion_cita' | 'control_postoperatorio' | 'urgencia')}
+                  className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
+                    tipoConsulta === tc.id
+                      ? 'bg-dentist-50 border-dentist-500 ring-2 ring-dentist-500/20 text-dentist-900 font-bold'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="text-xs">{tc.label}</span>
+                  <span className="text-[10px] text-slate-500 font-normal mt-0.5">{tc.desc}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
@@ -542,25 +596,105 @@ export default function FormularioRegistroDiagnosticoCita({
           </div>
         </div>
 
-        {/* 4. SECCIÓN: PROCEDIMIENTO REALIZADO Y ANESTESIA */}
-        <div className="space-y-4">
-          <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-            <FileText className="w-4 h-4 text-dentist-600" />
-            <span>4. Procedimiento Realizado Detallado y Técnica Anestésica</span>
-          </label>
+        {/* 4. SECCIÓN: PROCEDIMIENTOS REALIZADOS EN LA CITA */}
+        <div className="space-y-4 p-4 rounded-xl border border-slate-200 bg-slate-50/70">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <ListChecks className="w-4 h-4 text-dentist-600" />
+              <span>4. Procedimientos Realizados en esta Cita</span>
+            </label>
+            <span className="text-[11px] text-slate-500 font-medium">
+              {procedimientosSeleccionados.length} seleccionados
+            </span>
+          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Chips con catálogo rápido de procedimientos */}
+          <div>
+            <p className="text-[11px] font-semibold text-slate-600 mb-2">
+              Selecciona los procedimientos odontológicos ejecutados durante esta atención:
+            </p>
+            <div className="flex flex-wrap gap-1.5 max-h-44 overflow-y-auto p-2 bg-white rounded-xl border border-slate-200">
+              {CATALOGO_PROCEDIMIENTOS_CITA.map((proc, idx) => {
+                const activo = procedimientosSeleccionados.includes(proc);
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleToggleProcedimiento(proc)}
+                    className={`text-[11px] px-2.5 py-1.5 rounded-lg border font-medium transition flex items-center gap-1.5 ${
+                      activo
+                        ? 'bg-dentist-600 text-white border-dentist-700 shadow-2xs'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>{activo ? '✓' : '+'}</span>
+                    <span>{proc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Agregar otro procedimiento personalizado */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Otro procedimiento odontológico específico..."
+              value={otroProcedimiento}
+              onChange={(e) => setOtroProcedimiento(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAgregarOtroProcedimiento();
+                }
+              }}
+              className="flex-1 text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-dentist-500"
+            />
+            <button
+              type="button"
+              onClick={handleAgregarOtroProcedimiento}
+              className="px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold rounded-xl transition"
+            >
+              Agregar
+            </button>
+          </div>
+
+          {/* Resumen de procedimientos seleccionados */}
+          {procedimientosSeleccionados.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <span className="text-[11px] font-bold text-emerald-900 mr-1">Procedimientos incluidos en la cita:</span>
+              {procedimientosSeleccionados.map((proc, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 text-[11px] bg-white text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-md font-semibold"
+                >
+                  <span>{proc}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleProcedimiento(proc)}
+                    className="text-rose-500 hover:text-rose-700 font-bold ml-1 text-xs"
+                    title="Quitar procedimiento"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Detalle descriptivo clínico del procedimiento y anestesia */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-200">
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Descripción del Procedimiento Efectuado: *
+                Evolución y Descripción Detallada del Procedimiento: *
               </label>
               <textarea
                 rows={3}
                 required
-                placeholder="Describe los pasos clínicos: apertura, remoción de caries, aislamiento absoluto, grabado, adhesivo, colocación de resina y pulido final..."
+                placeholder="Describe el paso a paso: apertura cavitaria, remoción con fresa redonda, aislamiento, grabado ácido, adhesivo y resina..."
                 value={procedimiento}
                 onChange={(e) => setProcedimiento(e.target.value)}
-                className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-1 focus:ring-dentist-500 leading-relaxed font-sans"
+                className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-dentist-500 leading-relaxed font-sans"
               />
             </div>
 
