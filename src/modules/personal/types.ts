@@ -1,4 +1,11 @@
-export type RolUsuario = 'superadmin' | 'admin' | 'odontologo' | 'recepcionista' | 'paciente';
+export type RolUsuario = 
+  | 'superadmin' 
+  | 'admin' 
+  | 'odontologo' 
+  | 'gestor_inventario' 
+  | 'asistente' 
+  | 'recepcionista' 
+  | 'paciente';
 
 export type PermisoCodigo = 
   | 'citas.ver'
@@ -10,6 +17,10 @@ export type PermisoCodigo =
   | 'pacientes.editar'
   | 'historias.ver'
   | 'historias.crear'
+  | 'inventario.ver'
+  | 'inventario.crear'
+  | 'inventario.editar'
+  | 'inventario.descontar'
   | 'personal.ver'
   | 'personal.gestionar'
   | 'personal.eliminar'
@@ -20,7 +31,7 @@ export type PermisoCodigo =
 export interface PermisoInfo {
   codigo: PermisoCodigo;
   nombre: string;
-  modulo: 'Citas' | 'Pacientes' | 'Historias Clínicas' | 'Personal' | 'Configuración' | 'Tratamientos';
+  modulo: 'Citas' | 'Pacientes' | 'Historias Clínicas' | 'Inventario' | 'Personal' | 'Configuración' | 'Tratamientos';
   descripcion: string;
 }
 
@@ -36,6 +47,11 @@ export const CATALOGO_PERMISOS: PermisoInfo[] = [
 
   { codigo: 'historias.ver', nombre: 'Ver Historias Clínicas', modulo: 'Historias Clínicas', descripcion: 'Acceso a diagnósticos médicos, evoluciones y radiografías.' },
   { codigo: 'historias.crear', nombre: 'Registrar Evolución Médica', modulo: 'Historias Clínicas', descripcion: 'Agregar notas de evolución clínica y odontogramas.' },
+
+  { codigo: 'inventario.ver', nombre: 'Consultar Stock e Inventario FEFO', modulo: 'Inventario', descripcion: 'Visualizar existencias, lotes, semáforo de vencimientos y alertas.' },
+  { codigo: 'inventario.crear', nombre: 'Registrar Nuevos Insumos y Lotes', modulo: 'Inventario', descripcion: 'Dar de alta insumos, medicamentos y registrar nuevos lotes con INVIMA.' },
+  { codigo: 'inventario.editar', nombre: 'Editar Insumos y Ajustar Stock', modulo: 'Inventario', descripcion: 'Modificar datos de insumos, marcas, presentaciones y registrar bajas de vencidos.' },
+  { codigo: 'inventario.descontar', nombre: 'Descontar Insumos por Procedimiento', modulo: 'Inventario', descripcion: 'Registrar el consumo de materiales aplicados en citas clínicas.' },
 
   { codigo: 'personal.ver', nombre: 'Ver Lista del Personal', modulo: 'Personal', descripcion: 'Ver la lista de doctores y personal auxiliar.' },
   { codigo: 'personal.gestionar', nombre: 'Gestionar Permisos del Personal', modulo: 'Personal', descripcion: 'Crear usuarios internos y asignar permisos individuales.' },

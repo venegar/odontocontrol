@@ -21,7 +21,10 @@ import {
   Trash2,
   AlertTriangle,
   Crown,
-  ShieldAlert
+  ShieldAlert,
+  Package,
+  Layers,
+  FlaskConical
 } from 'lucide-react';
 import { 
   PerfilPersonal, 
@@ -31,7 +34,7 @@ import {
 } from '@/modules/personal/types';
 import FotoPerfilDropzone from '@/components/ui/FotoPerfilDropzone';
 
-// Personal inicial con Jairo Escobar Cárcamo como Superadministrador
+// Personal inicial con Jairo Escobar Cárcamo como Superadmin y roles de Inventario
 const PERSONAL_INICIAL: PerfilPersonal[] = [
   {
     id: 'user-superadmin-jairo',
@@ -67,7 +70,8 @@ const PERSONAL_INICIAL: PerfilPersonal[] = [
     permisos: [
       'citas.ver', 'citas.aprobar',
       'pacientes.ver',
-      'historias.ver', 'historias.crear'
+      'historias.ver', 'historias.crear',
+      'inventario.ver', 'inventario.descontar'
     ],
   },
   {
@@ -82,7 +86,41 @@ const PERSONAL_INICIAL: PerfilPersonal[] = [
     permisos: [
       'citas.ver', 'citas.aprobar',
       'pacientes.ver',
-      'historias.ver', 'historias.crear'
+      'historias.ver', 'historias.crear',
+      'inventario.ver', 'inventario.descontar'
+    ],
+  },
+  {
+    id: 'user-inv-1',
+    nombres: 'Sofía',
+    apellidos: 'Castro Peña',
+    rol: 'gestor_inventario',
+    telefono: '+57 318 444 5566',
+    especialidad: 'Gestión de Farmacia, Insumos y Almacén',
+    registroProfesional: 'INV-402',
+    activo: true,
+    permisos: [
+      'inventario.ver',
+      'inventario.crear',
+      'inventario.editar',
+      'inventario.descontar',
+      'tratamientos.gestionar',
+    ],
+  },
+  {
+    id: 'user-asist-1',
+    nombres: 'Valentina',
+    apellidos: 'Ríos Gómez',
+    rol: 'asistente',
+    telefono: '+57 321 555 6677',
+    especialidad: 'Auxiliar de Odontología e Instrumental',
+    registroProfesional: 'AUX-891',
+    activo: true,
+    permisos: [
+      'citas.ver',
+      'historias.ver',
+      'inventario.ver',
+      'inventario.descontar',
     ],
   },
   {
@@ -96,6 +134,7 @@ const PERSONAL_INICIAL: PerfilPersonal[] = [
     permisos: [
       'citas.ver', 'citas.aprobar', 'citas.crear', 'citas.cancelar',
       'pacientes.ver', 'pacientes.crear', 'pacientes.editar',
+      'inventario.ver',
       'recordatorios.gestionar'
     ],
   },
@@ -106,12 +145,13 @@ const MODULOS_PERMISOS = [
   'Citas',
   'Pacientes',
   'Historias Clínicas',
+  'Inventario',
   'Personal',
   'Tratamientos',
   'Configuración',
 ] as const;
 
-const STORAGE_KEY_PERSONAL = 'consultorio_personal_v2';
+const STORAGE_KEY_PERSONAL = 'consultorio_personal_v3';
 
 export default function GestionPersonalPermisosPage() {
   const [personal, setPersonal] = useState<PerfilPersonal[]>(PERSONAL_INICIAL);
@@ -125,7 +165,7 @@ export default function GestionPersonalPermisosPage() {
   const [nuevoMiembro, setNuevoMiembro] = useState({
     nombres: '',
     apellidos: '',
-    rol: 'odontologo' as RolUsuario,
+    rol: 'gestor_inventario' as RolUsuario,
     telefono: '',
     especialidad: '',
     registroProfesional: '',
@@ -171,6 +211,14 @@ export default function GestionPersonalPermisosPage() {
 
             if (!asegurados.some((u: PerfilPersonal) => u.rol === 'superadmin')) {
               asegurados.unshift(PERSONAL_INICIAL[0]);
+            }
+
+            // Asegurar que existan los roles de inventario en la lista si no estaban presentes
+            if (!asegurados.some((u: PerfilPersonal) => u.rol === 'gestor_inventario')) {
+              asegurados.push(PERSONAL_INICIAL[4]);
+            }
+            if (!asegurados.some((u: PerfilPersonal) => u.rol === 'asistente')) {
+              asegurados.push(PERSONAL_INICIAL[5]);
             }
 
             setPersonal(asegurados);
@@ -268,8 +316,33 @@ export default function GestionPersonalPermisosPage() {
     let permisosBase: PermisoCodigo[] = [];
     if (nuevoMiembro.rol === 'admin' || nuevoMiembro.rol === 'superadmin') {
       permisosBase = CATALOGO_PERMISOS.map((p) => p.codigo);
+    } else if (nuevoMiembro.rol === 'gestor_inventario') {
+      // Rol especializado en registrar y editar datos del inventario
+      permisosBase = [
+        'inventario.ver',
+        'inventario.crear',
+        'inventario.editar',
+        'inventario.descontar',
+        'tratamientos.gestionar',
+      ];
+    } else if (nuevoMiembro.rol === 'asistente') {
+      // Rol auxiliar clínico de instrumental y consumo de insumos
+      permisosBase = [
+        'citas.ver',
+        'historias.ver',
+        'inventario.ver',
+        'inventario.descontar',
+      ];
     } else if (nuevoMiembro.rol === 'odontologo') {
-      permisosBase = ['citas.ver', 'citas.aprobar', 'pacientes.ver', 'historias.ver', 'historias.crear'];
+      permisosBase = [
+        'citas.ver',
+        'citas.aprobar',
+        'pacientes.ver',
+        'historias.ver',
+        'historias.crear',
+        'inventario.ver',
+        'inventario.descontar',
+      ];
     } else if (nuevoMiembro.rol === 'recepcionista') {
       permisosBase = [
         'citas.ver',
@@ -279,6 +352,7 @@ export default function GestionPersonalPermisosPage() {
         'pacientes.ver',
         'pacientes.crear',
         'pacientes.editar',
+        'inventario.ver',
         'recordatorios.gestionar',
       ];
     }
@@ -289,7 +363,13 @@ export default function GestionPersonalPermisosPage() {
       apellidos: nuevoMiembro.apellidos,
       rol: nuevoMiembro.rol,
       telefono: nuevoMiembro.telefono,
-      especialidad: nuevoMiembro.especialidad,
+      especialidad: nuevoMiembro.especialidad || (
+        nuevoMiembro.rol === 'gestor_inventario' 
+          ? 'Gestión de Farmacia e Insumos' 
+          : nuevoMiembro.rol === 'asistente'
+          ? 'Auxiliar Clínico e Instrumental'
+          : undefined
+      ),
       registroProfesional: nuevoMiembro.registroProfesional,
       fotoUrl: nuevoMiembro.fotoUrl || undefined,
       activo: true,
@@ -305,13 +385,13 @@ export default function GestionPersonalPermisosPage() {
     setNuevoMiembro({
       nombres: '',
       apellidos: '',
-      rol: 'odontologo',
+      rol: 'gestor_inventario',
       telefono: '',
       especialidad: '',
       registroProfesional: '',
       fotoUrl: '',
     });
-    setMensajeExito(`Se ha registrado a ${nuevo.nombres} ${nuevo.apellidos} con éxito.`);
+    setMensajeExito(`Se ha registrado a ${nuevo.nombres} ${nuevo.apellidos} como ${nuevo.rol === 'gestor_inventario' ? 'Encargado de Inventario' : nuevo.rol} con éxito.`);
     setTimeout(() => setMensajeExito(null), 4000);
   };
 
@@ -375,7 +455,7 @@ export default function GestionPersonalPermisosPage() {
                   <span>Panel Superadministrador</span>
                 </span>
               </div>
-              <p className="text-xs text-slate-500">Asigna permisos individuales y gestiona altas o desvinculaciones del equipo</p>
+              <p className="text-xs text-slate-500">Asigna permisos de inventario, clínica y desvinculaciones del equipo</p>
             </div>
           </div>
 
@@ -427,6 +507,8 @@ export default function GestionPersonalPermisosPage() {
                   <option value="superadmin">Superadministrador</option>
                   <option value="admin">Administradores</option>
                   <option value="odontologo">Odontólogos</option>
+                  <option value="gestor_inventario">Gestor de Inventario</option>
+                  <option value="asistente">Auxiliar de Odontología</option>
                   <option value="recepcionista">Recepción</option>
                 </select>
               </div>
@@ -436,7 +518,7 @@ export default function GestionPersonalPermisosPage() {
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type="text"
-                  placeholder="Buscar por nombre o especialidad..."
+                  placeholder="Buscar por nombre, especialidad o rol..."
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
                   className="w-full text-xs pl-8 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-1 focus:ring-dentist-500"
@@ -466,6 +548,10 @@ export default function GestionPersonalPermisosPage() {
                           ? 'bg-amber-100 text-amber-900 border-amber-300'
                           : u.rol === 'admin'
                           ? 'bg-indigo-100 text-indigo-800 border-indigo-200'
+                          : u.rol === 'gestor_inventario'
+                          ? 'bg-teal-100 text-teal-800 border-teal-200'
+                          : u.rol === 'asistente'
+                          ? 'bg-cyan-100 text-cyan-800 border-cyan-200'
                           : 'bg-dentist-100 text-dentist-700 border-slate-200'
                       }`}>
                         {u.fotoUrl ? (
@@ -473,6 +559,10 @@ export default function GestionPersonalPermisosPage() {
                           <img src={u.fotoUrl} alt={u.nombres} className="w-full h-full object-cover" />
                         ) : esSuperadmin ? (
                           <span>👑</span>
+                        ) : u.rol === 'gestor_inventario' ? (
+                          <span>📦</span>
+                        ) : u.rol === 'asistente' ? (
+                          <span>🩺</span>
                         ) : (
                           <span>{u.nombres.slice(0, 1)}{u.apellidos.slice(0, 1)}</span>
                         )}
@@ -492,6 +582,15 @@ export default function GestionPersonalPermisosPage() {
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 shrink-0">
                               Admin
                             </span>
+                          ) : u.rol === 'gestor_inventario' ? (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-200 flex items-center gap-1 shrink-0">
+                              <Package className="w-2.5 h-2.5 text-teal-600" />
+                              <span>Inventario</span>
+                            </span>
+                          ) : u.rol === 'asistente' ? (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-800 border border-cyan-200 shrink-0">
+                              Auxiliar
+                            </span>
                           ) : null}
                         </div>
 
@@ -501,7 +600,12 @@ export default function GestionPersonalPermisosPage() {
 
                         <div className="flex items-center gap-2 text-[11px] text-slate-400 pt-0.5">
                           <span className="capitalize font-medium text-slate-600">
-                            Rol: {u.rol === 'superadmin' ? 'Superadmin' : u.rol}
+                            Rol: {
+                              u.rol === 'superadmin' ? 'Superadmin' :
+                              u.rol === 'gestor_inventario' ? 'Gestor Inventario' :
+                              u.rol === 'asistente' ? 'Auxiliar Clínico' :
+                              u.rol
+                            }
                           </span>
                           <span>•</span>
                           <span className="font-semibold text-dentist-700">
@@ -522,7 +626,7 @@ export default function GestionPersonalPermisosPage() {
                             e.stopPropagation();
                             setColaboradorAEliminar(u);
                           }}
-                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
                           title={`Desvincular a ${u.nombres} ${u.apellidos}`}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -548,6 +652,10 @@ export default function GestionPersonalPermisosPage() {
                       ? 'bg-amber-100 text-amber-900 border-amber-300 text-lg'
                       : usuarioActivo.rol === 'admin'
                       ? 'bg-indigo-100 text-indigo-800 border-indigo-200'
+                      : usuarioActivo.rol === 'gestor_inventario'
+                      ? 'bg-teal-100 text-teal-800 border-teal-200 text-base'
+                      : usuarioActivo.rol === 'asistente'
+                      ? 'bg-cyan-100 text-cyan-800 border-cyan-200'
                       : 'bg-dentist-100 text-dentist-700 border-slate-200'
                   }`}>
                     {usuarioActivo.fotoUrl ? (
@@ -555,6 +663,8 @@ export default function GestionPersonalPermisosPage() {
                       <img src={usuarioActivo.fotoUrl} alt={usuarioActivo.nombres} className="w-full h-full object-cover" />
                     ) : usuarioActivo.rol === 'superadmin' ? (
                       <span>👑</span>
+                    ) : usuarioActivo.rol === 'gestor_inventario' ? (
+                      <span>📦</span>
                     ) : (
                       <span>{usuarioActivo.nombres.slice(0, 1)}{usuarioActivo.apellidos.slice(0, 1)}</span>
                     )}
@@ -571,10 +681,19 @@ export default function GestionPersonalPermisosPage() {
                           <span>Superadministrador</span>
                         </span>
                       )}
+                      {usuarioActivo.rol === 'gestor_inventario' && (
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-200 flex items-center gap-1">
+                          <Package className="w-3 h-3 text-teal-600" />
+                          <span>Gestión de Inventario</span>
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Rol: <span className="font-semibold capitalize text-slate-800">
-                        {usuarioActivo.rol === 'superadmin' ? 'Superadministrador' : usuarioActivo.rol}
+                      Rol: <span className="font-semibold text-slate-800">
+                        {usuarioActivo.rol === 'superadmin' ? 'Superadministrador' :
+                         usuarioActivo.rol === 'gestor_inventario' ? 'Encargado de Farmacia e Inventario' :
+                         usuarioActivo.rol === 'asistente' ? 'Auxiliar de Odontología / Asistente' :
+                         usuarioActivo.rol}
                       </span>
                       {usuarioActivo.registroProfesional && (
                         <span> • Registro: {usuarioActivo.registroProfesional}</span>
@@ -605,7 +724,7 @@ export default function GestionPersonalPermisosPage() {
                 </div>
               </div>
 
-              {/* Aviso si es Superadministrador o Administrador */}
+              {/* Aviso si es Superadministrador, Administrador o Rol Inventario */}
               {usuarioActivo.rol === 'superadmin' ? (
                 <div className="p-4 mb-6 rounded-2xl bg-amber-50/90 border border-amber-300 text-amber-950 flex items-start gap-3 shadow-2xs">
                   <Crown className="w-5 h-5 text-amber-700 mt-0.5 shrink-0" />
@@ -614,7 +733,7 @@ export default function GestionPersonalPermisosPage() {
                       Superadministrador Principal del Consultorio ({usuarioActivo.nombres} {usuarioActivo.apellidos})
                     </p>
                     <p className="mt-1 text-amber-900">
-                      Cuenta con inmunidad institucional absoluta y acceso irrestricto a todos los módulos clínicos, financieros, de personal y de configuración. <strong>No puede ser eliminado ni revocado.</strong>
+                      Cuenta con inmunidad institucional absoluta y acceso irrestricto a todos los módulos clínicos, financieros, de inventario, personal y configuración. <strong>No puede ser eliminado ni revocado.</strong>
                     </p>
                   </div>
                 </div>
@@ -625,6 +744,18 @@ export default function GestionPersonalPermisosPage() {
                     <p className="font-bold text-indigo-950">Este colaborador tiene el rol de Administrador</p>
                     <p className="mt-0.5 text-indigo-800">
                       Los administradores cuentan con todos los permisos habilitados por defecto en el sistema para la operación clínica diaria.
+                    </p>
+                  </div>
+                </div>
+              ) : usuarioActivo.rol === 'gestor_inventario' ? (
+                <div className="p-3.5 mb-6 rounded-2xl bg-teal-50/90 border border-teal-200 text-teal-950 flex items-start gap-3 shadow-2xs">
+                  <Package className="w-5 h-5 text-teal-600 mt-0.5 shrink-0" />
+                  <div className="text-xs leading-relaxed">
+                    <p className="font-bold text-teal-950 text-sm">
+                      Rol Especializado: Gestión de Inventario, Insumos y Farmacia
+                    </p>
+                    <p className="mt-0.5 text-teal-800">
+                      Diseñado para registrar insumos, lotes clínicos con INVIMA, controlar fechas de vencimiento con semáforo FEFO y editar existencias en el catálogo del consultorio.
                     </p>
                   </div>
                 </div>
@@ -643,13 +774,26 @@ export default function GestionPersonalPermisosPage() {
                   if (permisosModulo.length === 0) return null;
 
                   const esBloqueado = usuarioActivo.rol === 'superadmin' || usuarioActivo.rol === 'admin';
+                  const esModuloInventario = modulo === 'Inventario';
 
                   return (
-                    <div key={modulo} className="bg-slate-50/70 rounded-xl p-4 border border-slate-200/80">
+                    <div 
+                      key={modulo} 
+                      className={`rounded-xl p-4 border transition-all ${
+                        esModuloInventario 
+                          ? 'bg-teal-50/30 border-teal-200/80 shadow-2xs' 
+                          : 'bg-slate-50/70 border-slate-200/80'
+                      }`}
+                    >
                       <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200/60">
-                        <h3 className="font-bold text-xs uppercase tracking-wider text-slate-800">
-                          Módulo: {modulo}
-                        </h3>
+                        <div className="flex items-center gap-2">
+                          {esModuloInventario && <Package className="w-4 h-4 text-teal-600" />}
+                          <h3 className={`font-bold text-xs uppercase tracking-wider ${
+                            esModuloInventario ? 'text-teal-900' : 'text-slate-800'
+                          }`}>
+                            Módulo: {modulo}
+                          </h3>
+                        </div>
                         {!esBloqueado && (
                           <button
                             onClick={() => handleConcederTodosModulo(modulo)}
@@ -664,6 +808,7 @@ export default function GestionPersonalPermisosPage() {
                         {permisosModulo.map((permiso) => {
                           const estaActivo = esBloqueado || usuarioActivo.permisos.includes(permiso.codigo);
                           const esPermisoEliminar = permiso.codigo === 'personal.eliminar';
+                          const esDeInventario = permiso.codigo.startsWith('inventario.');
 
                           return (
                             <label
@@ -671,6 +816,8 @@ export default function GestionPersonalPermisosPage() {
                               className={`flex items-start gap-3 p-2.5 rounded-xl border transition-all ${
                                 esPermisoEliminar && estaActivo
                                   ? 'bg-rose-50/50 border-rose-300 shadow-2xs'
+                                  : esDeInventario && estaActivo
+                                  ? 'bg-white border-teal-400 ring-1 ring-teal-500/20 shadow-2xs'
                                   : estaActivo
                                   ? 'bg-white border-dentist-300 shadow-2xs'
                                   : 'bg-white/60 border-slate-200 hover:bg-white'
@@ -682,17 +829,26 @@ export default function GestionPersonalPermisosPage() {
                                 checked={estaActivo}
                                 onChange={() => handleTogglePermiso(permiso.codigo)}
                                 className={`mt-0.5 rounded border-slate-300 h-4 w-4 shrink-0 ${
-                                  esPermisoEliminar ? 'text-rose-600 focus:ring-rose-500' : 'text-dentist-600 focus:ring-dentist-500'
+                                  esPermisoEliminar 
+                                    ? 'text-rose-600 focus:ring-rose-500' 
+                                    : esDeInventario
+                                    ? 'text-teal-600 focus:ring-teal-500'
+                                    : 'text-dentist-600 focus:ring-dentist-500'
                                 }`}
                               />
                               <div>
                                 <span className={`block text-xs font-semibold leading-tight ${
-                                  esPermisoEliminar ? 'text-rose-950 font-bold' : 'text-slate-900'
+                                  esPermisoEliminar ? 'text-rose-950 font-bold' : esDeInventario ? 'text-teal-950 font-bold' : 'text-slate-900'
                                 }`}>
                                   {permiso.nombre}
                                   {esPermisoEliminar && (
                                     <span className="ml-1.5 text-[9px] bg-rose-100 text-rose-800 font-extrabold px-1.5 py-0.2 rounded">
                                       Seguridad Crítica
+                                    </span>
+                                  )}
+                                  {esDeInventario && (
+                                    <span className="ml-1.5 text-[9px] bg-teal-100 text-teal-800 font-extrabold px-1.5 py-0.2 rounded">
+                                      FEFO
                                     </span>
                                   )}
                                 </span>
@@ -783,11 +939,13 @@ export default function GestionPersonalPermisosPage() {
                   <select
                     value={nuevoMiembro.rol}
                     onChange={e => setNuevoMiembro({ ...nuevoMiembro, rol: e.target.value as RolUsuario })}
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500"
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500 font-semibold"
                   >
                     <option value="odontologo">Odontólogo / Doctor</option>
-                    <option value="recepcionista">Recepcionista</option>
-                    <option value="admin">Administrador General</option>
+                    <option value="gestor_inventario">📦 Encargado de Farmacia e Inventario</option>
+                    <option value="asistente">🩺 Auxiliar de Odontología / Asistente</option>
+                    <option value="recepcionista">📋 Recepcionista y Citas</option>
+                    <option value="admin">👑 Administrador General</option>
                   </select>
                 </div>
                 <div>
@@ -802,23 +960,36 @@ export default function GestionPersonalPermisosPage() {
                 </div>
               </div>
 
-              {nuevoMiembro.rol === 'odontologo' && (
+              {/* Campos condicionales según el rol */}
+              {(nuevoMiembro.rol === 'odontologo' || nuevoMiembro.rol === 'asistente' || nuevoMiembro.rol === 'gestor_inventario') && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Especialidad</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      {nuevoMiembro.rol === 'odontologo' ? 'Especialidad Odontológica' : 'Área / Enfoque'}
+                    </label>
                     <input
                       type="text"
-                      placeholder="Ej. Endodoncia, Periodoncia"
+                      placeholder={
+                        nuevoMiembro.rol === 'gestor_inventario' 
+                          ? 'Ej. Control de Farmacia e Insumos' 
+                          : nuevoMiembro.rol === 'asistente'
+                          ? 'Ej. Auxiliar de Sillón e Instrumental'
+                          : 'Ej. Endodoncia, Periodoncia'
+                      }
                       value={nuevoMiembro.especialidad}
                       onChange={e => setNuevoMiembro({ ...nuevoMiembro, especialidad: e.target.value })}
                       className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Tarjeta Profesional</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      {nuevoMiembro.rol === 'odontologo' ? 'Tarjeta Profesional' : 'Código Interno / Carnet'}
+                    </label>
                     <input
                       type="text"
-                      placeholder="Ej. OD-12345"
+                      placeholder={
+                        nuevoMiembro.rol === 'gestor_inventario' ? 'Ej. INV-01' : nuevoMiembro.rol === 'asistente' ? 'Ej. AUX-102' : 'Ej. OD-12345'
+                      }
                       value={nuevoMiembro.registroProfesional}
                       onChange={e => setNuevoMiembro({ ...nuevoMiembro, registroProfesional: e.target.value })}
                       className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-dentist-500"
@@ -879,7 +1050,7 @@ export default function GestionPersonalPermisosPage() {
                 <ul className="list-disc pl-4 space-y-0.5 text-amber-800">
                   <li>Se revocarán inmediatamente todos sus accesos al sistema.</li>
                   <li>No podrá ingresar a citas, historias clínicas ni expedientes.</li>
-                  <li>Los registros clínicos y evoluciones históricas que haya firmado se conservarán intactos por trazabilidad legal médica.</li>
+                  <li>Los registros clínicos y movimientos de inventario históricos se conservarán intactos por trazabilidad legal médica.</li>
                 </ul>
               </div>
             </div>
