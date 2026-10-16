@@ -43,6 +43,16 @@ export interface EvolucionClinica {
   procedimientosRealizados?: string[];
   numeroCita?: number;
   proximoControl?: string;
+  insumosUtilizados?: Array<{
+    insumoId?: string;
+    nombre: string;
+    cantidad: number;
+    unidad?: string;
+    lote?: string;
+    registroInvima?: string;
+  }>;
+  costoProcedimiento?: number;
+  estadoPago?: 'pagado' | 'pendiente' | 'incluido_en_plan';
 }
 
 export const CATALOGO_PROCEDIMIENTOS_CITA: string[] = [

@@ -24,14 +24,44 @@ export interface ImagenDiagnostica {
   notas?: string;
 }
 
+export interface InsumoUtilizadoCita {
+  id?: string;
+  nombre: string;
+  cantidad: number;
+  unidad?: string;
+  lote?: string;
+  registroInvima?: string;
+}
+
 export interface CitaHistorialPaciente {
   id: string;
   fecha: string;
   hora: string;
   doctorNombre: string;
+  especialidad?: string;
   tratamiento: string;
   estado: 'completada' | 'confirmada' | 'pendiente' | 'cancelada' | 'en_atencion';
   notas?: string;
+
+  // Información clínica de la cita realizada
+  procedimientoRealizado?: string;
+  diagnostico?: string;
+  diagnosticoCie10?: string;
+  piezaDental?: string;
+  dienteNumero?: number;
+
+  // Insumos y materiales odontológicos utilizados en la cita
+  insumosUtilizados?: InsumoUtilizadoCita[];
+
+  // Costo y facturación del procedimiento
+  costoProcedimiento?: number;
+  estadoPago?: 'pagado' | 'pendiente' | 'incluido_en_plan';
+  numeroRecibo?: string;
+  metodoPago?: string;
+
+  // Cuidados postoperatorios y prescripción
+  indicaciones?: string;
+  prescripcion?: string;
 }
 
 export interface Paciente {

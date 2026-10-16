@@ -108,13 +108,23 @@ export function registrarDiagnosticoCitaStorage(params: RegistrarDiagnosticoPara
     pacienteActual.odontograma = odontogramaPrevio;
   }
 
-  // 3. Si la consulta proviene de una cita agendada, marcarla como completada/atendida
+  // 3. Si la consulta proviene de una cita agendada, marcarla como completada/atendida y guardar detalles
   if (params.citaId && pacienteActual.citas) {
     pacienteActual.citas = pacienteActual.citas.map((c) => {
       if (c.id === params.citaId) {
         return {
           ...c,
           estado: 'completada',
+          procedimientoRealizado: params.evolucion.procedimiento,
+          diagnostico: params.evolucion.diagnostico,
+          diagnosticoCie10: params.evolucion.diagnosticoCie10,
+          piezaDental: params.evolucion.piezaDental,
+          dienteNumero: params.evolucion.dienteNumero,
+          insumosUtilizados: params.evolucion.insumosUtilizados,
+          costoProcedimiento: params.evolucion.costoProcedimiento,
+          estadoPago: params.evolucion.estadoPago || 'pagado',
+          indicaciones: params.evolucion.indicaciones,
+          prescripcion: params.evolucion.prescripcion,
           notas: c.notas 
             ? `${c.notas} • Atendida: ${params.evolucion.diagnostico}`
             : `Atendida: ${params.evolucion.diagnostico}`,

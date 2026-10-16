@@ -89,6 +89,19 @@ export default function LoginPage() {
           .eq('id', userId)
           .maybeSingle();
 
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(
+            'consultorio_usuario_activo',
+            JSON.stringify({
+              id: userId,
+              email: data.user?.email || emailLimpio,
+              nombres: perfil?.nombres || data.user?.user_metadata?.nombres || 'María Camila',
+              apellidos: perfil?.apellidos || data.user?.user_metadata?.apellidos || 'Pérez Gómez',
+              rol: perfil?.rol || (tipoAcceso === 'paciente' ? 'paciente' : 'admin'),
+            })
+          );
+        }
+
         if (perfil?.rol === 'paciente' || tipoAcceso === 'paciente') {
           router.push('/portal-paciente');
         } else {
@@ -114,8 +127,9 @@ export default function LoginPage() {
       localStorage.setItem(
         'consultorio_usuario_activo',
         JSON.stringify({
-          email: tipo === 'paciente' ? 'paciente.demo@odontocontrol.com' : 'admin.demo@odontocontrol.com',
-          nombres: tipo === 'paciente' ? 'Paciente Demo' : 'Administrador Demo',
+          email: tipo === 'paciente' ? 'maria.perez@ejemplo.com' : 'admin.demo@odontocontrol.com',
+          nombres: tipo === 'paciente' ? 'María Camila' : 'Administrador Demo',
+          apellidos: tipo === 'paciente' ? 'Pérez Gómez' : '',
           rol: tipo,
         })
       );

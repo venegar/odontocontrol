@@ -117,6 +117,7 @@ export default function FormularioRegistroDiagnosticoCita({
   const [insumoSeleccionadoId, setInsumoSeleccionadoId] = useState<string>('');
   const [cantidadInsumoUso, setCantidadInsumoUso] = useState<number>(1);
   const [errorStockFEFO, setErrorStockFEFO] = useState<string | null>(null);
+  const [costoProcedimiento, setCostoProcedimiento] = useState<number>(85000);
 
   useEffect(() => {
     obtenerInsumos().then((lista) => {
@@ -299,7 +300,17 @@ export default function FormularioRegistroDiagnosticoCita({
       }
     }
 
-    const numeroDiente = piezaSeleccionada !== 'General' ? parseInt(piezaSeleccionada, 10) : undefined;
+    const insumosUtilizadosMapeados = insumosUsados.map((item) => {
+      const info = insumosCatalogo.find((i) => i.id === item.insumoId);
+      return {
+        insumoId: item.insumoId,
+        nombre: info ? `${info.nombre} (${info.marca})` : 'Insumo Odontológico',
+        cantidad: item.cantidad,
+        unidad: info?.presentacion_comercial || 'unidad',
+        lote: info?.lotes?.[0]?.numero_lote || 'LOT-2026-FEFO',
+        registroInvima: info?.registro_invima,
+      };
+    });
 
     const nuevaEvolucion: EvolucionClinica = {
       id: `evo-${Date.now()}`,
@@ -325,6 +336,9 @@ export default function FormularioRegistroDiagnosticoCita({
       indicaciones: indicaciones.trim() || undefined,
       proximoControl: proximoControl.trim() || undefined,
       estado: 'completado',
+      insumosUtilizados: insumosUtilizadosMapeados.length > 0 ? insumosUtilizadosMapeados : undefined,
+      costoProcedimiento: Number(costoProcedimiento) || 0,
+      estadoPago: 'pagado',
       imagenesAdjuntas: imagenesAdjuntas.length > 0 ? imagenesAdjuntas : undefined,
     };
 
@@ -1021,6 +1035,32 @@ export default function FormularioRegistroDiagnosticoCita({
               onChange={(e) => setProximoControl(e.target.value)}
               className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-1 focus:ring-dentist-500"
             />
+          </div>
+        </div>
+
+        {/* 7. SECCIÓN: VALOR Y COSTO DEL PROCEDIMIENTO REALIZADO */}
+        <div className="p-4 bg-emerald-50/60 rounded-xl border border-emerald-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider block">
+                7. Costo del Procedimiento y Liquidación ($ COP):
+              </span>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Valor facturable asociado al procedimiento e insumos utilizados para el historial clínico del paciente.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-700">$ COP</span>
+              <input
+                type="number"
+                min="0"
+                step="5000"
+                value={costoProcedimiento}
+                onChange={(e) => setCostoProcedimiento(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                className="w-36 text-sm font-bold px-3 py-2 rounded-xl border border-slate-300 bg-white text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs"
+                placeholder="85000"
+              />
+            </div>
           </div>
         </div>
 
