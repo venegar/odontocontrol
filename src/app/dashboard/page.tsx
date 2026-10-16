@@ -28,6 +28,7 @@ import {
   DollarSign, 
   TrendingUp, 
   FileText, 
+  FileSpreadsheet,
   ChevronRight, 
   Plus, 
   Phone, 
@@ -1428,6 +1429,19 @@ export default function DashboardPrincipalPage() {
                 </Link>
 
                 <Link
+                  href="/dashboard/valoracion"
+                  className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                    <span>Valoración & Presupuesto</span>
+                  </div>
+                  <span className="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                    Oficial
+                  </span>
+                </Link>
+
+                <Link
                   href="/dashboard/personal"
                   className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition"
                 >
@@ -1859,6 +1873,15 @@ export default function DashboardPrincipalPage() {
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Agendar Nueva Cita</span>
+                  </Link>
+
+                  <Link
+                    href="/dashboard/valoracion"
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-sm transition"
+                    title="Realizar consulta inicial de valoración con odontograma y presupuesto oficial membretado"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    <span>Consulta Inicial & Presupuesto</span>
                   </Link>
                 </div>
               </div>

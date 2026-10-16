@@ -1,4 +1,5 @@
 import { DienteInfo, EvolucionClinica } from '@/modules/historias-clinicas/types';
+import { Presupuesto } from '@/modules/presupuestos/types';
 
 export type TipoDocumento = 'CC' | 'TI' | 'CE' | 'Pasaporte';
 export type TipoEps = 'Particular' | 'Ecopetrol';
@@ -71,6 +72,9 @@ export interface Paciente {
   // Odontograma interactivo (32 piezas dentales permanentes FDI)
   odontograma?: Record<number, DienteInfo>;
   
+  // Presupuestos oficiales y valoraciones iniciales
+  presupuestos?: Presupuesto[];
+
   observaciones?: string;
   creadoEn: string;
 }

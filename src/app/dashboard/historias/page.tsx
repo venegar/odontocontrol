@@ -15,7 +15,8 @@ import {
   Clock, 
   Stethoscope, 
   Sparkles,
-  ClipboardList
+  ClipboardList,
+  FileSpreadsheet
 } from 'lucide-react';
 import OdontogramaVisual from '@/modules/historias-clinicas/components/OdontogramaVisual';
 import { DienteInfo, EstadoDiente, EvolucionClinica } from '@/modules/historias-clinicas/types';
@@ -90,6 +91,7 @@ const EVOLUCIONES_INICIALES: EvolucionClinica[] = [
 ];
 
 const PACIENTES_LISTA = [
+  { id: 'pac-danilsa', nombre: 'Danilsa Martínez', doc: 'CC 52893412', alergias: [], patologias: [] },
   { id: 'pac-1', nombre: 'María Camila Pérez Gómez', doc: 'CC 1020304050', alergias: ['Penicilina', 'Látex'], patologias: ['Hipotensión'] },
   { id: 'pac-2', nombre: 'Andrés Felipe Gómez Salcedo', doc: 'CC 79845123', alergias: [], patologias: ['Hipertensión'] },
   { id: 'pac-3', nombre: 'Lucía Torres Mendoza', doc: 'CC 52431980', alergias: ['Aspirina / AINEs'], patologias: [] },
@@ -182,7 +184,7 @@ export default function HistoriasClinicasPage() {
             </div>
           </div>
 
-          {/* Selector de Paciente */}
+          {/* Selector de Paciente y Acciones */}
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-slate-600 hidden sm:inline">Paciente Activo:</span>
             <select
@@ -196,6 +198,15 @@ export default function HistoriasClinicasPage() {
                 </option>
               ))}
             </select>
+
+            <Link
+              href="/dashboard/valoracion"
+              className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition shadow-xs whitespace-nowrap"
+              title="Realizar consulta inicial de valoración con odontograma y presupuesto oficial"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Valoración & Presupuesto</span>
+            </Link>
           </div>
         </div>
       </header>
@@ -364,7 +375,7 @@ export default function HistoriasClinicasPage() {
                   value={formEvolucion.procedimiento}
                   onChange={e => setFormEvolucion({ ...formEvolucion, procedimiento: e.target.value })}
                   className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-1 focus:ring-dentist-500"
-                />
+                ></textarea>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">

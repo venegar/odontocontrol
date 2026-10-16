@@ -38,7 +38,11 @@ import {
   Check,
   CalendarCheck,
   Smile,
-  FilePlus
+  FilePlus,
+  FileSpreadsheet,
+  Printer,
+  Share2,
+  DollarSign
 } from 'lucide-react';
 import { 
   Paciente, 
@@ -57,6 +61,9 @@ import {
   NOMBRES_PIEZAS_FDI 
 } from '@/modules/historias-clinicas/types';
 import OdontogramaVisual from '@/modules/historias-clinicas/components/OdontogramaVisual';
+import { Presupuesto } from '@/modules/presupuestos/types';
+import { formatearMonedaCOP } from '@/modules/presupuestos/datos';
+import DocumentoPresupuestoMembretado from '@/modules/presupuestos/components/DocumentoPresupuestoMembretado';
 
 const TIPOS_IMAGEN_DIAGNOSTICA: { id: TipoImagenDiagnostica; label: string; icon: string }[] = [
   { id: 'radiografia_panoramica', label: 'Radiografía Panorámica (Ortopantomografía)', icon: '🦷' },
@@ -81,7 +88,8 @@ export default function GestionPacientesPage() {
   const [visorImagen, setVisorImagen] = useState<ImagenDiagnostica | null>(null);
 
   // Pestaña activa dentro de la Ficha del Paciente
-  const [pestanaFicha, setPestanaFicha] = useState<'resumen' | 'odontograma' | 'evoluciones' | 'citas' | 'estudios'>('resumen');
+  const [pestanaFicha, setPestanaFicha] = useState<'resumen' | 'odontograma' | 'evoluciones' | 'citas' | 'estudios' | 'presupuestos'>('resumen');
+  const [presupuestoParaVer, setPresupuestoParaVer] = useState<Presupuesto | null>(null);
 
   // Modal para Registrar Nueva Evolución Clínica / Procedimiento
   const [modalNuevaEvolucion, setModalNuevaEvolucion] = useState<boolean>(false);
@@ -832,6 +840,24 @@ export default function GestionPacientesPage() {
                   {pacienteSeleccionado.imagenesDiagnosticas?.length || 0}
                 </span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => setPestanaFicha('presupuestos')}
+                className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-2 transition shrink-0 ${
+                  pestanaFicha === 'presupuestos'
+                    ? 'bg-dentist-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>Presupuestos Oficiales</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                  pestanaFicha === 'presupuestos' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {pacienteSeleccionado.presupuestos?.length || 0}
+                </span>
+              </button>
             </div>
 
             {/* ============================================================== */}
@@ -1359,6 +1385,153 @@ export default function GestionPacientesPage() {
                     <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
                       Puedes adjuntar radiografías periapicales, panorámicas o tomografías CBCT 3D usando el botón superior.
                     </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ============================================================== */}
+            {/* PESTAÑA 6: PRESUPUESTOS OFICIALES Y VALORACIONES */}
+            {/* ============================================================== */}
+            {pestanaFicha === 'presupuestos' && (
+              <div className="mt-5 space-y-6 animate-fade-in">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                      <span>Presupuestos Odontológicos Oficiales</span>
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Planes de tratamiento y cotizaciones membretadas de la Dra. Yasmín Blanco
+                    </p>
+                  </div>
+
+                  <Link
+                    href="/dashboard/valoracion"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-dentist-600 hover:bg-dentist-700 text-white text-xs font-bold transition shadow-xs"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Nueva Valoración & Presupuesto</span>
+                  </Link>
+                </div>
+
+                {pacienteSeleccionado.presupuestos && pacienteSeleccionado.presupuestos.length > 0 ? (
+                  <div className="space-y-4">
+                    {pacienteSeleccionado.presupuestos.map((pto) => (
+                      <div key={pto.id} className="bg-white rounded-2xl border-2 border-slate-900 p-5 shadow-sm">
+                        {/* Cabecera del Presupuesto */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b-2 border-slate-900 gap-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-black text-sm text-slate-900">{pto.codigo}</span>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                                pto.estado === 'aprobado'
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                  : pto.estado === 'en_tratamiento'
+                                  ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                                  : 'bg-amber-100 text-amber-800 border border-amber-300'
+                              }`}>
+                                {pto.estado}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 font-medium mt-0.5">
+                              Emitido el {pto.fecha} por {pto.doctorNombre}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const telefonoLimpio = pacienteSeleccionado.telefono?.replace(/\D/g, '') || '';
+                                let mensaje = `*PRESUPUESTO ODONTOLÓGICO OFICIAL*\n`;
+                                mensaje += `*Clínica Dra. Yasmín Blanco*\n`;
+                                mensaje += `*Paciente:* ${pacienteSeleccionado.nombres} ${pacienteSeleccionado.apellidos}\n`;
+                                mensaje += `*Total:* ${formatearMonedaCOP(pto.total)}\n\n`;
+                                pto.items.forEach((it, i) => {
+                                  mensaje += `${i + 1}. ${it.tratamiento}: ${formatearMonedaCOP(it.valorTotal)}\n`;
+                                });
+                                window.open(`https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`, '_blank');
+                              }}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition"
+                              title="Compartir presupuesto por WhatsApp"
+                            >
+                              <Share2 className="w-3.5 h-3.5" />
+                              <span>WhatsApp</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setPresupuestoParaVer(pto)}
+                              className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition shadow-xs"
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                              <span>Ver / Imprimir Membrete</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Desglose de Procedimientos */}
+                        <div className="mt-3 overflow-x-auto">
+                          <table className="w-full text-xs text-left">
+                            <thead>
+                              <tr className="border-b border-slate-200 text-slate-500 uppercase text-[10px] font-bold">
+                                <th className="py-2 px-2 text-left">Tratamiento Presupuestado</th>
+                                <th className="py-2 px-2 text-center">Valor Unitario</th>
+                                <th className="py-2 px-2 text-center">Cant.</th>
+                                <th className="py-2 px-2 text-right">Valor Total</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {pto.items.map((it) => (
+                                <tr key={it.id} className="hover:bg-slate-50">
+                                  <td className="py-2 px-2 font-bold text-slate-900 uppercase">
+                                    {it.tratamiento}
+                                  </td>
+                                  <td className="py-2 px-2 text-center text-slate-600">
+                                    {formatearMonedaCOP(it.valorUnidad)}
+                                  </td>
+                                  <td className="py-2 px-2 text-center font-bold text-slate-800">
+                                    {it.cantidad}
+                                  </td>
+                                  <td className="py-2 px-2 text-right font-black text-slate-900">
+                                    {formatearMonedaCOP(it.valorTotal)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Pie de Presupuesto */}
+                        <div className="mt-4 pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-xs gap-2">
+                          <p className="text-slate-500 italic text-[11px]">
+                            {pto.observaciones || 'Cotización formal válida por 30 días.'}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold uppercase text-slate-700">Total:</span>
+                            <span className="font-black text-base text-dentist-700">
+                              {formatearMonedaCOP(pto.total)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center text-xs text-slate-500">
+                    <FileSpreadsheet className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="font-semibold text-slate-700 text-sm">Sin presupuestos registrados</p>
+                    <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto mb-4">
+                      Este paciente aún no tiene un plan de tratamiento o presupuesto formal generado.
+                    </p>
+                    <Link
+                      href="/dashboard/valoracion"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-dentist-600 hover:bg-dentist-700 text-white font-bold transition shadow-xs text-xs"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Iniciar Valoración & Presupuesto</span>
+                    </Link>
                   </div>
                 )}
               </div>
@@ -2000,6 +2173,15 @@ export default function GestionPacientesPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Modal con el Documento Membretado Oficial */}
+      {presupuestoParaVer && (
+        <DocumentoPresupuestoMembretado
+          presupuesto={presupuestoParaVer}
+          onCerrar={() => setPresupuestoParaVer(null)}
+          modoModal={true}
+        />
       )}
     </div>
   );

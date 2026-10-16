@@ -5,8 +5,72 @@
 
 import { Paciente } from './types';
 import { crearOdontogramaInicial } from '@/modules/historias-clinicas/types';
+import { PRESUPUESTOS_BASE } from '@/modules/presupuestos/datos';
 
 export const PACIENTES_REGISTRADOS_BASE: Paciente[] = [
+  {
+    id: 'pac-danilsa-martinez',
+    tipoDocumento: 'CC',
+    numeroDocumento: '52893412',
+    nombres: 'Danilsa',
+    apellidos: 'Martínez',
+    eps: 'Particular',
+    email: 'danilsa.martinez@ejemplo.com',
+    telefono: '+57 315 789 4321',
+    fechaNacimiento: '1988-06-24',
+    genero: 'Femenino',
+    ciudad: 'Bogotá',
+    direccion: 'Calle 127 # 19-35',
+    alergias: [],
+    enfermedadesPrevias: [],
+    medicamentosActuales: [],
+    grupoSanguineo: 'O+',
+    observaciones: 'Remitida a consulta de valoración con la Dra. Yasmín Blanco para rehabilitación prostodóntica.',
+    creadoEn: '2026-10-16',
+    
+    // Citas registradas en el consultorio
+    citas: [
+      {
+        id: 'cita-danilsa-1',
+        fecha: '2026-10-16',
+        hora: '09:00 AM',
+        doctorNombre: 'Dra. Yasmín Blanco',
+        tratamiento: 'Consulta Inicial de Valoración y Plan de Tratamiento',
+        estado: 'completada',
+        notas: 'Valoración clínica completa y emisión de presupuesto prostodóntico.',
+      },
+    ],
+
+    // Evoluciones clínicas
+    evoluciones: [
+      {
+        id: 'evo-danilsa-1',
+        pacienteId: 'pac-danilsa-martinez',
+        pacienteNombre: 'Danilsa Martínez',
+        doctorNombre: 'Dra. Yasmín Blanco',
+        fecha: '2026-10-16',
+        motivoConsulta: 'Consulta inicial para valoración y rehabilitación dental de pieza fracturada.',
+        diagnostico: 'Diente 15 tratado endodónticamente con pérdida severa de estructura coronaria.',
+        procedimiento: 'Examen clínico, toma de impresión y planificación de prótesis fija: provisional, núcleo colado y corona individual en pieza 15.',
+        piezaDental: 'Pieza 15 (Segundo Premolar Sup. Der.)',
+        prescripcion: 'Enjuague bucal antiséptico y cuidados masticatorios en cuadrante superior derecho.',
+        indicaciones: 'Inicio de fase protésica una vez aprobado el presupuesto oficial emitido.',
+        estado: 'en_evolucion',
+      },
+    ],
+
+    // Odontograma inicial
+    odontograma: crearOdontogramaInicial({
+      15: { estado: 'corona', notas: 'Requiere provisional, núcleo y corona individual' },
+      16: { estado: 'obturado', notas: 'Resina oclusal en buen estado' },
+      26: { estado: 'sano' },
+      36: { estado: 'obturado' },
+      46: { estado: 'sano' },
+    }),
+
+    // Presupuestos oficiales emitidos
+    presupuestos: [PRESUPUESTOS_BASE[0]],
+  },
   {
     id: 'pac-jairo-escobar',
     tipoDocumento: 'CC',
@@ -123,6 +187,9 @@ export const PACIENTES_REGISTRADOS_BASE: Paciente[] = [
       11: { estado: 'obturado', notas: 'Carilla estética en resina de alta definición' },
       21: { estado: 'obturado', notas: 'Carilla estética en resina de alta definición' },
     }),
+
+    // Presupuestos oficiales
+    presupuestos: [PRESUPUESTOS_BASE[1]],
   },
   {
     id: 'pac-1',
