@@ -19,14 +19,110 @@ export interface EvolucionClinica {
   pacienteNombre: string;
   doctorNombre: string;
   fecha: string;
+  hora?: string;
+  citaId?: string;
   motivoConsulta: string;
   diagnostico: string;
+  diagnosticoCie10?: string;
   procedimiento: string;
   piezaDental?: string;
+  dienteNumero?: number;
+  nuevoEstadoDiente?: EstadoDiente;
+  anestesia?: string;
   prescripcion?: string;
   indicaciones?: string;
   estado?: 'completado' | 'en_evolucion' | 'control_pendiente';
+  imagenesAdjuntas?: {
+    id: string;
+    nombre: string;
+    url: string;
+    tipo?: string;
+    tamano?: string;
+  }[];
+  proximoControl?: string;
 }
+
+export interface DiagnosticoFrecuente {
+  codigoCie10: string;
+  nombre: string;
+  categoria: string;
+  procedimientoSugerido?: string;
+  estadoDienteSugerido?: EstadoDiente;
+}
+
+export const DIAGNOSTICOS_ODONTOLOGICOS_FRECUENTES: DiagnosticoFrecuente[] = [
+  {
+    codigoCie10: 'K02.1',
+    nombre: 'Caries de la dentina',
+    categoria: 'Cariología',
+    procedimientoSugerido: 'Apertura cavitaria, remoción de tejido cariado, grabado ácido, adhesivo y resina nanohíbrida fotocurada.',
+    estadoDienteSugerido: 'obturado',
+  },
+  {
+    codigoCie10: 'K02.0',
+    nombre: 'Caries limitada al esmalte',
+    categoria: 'Cariología',
+    procedimientoSugerido: 'Remineralización tópica con barniz de flúor / Sellante de fosas y fisuras.',
+    estadoDienteSugerido: 'obturado',
+  },
+  {
+    codigoCie10: 'K04.0',
+    nombre: 'Pulpitis reversible',
+    categoria: 'Endodoncia',
+    procedimientoSugerido: 'Protección pulpar indirecta con hidróxido de calcio y restauración definitiva.',
+    estadoDienteSugerido: 'obturado',
+  },
+  {
+    codigoCie10: 'K04.01',
+    nombre: 'Pulpitis irreversible aguda',
+    categoria: 'Endodoncia',
+    procedimientoSugerido: 'Terapia de conductos radiculares (Endodoncia), instrumentación rotatoria y obturación hermética.',
+    estadoDienteSugerido: 'endodoncia',
+  },
+  {
+    codigoCie10: 'K04.1',
+    nombre: 'Necrosis pulpar con periodontitis apical',
+    categoria: 'Endodoncia',
+    procedimientoSugerido: 'Desinfección biomecánica endodóntica, medicación con hidróxido de calcio y obturación.',
+    estadoDienteSugerido: 'endodoncia',
+  },
+  {
+    codigoCie10: 'K05.0',
+    nombre: 'Gingivitis marginal inducida por placa',
+    categoria: 'Periodoncia',
+    procedimientoSugerido: 'Detartraje supragingival con ultrasonido Cavitron, profilaxis profesional con pasta abrasiva y flúor.',
+    estadoDienteSugerido: 'sano',
+  },
+  {
+    codigoCie10: 'K05.3',
+    nombre: 'Periodontitis crónica',
+    categoria: 'Periodoncia',
+    procedimientoSugerido: 'Raspaje y alisado radicular a campo cerrado por cuadrante, irrigación con clorhexidina 0.12%.',
+    estadoDienteSugerido: 'sano',
+  },
+  {
+    codigoCie10: 'S02.5',
+    nombre: 'Fractura coronal dental sin compromiso pulpar',
+    categoria: 'Rehabilitación',
+    procedimientoSugerido: 'Reconstrucción coronal con resina de alta estética o preparación para corona individual.',
+    estadoDienteSugerido: 'corona',
+  },
+  {
+    codigoCie10: 'K08.1',
+    nombre: 'Pérdida de diente (Edentulismo parcial)',
+    categoria: 'Cirugía / Implantes',
+    procedimientoSugerido: 'Evaluación quirúrgica y estudio tomográfico para rehabilitación con implante o prótesis fija.',
+    estadoDienteSugerido: 'ausente',
+  },
+  {
+    codigoCie10: 'Z01.2',
+    nombre: 'Examen odontológico y control periódico',
+    categoria: 'Preventiva',
+    procedimientoSugerido: 'Examen clínico integral estomatológico, odontograma diagnóstico y plan de prevención.',
+    estadoDienteSugerido: 'sano',
+  },
+];
+
 
 export const ESTADOS_DIENTE_CONFIG: Record<EstadoDiente, { etiqueta: string; colorBg: string; colorTexto: string; colorBorde: string; icono: string }> = {
   sano: { etiqueta: 'Sano', colorBg: 'bg-white', colorTexto: 'text-slate-700', colorBorde: 'border-slate-300', icono: '⚪' },

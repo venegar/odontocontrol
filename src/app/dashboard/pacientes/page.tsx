@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Users, 
@@ -51,6 +51,7 @@ import {
   ImagenDiagnostica 
 } from '@/modules/pacientes/types';
 import { PACIENTES_REGISTRADOS_BASE } from '@/modules/pacientes/datos';
+import { obtenerPacientesStorage, EVENTO_PACIENTES_ACTUALIZADOS } from '@/modules/pacientes/storage';
 import { 
   EstadoDiente, 
   DienteInfo, 
@@ -75,13 +76,31 @@ const TIPOS_IMAGEN_DIAGNOSTICA: { id: TipoImagenDiagnostica; label: string; icon
 ];
 
 export default function GestionPacientesPage() {
-  const [pacientes, setPacientes] = useState<Paciente[]>(PACIENTES_REGISTRADOS_BASE);
+  const [pacientes, setPacientes] = useState<Paciente[]>(() => obtenerPacientesStorage());
   const [busqueda, setBusqueda] = useState<string>('');
   const [filtroCondicion, setFiltroCondicion] = useState<'todos' | 'alergias' | 'enfermedades'>('todos');
   const [filtroEps, setFiltroEps] = useState<'todos' | 'Particular' | 'Ecopetrol'>('todos');
   
   // Modales y Visores
   const [pacienteSeleccionado, setPacienteSeleccionado] = useState<Paciente | null>(null);
+
+  useEffect(() => {
+    const handleActualizar = () => {
+      setPacientes(obtenerPacientesStorage());
+    };
+    window.addEventListener(EVENTO_PACIENTES_ACTUALIZADOS, handleActualizar);
+    return () => window.removeEventListener(EVENTO_PACIENTES_ACTUALIZADOS, handleActualizar);
+  }, []);
+
+  useEffect(() => {
+    if (pacienteSeleccionado) {
+      const actualizado = pacientes.find((p) => p.id === pacienteSeleccionado.id);
+      if (actualizado) {
+        setPacienteSeleccionado(actualizado);
+      }
+    }
+  }, [pacientes]);
+
   const [modalNuevoPaciente, setModalNuevoPaciente] = useState<boolean>(false);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
   const [visorImagen, setVisorImagen] = useState<ImagenDiagnostica | null>(null);
@@ -1065,14 +1084,24 @@ export default function GestionPacientesPage() {
                       Historial cronológico de actos clínicos, intervenciones, diagnósticos y evolución médica
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setModalNuevaEvolucion(true)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-dentist-600 hover:bg-dentist-700 text-white text-xs font-semibold shadow-xs transition self-start sm:self-auto"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Registrar Nueva Evolución</span>
-                  </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Link
+                      href={`/dashboard/historias?pacienteId=${pacienteSeleccionado.id}&accion=registrar-diagnostico`}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold shadow-xs transition self-start sm:self-auto"
+                      title="Abrir formulario de registro diagnóstico completo con actualización de odontograma"
+                    >
+                      <Stethoscope className="w-4 h-4" />
+                      <span>Registrar Diagnóstico de Cita</span>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setModalNuevaEvolucion(true)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-dentist-600 hover:bg-dentist-700 text-white text-xs font-semibold shadow-xs transition self-start sm:self-auto"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Evolución Rápida</span>
+                    </button>
+                  </div>
                 </div>
 
                 {pacienteSeleccionado.evoluciones && pacienteSeleccionado.evoluciones.length > 0 ? (
@@ -1155,6 +1184,37 @@ export default function GestionPacientesPage() {
                                 Indicaciones y Recomendaciones al Paciente:
                               </span>
                               <p className="text-slate-800">{evo.indicaciones}</p>
+                            </div>
+                          )}
+
+                          {evo.imagenesAdjuntas && evo.imagenesAdjuntas.length > 0 && (
+                            <div className="pt-1">
+                              <span className="text-[11px] font-bold text-slate-700 block mb-1.5 flex items-center gap-1">
+                                <Film className="w-3.5 h-3.5 text-dentist-600" />
+                                Radiografías / Estudios tomados en la cita ({evo.imagenesAdjuntas.length}):
+                              </span>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                {evo.imagenesAdjuntas.map((img) => (
+                                  <div
+                                    key={img.id}
+                                    onClick={() => setVisorImagen({
+                                      id: img.id,
+                                      nombre: img.nombre,
+                                      tipo: 'radiografia_periapical',
+                                      tipoLabel: img.tipo || 'Radiografía',
+                                      url: img.url,
+                                      tamano: img.tamano || '1 MB',
+                                      fechaSubida: evo.fecha
+                                    })}
+                                    className="cursor-pointer group rounded-xl border border-slate-200 overflow-hidden bg-slate-100 hover:shadow-xs transition"
+                                  >
+                                    <img src={img.url} alt={img.nombre} className="w-full h-16 object-cover group-hover:scale-105 transition" />
+                                    <div className="p-1 bg-white">
+                                      <p className="text-[9px] font-medium text-slate-800 truncate">{img.nombre}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>

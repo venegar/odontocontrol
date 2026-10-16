@@ -31,11 +31,13 @@ import {
   Search,
   UserCheck,
   UserPlus,
-  ChevronDown
+  ChevronDown,
+  Stethoscope
 } from 'lucide-react';
 import { EstadoCita, ModoAprobacion } from '@/modules/citas/types';
 import { Paciente, TipoEps } from '@/modules/pacientes/types';
 import { PACIENTES_REGISTRADOS_BASE } from '@/modules/pacientes/datos';
+import { obtenerPacientesStorage } from '@/modules/pacientes/storage';
 import { 
   aprobarCita, 
   rechazarCita, 
@@ -274,7 +276,17 @@ export default function GestionCitasPage() {
   const [errorModalCita, setErrorModalCita] = useState<string | null>(null);
 
   // Estados para Selección de Paciente (Registrado vs Nuevo)
-  const [listaPacientes, setListaPacientes] = useState<Paciente[]>(PACIENTES_REGISTRADOS_BASE);
+  const [listaPacientes, setListaPacientes] = useState<Paciente[]>(() => obtenerPacientesStorage());
+
+  const obtenerIdPacientePorCita = (documento: string, nombre: string): string => {
+    const match = listaPacientes.find(
+      (p) =>
+        p.numeroDocumento === documento ||
+        p.nombres.toLowerCase().includes(nombre.toLowerCase()) ||
+        nombre.toLowerCase().includes(p.nombres.toLowerCase())
+    );
+    return match ? match.id : (listaPacientes[0]?.id || 'pac-1');
+  };
   const [modoPacienteCita, setModoPacienteCita] = useState<'registrado' | 'nuevo'>('registrado');
   const [busquedaPaciente, setBusquedaPaciente] = useState<string>('');
   const [pacienteSeleccionado, setPacienteSeleccionado] = useState<Paciente | null>(null);
@@ -1314,6 +1326,17 @@ export default function GestionCitasPage() {
                                 Cancelar
                               </button>
 
+                              {['confirmada', 'completada'].includes(cita.estado) && (
+                                <Link
+                                  href={`/dashboard/historias?pacienteId=${obtenerIdPacientePorCita(cita.pacienteDocumento, cita.pacienteNombre)}&citaId=${cita.id}&accion=registrar-diagnostico`}
+                                  className="px-2.5 py-1.5 text-xs font-bold text-sky-800 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg transition active:scale-95 flex items-center gap-1"
+                                  title="Registrar diagnóstico de esta cita y actualizar odontograma"
+                                >
+                                  <Stethoscope className="w-3.5 h-3.5 text-sky-600" />
+                                  <span>Diagnóstico</span>
+                                </Link>
+                              )}
+
                               {cita.estado === 'confirmada' && (
                                 <button
                                   type="button"
@@ -1444,6 +1467,16 @@ export default function GestionCitasPage() {
                               >
                                 Cancelar
                               </button>
+                              {['confirmada', 'completada'].includes(c.estado) && (
+                                <Link
+                                  href={`/dashboard/historias?pacienteId=${obtenerIdPacientePorCita(c.pacienteDocumento, c.pacienteNombre)}&citaId=${c.id}&accion=registrar-diagnostico`}
+                                  className="inline-flex items-center gap-1 text-sky-700 hover:text-sky-900 font-bold px-2 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 transition text-xs"
+                                  title="Registrar diagnóstico de la cita y actualizar odontograma"
+                                >
+                                  <Stethoscope className="w-3 h-3 text-sky-600" />
+                                  <span>Diagnóstico</span>
+                                </Link>
+                              )}
                               {c.estado === 'confirmada' && (
                                 <button
                                   onClick={() => {
@@ -1554,6 +1587,16 @@ export default function GestionCitasPage() {
                                 Cancelar
                               </button>
                             </>
+                          )}
+                          {['confirmada', 'completada'].includes(c.estado) && (
+                            <Link
+                              href={`/dashboard/historias?pacienteId=${obtenerIdPacientePorCita(c.pacienteDocumento, c.pacienteNombre)}&citaId=${c.id}&accion=registrar-diagnostico`}
+                              className="inline-flex items-center gap-1 text-sky-700 hover:text-sky-900 font-bold px-2 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 transition text-xs"
+                              title="Registrar diagnóstico de la cita y actualizar odontograma"
+                            >
+                              <Stethoscope className="w-3 h-3 text-sky-600" />
+                              <span>Diagnóstico</span>
+                            </Link>
                           )}
                           {c.estado === 'confirmada' && (
                             <button
