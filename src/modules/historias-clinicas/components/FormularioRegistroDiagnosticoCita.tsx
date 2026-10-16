@@ -1096,7 +1096,7 @@ export default function FormularioRegistroDiagnosticoCita({
               className="px-6 py-2.5 text-xs font-bold bg-dentist-600 hover:bg-dentist-700 text-white rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
             >
               <Check className="w-4 h-4" />
-              <span>Guardar Diagnóstico y Actualizar Odontograma</span>
+              <span>Guardar Evolución de Cita</span>
             </button>
           </div>
         </div>

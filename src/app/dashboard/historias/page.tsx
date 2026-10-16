@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import OdontogramaVisual from '@/modules/historias-clinicas/components/OdontogramaVisual';
 import FormularioRegistroDiagnosticoCita from '@/modules/historias-clinicas/components/FormularioRegistroDiagnosticoCita';
+import ModalRegistroEvolucionCita from '@/modules/historias-clinicas/components/ModalRegistroEvolucionCita';
 import ModalRegistroPacienteRapido from '@/modules/pacientes/components/ModalRegistroPacienteRapido';
 import BuscadorAutocompletadoPaciente from '@/modules/pacientes/components/BuscadorAutocompletadoPaciente';
 import { 
@@ -58,7 +59,8 @@ function HistoriasClinicasContenido() {
 
   const [pacientes, setPacientes] = useState<Paciente[]>(() => PACIENTES_REGISTRADOS_BASE);
   const [pacienteSeleccionadoId, setPacienteSeleccionadoId] = useState<string>(() => PACIENTES_REGISTRADOS_BASE[0]?.id || '');
-  const [pestaña, setPestaña] = useState<'odontograma' | 'nueva-evolucion' | 'historial'>('odontograma');
+  const [pestaña, setPestaña] = useState<'odontograma' | 'historial'>('odontograma');
+  const [modalEvolucionAbierto, setModalEvolucionAbierto] = useState<boolean>(false);
   const [modalNuevoPacienteAbierto, setModalNuevoPacienteAbierto] = useState<boolean>(false);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
   
@@ -89,9 +91,9 @@ function HistoriasClinicasContenido() {
       console.warn('Error al leer pacientes en montaje:', e);
     }
 
-    // Si viene la acción de registrar diagnóstico/evolución, abrir la pestaña correspondiente
+    // Si viene la acción de registrar diagnóstico/evolución, abrir el modal guiado de evolución
     if (accionQuery === 'registrar-diagnostico') {
-      setPestaña('nueva-evolucion');
+      setModalEvolucionAbierto(true);
     }
 
     // Escuchar eventos de sincronización entre módulos
@@ -164,7 +166,8 @@ function HistoriasClinicasContenido() {
 
     setMensajeExito(`¡Evolución clínica registrada con éxito!${detallePieza}`);
     
-    // Cambiar a la pestaña de historial para ver la evolución recién registrada arriba de todo
+    // Cerrar modal y cambiar a la pestaña de historial para ver la evolución recién registrada arriba de todo
+    setModalEvolucionAbierto(false);
     setPestaña('historial');
     setTimeout(() => setMensajeExito(null), 6000);
   };
@@ -328,15 +331,15 @@ function HistoriasClinicasContenido() {
               <span className="hidden sm:inline">+ Paciente Nuevo</span>
             </button>
 
-            {/* BOTÓN PROMINENTE: AÑADIR NUEVA EVOLUCIÓN */}
+            {/* BOTÓN PROMINENTE: REGISTRAR EVOLUCIÓN DE CITA */}
             <button
               type="button"
-              onClick={() => setPestaña('nueva-evolucion')}
+              onClick={() => setModalEvolucionAbierto(true)}
               className="inline-flex items-center gap-1.5 bg-dentist-600 hover:bg-dentist-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition shadow-xs whitespace-nowrap active:scale-95"
-              title="Añadir una nueva evolución de cita para este paciente"
+              title="Registrar evolución clínica, diagnóstico y tratamiento de la cita del paciente"
             >
-              <PlusCircle className="w-4 h-4" />
-              <span>+ Añadir Nueva Evolución</span>
+              <Stethoscope className="w-4 h-4" />
+              <span>+ Registrar Evolución de Cita</span>
             </button>
 
             <Link
@@ -453,18 +456,6 @@ function HistoriasClinicasContenido() {
           </button>
 
           <button
-            onClick={() => setPestaña('nueva-evolucion')}
-            className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-1.5 whitespace-nowrap ${
-              pestaña === 'nueva-evolucion'
-                ? 'bg-dentist-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            <Stethoscope className="w-4 h-4" />
-            <span>Nueva Evolución de Cita</span>
-          </button>
-
-          <button
             onClick={() => setPestaña('historial')}
             className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-1.5 whitespace-nowrap ${
               pestaña === 'historial'
@@ -472,6 +463,7 @@ function HistoriasClinicasContenido() {
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
+            <ClipboardList className="w-4 h-4" />
             <span>Historial de Evoluciones & Consultas ({evolucionesActivas.length})</span>
           </button>
         </div>
@@ -490,28 +482,13 @@ function HistoriasClinicasContenido() {
         )}
 
         {/* ========================================================================= */}
-        {/* PESTAÑA 2: FORMULARIO PARA AÑADIR NUEVA EVOLUCIÓN DE CITA */}
-        {/* ========================================================================= */}
-        {pestaña === 'nueva-evolucion' && (
-          <FormularioRegistroDiagnosticoCita
-            paciente={pacienteActivo}
-            pacientesDisponibles={pacientesSeguros}
-            citaIdInicial={citaIdQuery || undefined}
-            onCambiarPaciente={(nuevoId) => setPacienteSeleccionadoId(nuevoId)}
-            onRegistrarNuevoPaciente={() => setModalNuevoPacienteAbierto(true)}
-            onGuardarExito={handleDiagnosticoGuardado}
-            onCancelar={() => setPestaña('historial')}
-          />
-        )}
-
-        {/* ========================================================================= */}
         {/* PESTAÑA 3: HISTORIAL DE EVOLUCIONES CON FILTROS Y MÁS RECIENTES ARRIBA */}
         {/* ========================================================================= */}
         {pestaña === 'historial' && (
           <div className="space-y-4">
             
             {/* ENCABEZADO DEL EXPEDIENTE */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">
                   <ClipboardList className="w-4 h-4 text-dentist-600" />
@@ -521,6 +498,16 @@ function HistoriasClinicasContenido() {
                   Seguimiento de la evolución del paciente desde su valoración inicial y en cada cita asistida
                 </p>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setModalEvolucionAbierto(true)}
+                className="inline-flex items-center gap-1.5 bg-dentist-600 hover:bg-dentist-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition shadow-xs whitespace-nowrap active:scale-95 self-start sm:self-auto"
+                title="Registrar una nueva evolución clínica para este paciente"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>+ Nueva Nota de Evolución</span>
+              </button>
             </div>
 
             {/* BARRA DE FILTROS Y ORDENAMIENTO (CON LAS MÁS RECIENTES ARRIBA) */}
@@ -622,10 +609,10 @@ function HistoriasClinicasContenido() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setPestaña('nueva-evolucion')}
+                  onClick={() => setModalEvolucionAbierto(true)}
                   className="mt-4 px-4 py-2 bg-dentist-600 text-white rounded-xl text-xs font-bold hover:bg-dentist-700 shadow-xs"
                 >
-                  Registrar primera evolución
+                  + Registrar primera evolución
                 </button>
               </div>
             ) : (
@@ -875,10 +862,22 @@ function HistoriasClinicasContenido() {
           const listaActualizada = obtenerPacientesStorage();
           setPacientes(listaActualizada);
           setPacienteSeleccionadoId(nuevoPaciente.id);
-          setPestaña('nueva-evolucion');
+          setModalEvolucionAbierto(true);
           setMensajeExito(`Paciente ${nuevoPaciente.nombres} ${nuevoPaciente.apellidos} registrado exitosamente. Listo para atención clínica.`);
           setTimeout(() => setMensajeExito(null), 5000);
         }}
+      />
+
+      {/* Modal Guiado para Registro de Evolución de Cita y Diagnóstico */}
+      <ModalRegistroEvolucionCita
+        abierto={modalEvolucionAbierto}
+        alCerrar={() => setModalEvolucionAbierto(false)}
+        paciente={pacienteActivo}
+        pacientesDisponibles={pacientesSeguros}
+        citaIdInicial={citaIdQuery || undefined}
+        onCambiarPaciente={(nuevoId) => setPacienteSeleccionadoId(nuevoId)}
+        onRegistrarNuevoPaciente={() => setModalNuevoPacienteAbierto(true)}
+        onGuardarExito={handleDiagnosticoGuardado}
       />
     </div>
   );
