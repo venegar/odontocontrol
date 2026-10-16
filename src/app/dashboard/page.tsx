@@ -606,6 +606,9 @@ export default function DashboardPrincipalPage() {
     },
   ];
 
+  // Personal actualmente con la sesión activa
+  const usuarioSesionActiva = personalVisualizacion.find((p) => p.id === rolActivo) || personalVisualizacion[2];
+
   const fechaHoy = obtenerFechaHoy();
   const fechaManana = obtenerFechaManana();
 
@@ -1183,33 +1186,13 @@ export default function DashboardPrincipalPage() {
             </Link>
           </div>
 
-          {/* SELECTOR INTERACTIVO DE ROL (CENTRAL / DESTACADO) */}
-          <div className="hidden lg:flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200">
-            {personalVisualizacion.map((p) => {
-              const estaActivo = rolActivo === p.id;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setRolActivo(p.id)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    estaActivo
-                      ? 'bg-white text-dentist-700 shadow-xs border border-slate-200/80'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                  title={`${p.nombre} - ${p.rol} (${p.detalleRol})`}
-                >
-                  <span>{p.icono}</span>
-                  <span>{p.nombre}</span>
-                  <span className="text-[10px] font-semibold text-slate-500">({p.rol})</span>
-                  {p.id === 'recepcionista' && totalPendientesNotificacion > 0 && (
-                    <span className="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ml-1">
-                      {totalPendientesNotificacion}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+          {/* IDENTIFICACIÓN DE SESIÓN ACTIVA */}
+          <div className="hidden lg:flex items-center gap-2 bg-slate-50 px-3.5 py-1.5 rounded-2xl border border-slate-200 text-xs">
+            <span className="text-sm">{usuarioSesionActiva.icono}</span>
+            <span className="font-bold text-slate-800">{usuarioSesionActiva.nombre}</span>
+            <span className="text-[10px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+              {usuarioSesionActiva.rol}
+            </span>
           </div>
 
           {/* Acciones de la derecha */}
@@ -1273,27 +1256,17 @@ export default function DashboardPrincipalPage() {
           </div>
         </div>
 
-        {/* SELECTOR DE ROL MÓVIL / PANTALLAS PEQUEÑAS */}
-        <div className="lg:hidden flex items-center justify-around bg-slate-50 p-2 border-t border-slate-200 text-xs">
-          {personalVisualizacion.map((p) => {
-            const estaActivo = rolActivo === p.id;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setRolActivo(p.id)}
-                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 transition ${
-                  estaActivo
-                    ? 'bg-dentist-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-200'
-                }`}
-                title={`${p.nombre} - ${p.rol}`}
-              >
-                <span>{p.icono}</span>
-                <span>{p.nombre.split(' ')[0]} ({p.rol.substring(0, 5)})</span>
-              </button>
-            );
-          })}
+        {/* INFORMACIÓN DE SESIÓN MÓVIL */}
+        <div className="lg:hidden flex items-center justify-between bg-slate-50 px-4 py-2 border-t border-slate-200 text-xs">
+          <div className="flex items-center gap-2">
+            <span>{usuarioSesionActiva.icono}</span>
+            <span className="font-bold text-slate-800">{usuarioSesionActiva.nombre}</span>
+            <span className="text-[10px] text-slate-500 font-medium">({usuarioSesionActiva.rol})</span>
+          </div>
+          <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Sesión Activa
+          </span>
         </div>
       </header>
 
@@ -1370,43 +1343,24 @@ export default function DashboardPrincipalPage() {
               </Link>
             </div>
 
-            {/* Selector de Rol en Sidebar */}
+            {/* Información Exclusiva de Quien Tiene la Sesión Activa */}
             <div className="space-y-1.5">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">
-                Modo de Visualización
+                Sesión Activa
               </span>
-              <div className="space-y-1">
-                {personalVisualizacion.map((personal) => {
-                  const estaActivo = rolActivo === personal.id;
-                  return (
-                    <button
-                      key={personal.id}
-                      type="button"
-                      onClick={() => setRolActivo(personal.id)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition ${
-                        estaActivo
-                          ? 'bg-dentist-50 text-slate-900 font-bold border border-dentist-200 shadow-2xs'
-                          : 'text-slate-600 hover:bg-slate-50 border border-transparent'
-                      }`}
-                      title={`${personal.nombre} - ${personal.rol} (${personal.detalleRol})`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="text-base shrink-0">{personal.icono}</span>
-                        <div className="min-w-0">
-                          <span className={`block text-xs leading-tight truncate ${estaActivo ? 'font-bold text-slate-900' : 'font-semibold text-slate-800'}`}>
-                            {personal.nombre}
-                          </span>
-                          <span className="block text-[10px] text-slate-500 font-medium truncate">
-                            {personal.rol} • <span className="text-slate-400">{personal.detalleRol}</span>
-                          </span>
-                        </div>
-                      </div>
-                      {estaActivo && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-dentist-600 shrink-0 ml-1.5" />
-                      )}
-                    </button>
-                  );
-                })}
+              <div className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl bg-dentist-50 text-slate-900 font-bold border border-dentist-200 shadow-2xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="text-base shrink-0">{usuarioSesionActiva.icono}</span>
+                  <div className="min-w-0">
+                    <span className="block text-xs font-bold text-slate-900 leading-tight truncate">
+                      {usuarioSesionActiva.nombre}
+                    </span>
+                    <span className="block text-[10px] text-slate-500 font-medium truncate">
+                      {usuarioSesionActiva.rol} • <span className="text-slate-400">{usuarioSesionActiva.detalleRol}</span>
+                    </span>
+                  </div>
+                </div>
+                <span className="w-2 h-2 rounded-full bg-dentist-600 shrink-0 ml-1.5 ring-2 ring-dentist-200" title="Sesión activa y conectada" />
               </div>
             </div>
 
