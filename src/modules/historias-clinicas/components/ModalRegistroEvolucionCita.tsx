@@ -13,7 +13,6 @@ interface ModalRegistroEvolucionCitaProps {
   pacientesDisponibles?: Paciente[];
   citaIdInicial?: string;
   onCambiarPaciente?: (pacienteId: string) => void;
-  onRegistrarNuevoPaciente?: () => void;
   onGuardarExito: (evolucion: EvolucionClinica, nuevoEstadoDiente?: EstadoDiente, dienteNumero?: number) => void;
 }
 
@@ -79,7 +78,6 @@ export default function ModalRegistroEvolucionCita({
   pacientesDisponibles,
   citaIdInicial,
   onCambiarPaciente,
-  onRegistrarNuevoPaciente,
   onGuardarExito,
 }: ModalRegistroEvolucionCitaProps) {
   // Manejo de tecla Escape para cerrar el modal
@@ -145,7 +143,6 @@ export default function ModalRegistroEvolucionCita({
               pacientesDisponibles={pacientesDisponibles}
               citaIdInicial={citaIdInicial}
               onCambiarPaciente={onCambiarPaciente}
-              onRegistrarNuevoPaciente={onRegistrarNuevoPaciente}
               onGuardarExito={(evolucion, nuevoEstadoDiente, dienteNumero) => {
                 onGuardarExito(evolucion, nuevoEstadoDiente, dienteNumero);
                 alCerrar();

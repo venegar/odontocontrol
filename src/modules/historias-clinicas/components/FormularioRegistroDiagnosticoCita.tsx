@@ -22,8 +22,7 @@ import {
   ListChecks,
   Tag,
   Package,
-  FlaskConical,
-  UserPlus
+  FlaskConical
 } from 'lucide-react';
 import { 
   EvolucionClinica, 
@@ -400,8 +399,8 @@ export default function FormularioRegistroDiagnosticoCita({
           </div>
         </div>
 
-        {/* Ficha / Selector de Paciente y Botón de Alta Rápida */}
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        {/* Ficha / Selector de Paciente en Atención Clínica (Exclusivo para Evolución) */}
+        <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-3 flex items-center gap-3">
           <div className="text-xs">
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
               Paciente en Atención:
@@ -410,26 +409,18 @@ export default function FormularioRegistroDiagnosticoCita({
               <select
                 value={paciente.id}
                 onChange={(e) => {
-                  if (e.target.value === '__NUEVO__' && onRegistrarNuevoPaciente) {
-                    onRegistrarNuevoPaciente();
-                  } else if (onCambiarPaciente) {
+                  if (onCambiarPaciente) {
                     onCambiarPaciente(e.target.value);
                   }
                 }}
-                className="mt-0.5 bg-white font-bold border border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 text-xs focus:ring-2 focus:ring-dentist-500 focus:outline-none max-w-[240px] truncate"
+                className="mt-0.5 bg-white font-bold border border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 text-xs focus:ring-2 focus:ring-dentist-500 focus:outline-none max-w-[280px] truncate cursor-pointer shadow-2xs"
+                title="Seleccionar paciente registrado para la evolución clínica"
               >
-                <optgroup label="Pacientes Registrados">
-                  {pacientesDisponibles.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombres || ''} {p.apellidos || ''} ({p.tipoDocumento || 'CC'} {p.numeroDocumento || ''})
-                    </option>
-                  ))}
-                </optgroup>
-                {onRegistrarNuevoPaciente && (
-                  <optgroup label="Acciones">
-                    <option value="__NUEVO__">+ Registrar Paciente Nuevo...</option>
-                  </optgroup>
-                )}
+                {pacientesDisponibles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombres || ''} {p.apellidos || ''} ({p.tipoDocumento || 'CC'} {p.numeroDocumento || ''})
+                  </option>
+                ))}
               </select>
             ) : (
               <div>
@@ -438,18 +429,6 @@ export default function FormularioRegistroDiagnosticoCita({
               </div>
             )}
           </div>
-
-          {onRegistrarNuevoPaciente && (
-            <button
-              type="button"
-              onClick={onRegistrarNuevoPaciente}
-              className="inline-flex items-center gap-1.5 bg-dentist-600 hover:bg-dentist-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-2xs whitespace-nowrap active:scale-95 self-stretch sm:self-auto justify-center"
-              title="Registrar paciente nuevo que asiste por primera vez"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>+ Paciente Nuevo</span>
-            </button>
-          )}
         </div>
       </div>
 

@@ -856,7 +856,6 @@ function HistoriasClinicasContenido() {
         pacientesDisponibles={pacientesSeguros}
         citaIdInicial={citaIdQuery || undefined}
         onCambiarPaciente={(nuevoId) => setPacienteSeleccionadoId(nuevoId)}
-        onRegistrarNuevoPaciente={() => setModalNuevoPacienteAbierto(true)}
         onGuardarExito={handleDiagnosticoGuardado}
       />
     </div>
