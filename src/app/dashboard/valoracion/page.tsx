@@ -14,10 +14,10 @@ import {
 } from 'lucide-react';
 
 import OdontogramaVisual from '@/modules/historias-clinicas/components/OdontogramaVisual';
-import { DienteInfo, EstadoDiente } from '@/modules/historias-clinicas/types';
+import { DienteInfo, EstadoDiente, crearOdontogramaInicial } from '@/modules/historias-clinicas/types';
 import { Paciente } from '@/modules/pacientes/types';
 import { PACIENTES_REGISTRADOS_BASE } from '@/modules/pacientes/datos';
-import { Presupuesto, ItemPresupuesto, ProcedimientoCatalogo } from '@/modules/presupuestos/types';
+import { Presupuesto, ItemPresupuesto, ProcedimientoCatalogo, EstadoPresupuesto } from '@/modules/presupuestos/types';
 import { 
   CATALOGO_PROCEDIMIENTOS, 
   DATOS_ESPECIALISTA_DEFECTO, 
@@ -55,7 +55,7 @@ export default function ValoracionInicialPresupuestoPage() {
 
   // Odontograma del paciente
   const [odontograma, setOdontograma] = useState<Record<number, DienteInfo>>(
-    pacienteActivo.odontograma || {}
+    pacienteActivo.odontograma || crearOdontogramaInicial()
   );
   const [piezaSeleccionada, setPiezaSeleccionada] = useState<number | null>(15);
 
@@ -100,7 +100,7 @@ export default function ValoracionInicialPresupuestoPage() {
   const [observaciones, setObservaciones] = useState<string>(
     'Tratamiento rehabilitador integral para pieza 15 posterior a endodoncia. Validez de la cotización: 30 días.'
   );
-  const [estadoPresupuesto, setEstadoPresupuesto] = useState<'borrador' | 'aprobado' | 'en_tratamiento'>('aprobado');
+  const [estadoPresupuesto, setEstadoPresupuesto] = useState<EstadoPresupuesto>('aprobado');
 
   // Modal de formato membretado oficial
   const [modalImprimirAbierto, setModalImprimirAbierto] = useState<boolean>(false);
@@ -115,7 +115,7 @@ export default function ValoracionInicialPresupuestoPage() {
       const p = pacienteActivo.presupuestos[0];
       setItemsPresupuesto([...p.items]);
       setObservaciones(p.observaciones || '');
-      setEstadoPresupuesto(p.estado as any || 'aprobado');
+      setEstadoPresupuesto(p.estado || 'aprobado');
     }
   }, [pacienteSeleccionadoId]);
 
@@ -176,7 +176,7 @@ export default function ValoracionInicialPresupuestoPage() {
   };
 
   // Modificar una fila existente
-  const handleActualizarItem = (id: string, campo: keyof ItemPresupuesto, valor: any) => {
+  const handleActualizarItem = (id: string, campo: keyof ItemPresupuesto, valor: string | number) => {
     setItemsPresupuesto(prev => prev.map(item => {
       if (item.id === id) {
         const itemActualizado = { ...item, [campo]: valor };
@@ -213,7 +213,7 @@ export default function ValoracionInicialPresupuestoPage() {
       fechaNacimiento: new Date(new Date().getFullYear() - formNuevoPaciente.edad, 0, 1).toISOString().split('T')[0],
       genero: 'No especificado',
       creadoEn: new Date().toISOString().split('T')[0],
-      odontograma: {},
+      odontograma: crearOdontogramaInicial(),
       presupuestos: [],
     };
 
@@ -457,7 +457,7 @@ export default function ValoracionInicialPresupuestoPage() {
                 <label className="block text-[11px] font-bold text-slate-600 mb-1">EPS / Convenio</label>
                 <select
                   value={formNuevoPaciente.eps}
-                  onChange={(e) => setFormNuevoPaciente({ ...formNuevoPaciente, eps: e.target.value as any })}
+                  onChange={(e) => setFormNuevoPaciente({ ...formNuevoPaciente, eps: e.target.value as 'Particular' | 'Ecopetrol' })}
                   className="w-full text-xs p-2 rounded-lg border border-slate-300 bg-white"
                 >
                   <option value="Particular">Particular</option>
@@ -748,7 +748,7 @@ export default function ValoracionInicialPresupuestoPage() {
               </label>
               <select
                 value={estadoPresupuesto}
-                onChange={(e) => setEstadoPresupuesto(e.target.value as any)}
+                onChange={(e) => setEstadoPresupuesto(e.target.value as EstadoPresupuesto)}
                 className="w-full text-xs font-bold p-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-dentist-500 mb-3"
               >
                 <option value="borrador">📝 En Elaboración / Borrador</option>
