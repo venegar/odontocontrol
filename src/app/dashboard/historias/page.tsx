@@ -171,13 +171,17 @@ function HistoriasClinicasContenido() {
   // Filtrado y Ordenamiento: dejando arriba las más recientes por defecto
   const evolucionesFiltradas = evolucionesActivas
     .filter((evo) => {
+      const motLower = String(evo.motivoConsulta || '').toLowerCase();
+      const diagLower = String(evo.diagnostico || '').toLowerCase();
+
       // 1. Filtro por tipo de consulta
       if (filtroTipo !== 'todos') {
         const esValoracion =
           evo.tipoConsulta === 'valoracion_inicial' ||
-          evo.motivoConsulta.toLowerCase().includes('valoración inicial') ||
-          evo.motivoConsulta.toLowerCase().includes('valoracion inicial') ||
-          evo.diagnostico.toLowerCase().includes('valoración');
+          motLower.includes('valoración inicial') ||
+          motLower.includes('valoracion inicial') ||
+          diagLower.includes('valoración') ||
+          diagLower.includes('valoracion');
 
         if (filtroTipo === 'valoracion_inicial' && !esValoracion) return false;
         if (
@@ -196,19 +200,20 @@ function HistoriasClinicasContenido() {
         if (filtroPieza === 'general') {
           if (evo.dienteNumero) return false;
         } else {
-          if (String(evo.dienteNumero) !== filtroPieza && !evo.piezaDental?.includes(filtroPieza)) return false;
+          const piezaDentalStr = String(evo.piezaDental || '');
+          if (String(evo.dienteNumero || '') !== filtroPieza && !piezaDentalStr.includes(filtroPieza)) return false;
         }
       }
 
       // 3. Filtro por texto de búsqueda
       if (busquedaTexto.trim()) {
         const q = busquedaTexto.toLowerCase();
-        const doc = evo.doctorNombre.toLowerCase();
-        const diag = evo.diagnostico.toLowerCase();
-        const proc = evo.procedimiento.toLowerCase();
-        const mot = evo.motivoConsulta.toLowerCase();
-        const pieza = evo.piezaDental ? evo.piezaDental.toLowerCase() : '';
-        const procs = evo.procedimientosRealizados ? evo.procedimientosRealizados.join(' ').toLowerCase() : '';
+        const doc = String(evo.doctorNombre || '').toLowerCase();
+        const diag = diagLower;
+        const proc = String(evo.procedimiento || '').toLowerCase();
+        const mot = motLower;
+        const pieza = String(evo.piezaDental || '').toLowerCase();
+        const procs = Array.isArray(evo.procedimientosRealizados) ? evo.procedimientosRealizados.join(' ').toLowerCase() : '';
 
         if (!doc.includes(q) && !diag.includes(q) && !proc.includes(q) && !mot.includes(q) && !pieza.includes(q) && !procs.includes(q)) {
           return false;
@@ -348,59 +353,71 @@ function HistoriasClinicasContenido() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
         
         {/* TARJETA RESUMEN DEL PACIENTE ACTIVO */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-dentist-600 text-white font-bold flex items-center justify-center shrink-0 text-sm shadow-xs">
-              {pacienteActivo.nombres.substring(0, 1)}
-              {pacienteActivo.apellidos.substring(0, 1)}
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="font-bold text-sm sm:text-base text-slate-900">
-                  {pacienteActivo.nombres} {pacienteActivo.apellidos}
-                </h2>
-                <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                  {pacienteActivo.tipoDocumento} {pacienteActivo.numeroDocumento}
-                </span>
-                <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold border ${
-                  pacienteActivo.eps === 'Ecopetrol'
-                    ? 'bg-amber-50 text-amber-800 border-amber-300'
-                    : 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                }`}>
-                  EPS: {pacienteActivo.eps || 'Particular'}
-                </span>
+        {!pacienteActivo ? (
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 text-center text-slate-500 shadow-xs">
+            <p className="text-sm font-semibold">No hay ningún paciente seleccionado.</p>
+            <button
+              onClick={() => setModalNuevoPacienteAbierto(true)}
+              className="mt-3 px-4 py-2 bg-dentist-600 text-white rounded-xl text-xs font-bold hover:bg-dentist-700 shadow-xs"
+            >
+              + Registrar Paciente Nuevo
+            </button>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-dentist-600 text-white font-bold flex items-center justify-center shrink-0 text-sm shadow-xs">
+                {(pacienteActivo.nombres || 'P').charAt(0)}
+                {(pacienteActivo.apellidos || '').charAt(0)}
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Tel: {pacienteActivo.telefono} • Ciudad: {pacienteActivo.ciudad || 'Bogotá'}
-              </p>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="font-bold text-sm sm:text-base text-slate-900">
+                    {pacienteActivo.nombres || 'Paciente'} {pacienteActivo.apellidos || ''}
+                  </h2>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                    {pacienteActivo.tipoDocumento || 'CC'} {pacienteActivo.numeroDocumento || ''}
+                  </span>
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold border ${
+                    pacienteActivo.eps === 'Ecopetrol'
+                      ? 'bg-amber-50 text-amber-800 border-amber-300'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                  }`}>
+                    EPS: {pacienteActivo.eps || 'Particular'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Tel: {pacienteActivo.telefono || 'Sin registrar'} • Ciudad: {pacienteActivo.ciudad || 'Bogotá'}
+                </p>
+              </div>
+            </div>
+
+            {/* Alertas médicas y antecedentes */}
+            <div className="flex flex-wrap items-center gap-2">
+              {Array.isArray(pacienteActivo.alergias) && pacienteActivo.alergias.length > 0 ? (
+                pacienteActivo.alergias.map((al, i) => (
+                  <span 
+                    key={i} 
+                    className="inline-flex items-center gap-1 bg-rose-50 border border-rose-200 text-rose-700 px-2.5 py-1 rounded-lg text-xs font-bold"
+                    title="Alergia confirmada en expediente"
+                  >
+                    <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+                    Alérgico a: {al}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs text-slate-400">Sin alergias reportadas</span>
+              )}
+
+              {Array.isArray(pacienteActivo.enfermedadesPrevias) && pacienteActivo.enfermedadesPrevias.length > 0 && (
+                <span className="inline-flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-800 px-2.5 py-1 rounded-lg text-xs font-semibold">
+                  <HeartPulse className="w-3.5 h-3.5 text-amber-600" />
+                  {pacienteActivo.enfermedadesPrevias.join(', ')}
+                </span>
+              )}
             </div>
           </div>
-
-          {/* Alertas médicas y antecedentes */}
-          <div className="flex flex-wrap items-center gap-2">
-            {pacienteActivo.alergias && pacienteActivo.alergias.length > 0 ? (
-              pacienteActivo.alergias.map((al, i) => (
-                <span 
-                  key={i} 
-                  className="inline-flex items-center gap-1 bg-rose-50 border border-rose-200 text-rose-700 px-2.5 py-1 rounded-lg text-xs font-bold"
-                  title="Alergia confirmada en expediente"
-                >
-                  <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
-                  Alérgico a: {al}
-                </span>
-              ))
-            ) : (
-              <span className="text-xs text-slate-400">Sin alergias reportadas</span>
-            )}
-
-            {pacienteActivo.enfermedadesPrevias && pacienteActivo.enfermedadesPrevias.length > 0 && (
-              <span className="inline-flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-800 px-2.5 py-1 rounded-lg text-xs font-semibold">
-                <HeartPulse className="w-3.5 h-3.5 text-amber-600" />
-                {pacienteActivo.enfermedadesPrevias.join(', ')}
-              </span>
-            )}
-          </div>
-        </div>
+        )}
 
         {/* PESTAÑAS DE NAVEGACIÓN */}
         <div className="flex items-center space-x-2 border-b border-slate-200 pb-2 overflow-x-auto">
@@ -593,11 +610,14 @@ function HistoriasClinicasContenido() {
               </div>
             ) : (
               evolucionesFiltradas.map((evo, index) => {
+                const mot = String(evo.motivoConsulta || '').toLowerCase();
+                const diag = String(evo.diagnostico || '').toLowerCase();
                 const esValoracion = 
                   evo.tipoConsulta === 'valoracion_inicial' ||
-                  evo.motivoConsulta.toLowerCase().includes('valoración inicial') ||
-                  evo.motivoConsulta.toLowerCase().includes('valoracion inicial') ||
-                  evo.diagnostico.toLowerCase().includes('valoración');
+                  mot.includes('valoración inicial') ||
+                  mot.includes('valoracion inicial') ||
+                  diag.includes('valoración') ||
+                  diag.includes('valoracion');
 
                 const esControl = evo.tipoConsulta === 'control_postoperatorio';
                 const esUrgencia = evo.tipoConsulta === 'urgencia';
@@ -666,7 +686,7 @@ function HistoriasClinicasContenido() {
                     </div>
 
                     {/* PROCEDIMIENTOS REALIZADOS EN LA CITA (CHIPS DESTACADOS) */}
-                    {evo.procedimientosRealizados && evo.procedimientosRealizados.length > 0 && (
+                    {Array.isArray(evo.procedimientosRealizados) && evo.procedimientosRealizados.length > 0 && (
                       <div className="p-3 bg-emerald-50/70 rounded-xl border border-emerald-200">
                         <span className="text-[11px] font-bold text-emerald-950 block mb-1.5 flex items-center gap-1.5">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
@@ -717,7 +737,7 @@ function HistoriasClinicasContenido() {
                     </div>
 
                     {/* Radiografías o Imágenes Diagnósticas Adjuntas */}
-                    {evo.imagenesAdjuntas && evo.imagenesAdjuntas.length > 0 && (
+                    {Array.isArray(evo.imagenesAdjuntas) && evo.imagenesAdjuntas.length > 0 && (
                       <div className="pt-1">
                         <span className="text-xs font-bold text-slate-700 block mb-2 flex items-center gap-1.5">
                           <Camera className="w-3.5 h-3.5 text-dentist-600" />

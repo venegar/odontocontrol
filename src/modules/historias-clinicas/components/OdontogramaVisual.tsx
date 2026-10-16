@@ -25,10 +25,12 @@ export default function OdontogramaVisual({ dientes, onActualizarDiente }: Odont
   const cuadrante4 = [48, 47, 46, 45, 44, 43, 42, 41]; // Inf. Derecho
   const cuadrante3 = [31, 32, 33, 34, 35, 36, 37, 38]; // Inf. Izquierdo
 
+  const dientesSeguros = dientes || {};
+
   const handleSeleccionarDiente = (num: number) => {
-    const diente = dientes[num];
+    const diente = dientesSeguros[num];
     setDienteSeleccionado(num);
-    setEstadoTemp(diente?.estado || 'sano');
+    setEstadoTemp(diente?.estado && ESTADOS_DIENTE_CONFIG[diente.estado] ? diente.estado : 'sano');
     setNotasTemp(diente?.notas || '');
     setModalAbierto(true);
   };
@@ -43,8 +45,8 @@ export default function OdontogramaVisual({ dientes, onActualizarDiente }: Odont
 
   // Renderizar un diente individual
   const renderDiente = (num: number) => {
-    const diente = dientes[num] || { numero: num, estado: 'sano', nombre: `Pieza ${num}` };
-    const config = ESTADOS_DIENTE_CONFIG[diente.estado];
+    const diente = dientesSeguros[num] || { numero: num, estado: 'sano', nombre: `Pieza ${num}` };
+    const config = (diente?.estado && ESTADOS_DIENTE_CONFIG[diente.estado]) || ESTADOS_DIENTE_CONFIG.sano;
 
     return (
       <button

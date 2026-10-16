@@ -11,28 +11,88 @@ const CLAVE_STORAGE = 'consultorio_pacientes_v1';
 export const EVENTO_PACIENTES_ACTUALIZADOS = 'consultorio:pacientes-actualizados';
 
 /**
+ * Sanitiza una evolución clínica asegurando que todas sus propiedades de texto y arrays existan.
+ */
+function sanitizarEvolucion(e: Partial<EvolucionClinica>): EvolucionClinica {
+  return {
+    id: String(e.id || `evo-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`),
+    fecha: String(e.fecha || new Date().toISOString().split('T')[0]),
+    hora: e.hora ? String(e.hora) : '10:00 AM',
+    doctorNombre: String(e.doctorNombre || 'Dra. Yasmín Blanco'),
+    doctorRol: e.doctorRol ? String(e.doctorRol) : 'Odontóloga Especialista',
+    tipoConsulta: e.tipoConsulta || 'evolucion_cita',
+    motivoConsulta: String(e.motivoConsulta || ''),
+    diagnostico: String(e.diagnostico || 'Atención odontológica programada'),
+    diagnosticoCie10: e.diagnosticoCie10 ? String(e.diagnosticoCie10) : undefined,
+    piezaDental: e.piezaDental ? String(e.piezaDental) : undefined,
+    dienteNumero: typeof e.dienteNumero === 'number' ? e.dienteNumero : undefined,
+    nuevoEstadoDiente: e.nuevoEstadoDiente,
+    procedimiento: String(e.procedimiento || 'Procedimiento clínico registrado'),
+    procedimientosRealizados: Array.isArray(e.procedimientosRealizados) ? e.procedimientosRealizados.map(String) : [],
+    anestesia: e.anestesia ? String(e.anestesia) : undefined,
+    indicaciones: e.indicaciones ? String(e.indicaciones) : undefined,
+    prescripcion: e.prescripcion ? String(e.prescripcion) : undefined,
+    proximoControl: e.proximoControl ? String(e.proximoControl) : undefined,
+    insumosUtilizados: e.insumosUtilizados ? (Array.isArray(e.insumosUtilizados) ? e.insumosUtilizados.map(String) : String(e.insumosUtilizados)) : undefined,
+    costoProcedimiento: typeof e.costoProcedimiento === 'number' ? e.costoProcedimiento : undefined,
+    estadoPago: e.estadoPago,
+    imagenesAdjuntas: Array.isArray(e.imagenesAdjuntas) ? e.imagenesAdjuntas : [],
+  };
+}
+
+/**
+ * Sanitiza un paciente asegurando integridad en todos sus arrays, cadenas y odontograma.
+ */
+export function sanitizarPaciente(p: Partial<Paciente>): Paciente {
+  return {
+    id: String(p.id || `pac-${Date.now()}`),
+    tipoDocumento: (p.tipoDocumento === 'TI' || p.tipoDocumento === 'CE' || p.tipoDocumento === 'Pasaporte') ? p.tipoDocumento : 'CC',
+    numeroDocumento: String(p.numeroDocumento || '00000000'),
+    nombres: String(p.nombres || 'Paciente'),
+    apellidos: String(p.apellidos || ''),
+    email: p.email ? String(p.email) : undefined,
+    telefono: String(p.telefono || 'Sin teléfono'),
+    fechaNacimiento: String(p.fechaNacimiento || '1995-01-01'),
+    ciudad: String(p.ciudad || 'Bogotá'),
+    direccion: String(p.direccion || ''),
+    eps: p.eps === 'Ecopetrol' ? 'Ecopetrol' : 'Particular',
+    genero: (p.genero === 'Femenino' || p.genero === 'Masculino') ? p.genero : 'Otro',
+    alergias: Array.isArray(p.alergias) ? p.alergias.map(String) : [],
+    enfermedadesPrevias: Array.isArray(p.enfermedadesPrevias) ? p.enfermedadesPrevias.map(String) : [],
+    medicamentosActuales: Array.isArray(p.medicamentosActuales) ? p.medicamentosActuales.map(String) : [],
+    grupoSanguineo: p.grupoSanguineo ? String(p.grupoSanguineo) : 'O+',
+    odontograma: (p.odontograma && typeof p.odontograma === 'object') ? p.odontograma : crearOdontogramaInicial(),
+    evoluciones: Array.isArray(p.evoluciones) ? p.evoluciones.map(sanitizarEvolucion) : [],
+    citas: Array.isArray(p.citas) ? p.citas : [],
+    imagenesDiagnosticas: Array.isArray(p.imagenesDiagnosticas) ? p.imagenesDiagnosticas : [],
+  };
+}
+
+/**
  * Obtiene la lista actual de pacientes desde localStorage si está disponible,
  * o inicializa con los pacientes de referencia de la clínica.
  */
 export function obtenerPacientesStorage(): Paciente[] {
   if (typeof window === 'undefined') {
-    return PACIENTES_REGISTRADOS_BASE;
+    return PACIENTES_REGISTRADOS_BASE.map(sanitizarPaciente);
   }
 
   try {
     const raw = localStorage.getItem(CLAVE_STORAGE);
     if (!raw) {
-      localStorage.setItem(CLAVE_STORAGE, JSON.stringify(PACIENTES_REGISTRADOS_BASE));
-      return PACIENTES_REGISTRADOS_BASE;
+      const baseSanitizada = PACIENTES_REGISTRADOS_BASE.map(sanitizarPaciente);
+      localStorage.setItem(CLAVE_STORAGE, JSON.stringify(baseSanitizada));
+      return baseSanitizada;
     }
-    const parsed: Paciente[] = JSON.parse(raw);
+    const parsed: Partial<Paciente>[] = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) {
-      localStorage.setItem(CLAVE_STORAGE, JSON.stringify(PACIENTES_REGISTRADOS_BASE));
-      return PACIENTES_REGISTRADOS_BASE;
+      const baseSanitizada = PACIENTES_REGISTRADOS_BASE.map(sanitizarPaciente);
+      localStorage.setItem(CLAVE_STORAGE, JSON.stringify(baseSanitizada));
+      return baseSanitizada;
     }
-    return parsed;
+    return parsed.map(sanitizarPaciente);
   } catch {
-    return PACIENTES_REGISTRADOS_BASE;
+    return PACIENTES_REGISTRADOS_BASE.map(sanitizarPaciente);
   }
 }
 

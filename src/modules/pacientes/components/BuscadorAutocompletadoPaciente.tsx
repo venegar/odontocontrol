@@ -42,12 +42,13 @@ export default function BuscadorAutocompletadoPaciente({
 
   // Filtrado de pacientes en tiempo real
   const pacientesFiltrados = pacientes.filter((p) => {
+    if (!p) return false;
     if (!terminoBusqueda.trim()) return true;
     const q = terminoBusqueda.toLowerCase().trim();
-    const nombreCompleto = `${p.nombres} ${p.apellidos}`.toLowerCase();
-    const documento = p.numeroDocumento.toLowerCase();
-    const telefono = p.telefono.toLowerCase();
-    const eps = (p.eps || '').toLowerCase();
+    const nombreCompleto = `${p.nombres || ''} ${p.apellidos || ''}`.toLowerCase();
+    const documento = String(p.numeroDocumento || '').toLowerCase();
+    const telefono = String(p.telefono || '').toLowerCase();
+    const eps = String(p.eps || '').toLowerCase();
 
     return (
       nombreCompleto.includes(q) ||
@@ -122,7 +123,7 @@ export default function BuscadorAutocompletadoPaciente({
             onKeyDown={handleKeyDown}
             placeholder={
               pacienteActivo 
-                ? `${pacienteActivo.nombres} ${pacienteActivo.apellidos} (${pacienteActivo.tipoDocumento} ${pacienteActivo.numeroDocumento})`
+                ? `${pacienteActivo.nombres || ''} ${pacienteActivo.apellidos || ''} (${pacienteActivo.tipoDocumento || 'CC'} ${pacienteActivo.numeroDocumento || ''})`.trim()
                 : placeholder
             }
             className={`w-full text-xs font-semibold pl-9 pr-16 py-2.5 rounded-xl border transition shadow-2xs focus:outline-none focus:ring-2 focus:ring-dentist-500 ${
@@ -192,15 +193,15 @@ export default function BuscadorAutocompletadoPaciente({
                             ? 'bg-dentist-600 text-white' 
                             : 'bg-slate-100 text-slate-700 border border-slate-200'
                         }`}>
-                          {p.nombres.charAt(0)}{p.apellidos.charAt(0)}
+                          {(p.nombres || 'P').charAt(0)}{(p.apellidos || '').charAt(0)}
                         </div>
 
                         <div className="min-w-0">
                           <span className={`block text-xs leading-tight truncate ${esSeleccionado ? 'font-bold text-dentist-800' : 'font-semibold text-slate-900'}`}>
-                            {p.nombres} {p.apellidos}
+                            {p.nombres || 'Paciente'} {p.apellidos || ''}
                           </span>
                           <span className="block text-[11px] text-slate-500 font-medium truncate mt-0.5">
-                            {p.tipoDocumento} {p.numeroDocumento} • {p.eps || 'Particular'} • {p.telefono}
+                            {p.tipoDocumento || 'CC'} {p.numeroDocumento || ''} • {p.eps || 'Particular'} • {p.telefono || 'Sin tel'}
                           </span>
                         </div>
                       </div>

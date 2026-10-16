@@ -130,7 +130,7 @@ export default function FormularioRegistroDiagnosticoCita({
 
   // Precargar datos si se selecciona una cita
   useEffect(() => {
-    if (citaSeleccionadaId && paciente.citas) {
+    if (citaSeleccionadaId && paciente?.citas && Array.isArray(paciente.citas)) {
       const cita = paciente.citas.find((c) => c.id === citaSeleccionadaId);
       if (cita) {
         setFecha(cita.fecha);
@@ -141,17 +141,17 @@ export default function FormularioRegistroDiagnosticoCita({
         }
       }
     }
-  }, [citaSeleccionadaId, paciente.citas, motivoConsulta]);
+  }, [citaSeleccionadaId, paciente?.citas, motivoConsulta]);
 
   // Detector de advertencias de alergia en prescripción
   useEffect(() => {
-    if (!prescripcion || !paciente.alergias || paciente.alergias.length === 0) {
+    if (!prescripcion || !paciente?.alergias || !Array.isArray(paciente.alergias) || paciente.alergias.length === 0) {
       setAlertaMedicamento(null);
       return;
     }
 
     const textoLower = prescripcion.toLowerCase();
-    const alergiasPaciente = paciente.alergias.map((a) => a.toLowerCase());
+    const alergiasPaciente = paciente.alergias.map((a) => String(a || '').toLowerCase());
 
     const advertencias: string[] = [];
 
@@ -349,7 +349,7 @@ export default function FormularioRegistroDiagnosticoCita({
       actualizacionOdontograma: actualizarOdontograma && numeroDiente ? {
         dienteNumero: numeroDiente,
         nuevoEstado: nuevoEstadoDiente,
-        notas: notaDiente.trim() || `${diagnostico}: ${procedimiento.substring(0, 40)}...`,
+        notas: notaDiente.trim() || `${diagnostico}: ${String(procedimiento || '').substring(0, 40)}...`,
       } : undefined,
       citaId: citaSeleccionadaId || undefined,
       imagenesAdjuntas: imagenesAdjuntas.length > 0 ? imagenesAdjuntas : undefined,
@@ -361,6 +361,14 @@ export default function FormularioRegistroDiagnosticoCita({
       numeroDiente
     );
   };
+
+  if (!paciente) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-500 text-sm">
+        Selecciona o registra un paciente para iniciar la atención clínica.
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 max-w-4xl mx-auto">
@@ -401,7 +409,7 @@ export default function FormularioRegistroDiagnosticoCita({
                 <optgroup label="Pacientes Registrados">
                   {pacientesDisponibles.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.nombres} {p.apellidos} ({p.tipoDocumento} {p.numeroDocumento})
+                      {p.nombres || ''} {p.apellidos || ''} ({p.tipoDocumento || 'CC'} {p.numeroDocumento || ''})
                     </option>
                   ))}
                 </optgroup>
@@ -413,8 +421,8 @@ export default function FormularioRegistroDiagnosticoCita({
               </select>
             ) : (
               <div>
-                <span className="font-bold text-slate-900 block">{paciente.nombres} {paciente.apellidos}</span>
-                <span className="text-slate-500 text-[11px]">{paciente.tipoDocumento} {paciente.numeroDocumento} • {paciente.eps || 'Particular'}</span>
+                <span className="font-bold text-slate-900 block">{paciente.nombres || ''} {paciente.apellidos || ''}</span>
+                <span className="text-slate-500 text-[11px]">{paciente.tipoDocumento || 'CC'} {paciente.numeroDocumento || ''} • {paciente.eps || 'Particular'}</span>
               </div>
             )}
           </div>
@@ -434,16 +442,16 @@ export default function FormularioRegistroDiagnosticoCita({
       </div>
 
       {/* Alertas Médicas del Paciente (Alergias / Patologías) */}
-      {(paciente.alergias && paciente.alergias.length > 0) || (paciente.enfermedadesPrevias && paciente.enfermedadesPrevias.length > 0) ? (
+      {(Array.isArray(paciente.alergias) && paciente.alergias.length > 0) || (Array.isArray(paciente.enfermedadesPrevias) && paciente.enfermedadesPrevias.length > 0) ? (
         <div className="mb-6 p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 flex flex-wrap items-center gap-2 text-xs">
           <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
           <strong className="font-semibold">Antecedentes Clínicos del Paciente:</strong>
-          {paciente.alergias && paciente.alergias.map((al, idx) => (
+          {Array.isArray(paciente.alergias) && paciente.alergias.map((al, idx) => (
             <span key={idx} className="bg-rose-100 border border-rose-300 text-rose-800 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
               <ShieldAlert className="w-3 h-3 text-rose-600" /> Alérgico a: {al}
             </span>
           ))}
-          {paciente.enfermedadesPrevias && paciente.enfermedadesPrevias.map((enf, idx) => (
+          {Array.isArray(paciente.enfermedadesPrevias) && paciente.enfermedadesPrevias.map((enf, idx) => (
             <span key={idx} className="bg-amber-100 border border-amber-300 text-amber-800 px-2 py-0.5 rounded-md font-medium flex items-center gap-1">
               <HeartPulse className="w-3 h-3 text-amber-600" /> {enf}
             </span>
