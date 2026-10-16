@@ -5,7 +5,7 @@
 
 import { Paciente, ImagenDiagnostica } from './types';
 import { PACIENTES_REGISTRADOS_BASE } from './datos';
-import { EvolucionClinica, EstadoDiente, DienteInfo, NOMBRES_PIEZAS_FDI } from '@/modules/historias-clinicas/types';
+import { EvolucionClinica, EstadoDiente, DienteInfo, NOMBRES_PIEZAS_FDI, crearOdontogramaInicial } from '@/modules/historias-clinicas/types';
 
 const CLAVE_STORAGE = 'consultorio_pacientes_v1';
 export const EVENTO_PACIENTES_ACTUALIZADOS = 'consultorio:pacientes-actualizados';
@@ -169,4 +169,55 @@ export function actualizarDienteOdontogramaStorage(
   guardarPacientesStorage(lista);
 
   return pacienteActual;
+}
+
+/**
+ * Registra de manera inmediata un paciente nuevo en el consultorio
+ * y lo deja disponible para ser atendido.
+ */
+export function registrarPacienteNuevoStorage(datos: {
+  nombres: string;
+  apellidos: string;
+  tipoDocumento?: 'CC' | 'TI' | 'CE' | 'Pasaporte';
+  numeroDocumento: string;
+  telefono: string;
+  fechaNacimiento?: string;
+  email?: string;
+  ciudad?: string;
+  direccion?: string;
+  eps?: 'Particular' | 'Ecopetrol';
+  genero?: 'Femenino' | 'Masculino' | 'Otro';
+  alergias?: string[];
+  enfermedadesPrevias?: string[];
+  medicamentosActuales?: string[];
+}): Paciente {
+  const lista = obtenerPacientesStorage();
+  
+  const nuevoPaciente: Paciente = {
+    id: `pac-${Date.now()}`,
+    tipoDocumento: datos.tipoDocumento || 'CC',
+    numeroDocumento: datos.numeroDocumento.trim(),
+    nombres: datos.nombres.trim(),
+    apellidos: datos.apellidos.trim(),
+    email: datos.email?.trim() || undefined,
+    telefono: datos.telefono.trim(),
+    fechaNacimiento: datos.fechaNacimiento || '1995-01-01',
+    ciudad: datos.ciudad || 'Bogotá',
+    direccion: datos.direccion || '',
+    eps: datos.eps || 'Particular',
+    genero: datos.genero || 'Otro',
+    alergias: datos.alergias || [],
+    enfermedadesPrevias: datos.enfermedadesPrevias || [],
+    medicamentosActuales: datos.medicamentosActuales || [],
+    grupoSanguineo: 'O+',
+    odontograma: crearOdontogramaInicial(),
+    evoluciones: [],
+    citas: [],
+    imagenesDiagnosticas: [],
+  };
+
+  const listaActualizada = [nuevoPaciente, ...lista];
+  guardarPacientesStorage(listaActualizada);
+
+  return nuevoPaciente;
 }

@@ -27,10 +27,12 @@ import {
   ArrowUpDown,
   ListChecks,
   Check,
-  ChevronDown
+  ChevronDown,
+  UserPlus
 } from 'lucide-react';
 import OdontogramaVisual from '@/modules/historias-clinicas/components/OdontogramaVisual';
 import FormularioRegistroDiagnosticoCita from '@/modules/historias-clinicas/components/FormularioRegistroDiagnosticoCita';
+import ModalRegistroPacienteRapido from '@/modules/pacientes/components/ModalRegistroPacienteRapido';
 import { 
   DienteInfo, 
   EstadoDiente, 
@@ -55,6 +57,7 @@ function HistoriasClinicasContenido() {
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [pacienteSeleccionadoId, setPacienteSeleccionadoId] = useState<string>('');
   const [pestaña, setPestaña] = useState<'odontograma' | 'nueva-evolucion' | 'historial'>('odontograma');
+  const [modalNuevoPacienteAbierto, setModalNuevoPacienteAbierto] = useState<boolean>(false);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
   
   // Visor modal para radiografías e imágenes de consultas
@@ -256,16 +259,38 @@ function HistoriasClinicasContenido() {
               <span className="text-xs font-semibold text-slate-600 hidden md:inline">Paciente Activo:</span>
               <select
                 value={pacienteSeleccionadoId}
-                onChange={(e) => setPacienteSeleccionadoId(e.target.value)}
+                onChange={(e) => {
+                  if (e.target.value === '__NUEVO__') {
+                    setModalNuevoPacienteAbierto(true);
+                  } else {
+                    setPacienteSeleccionadoId(e.target.value);
+                  }
+                }}
                 className="text-xs bg-slate-100 font-bold border border-slate-300 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-dentist-500 max-w-[200px] sm:max-w-[260px] truncate"
               >
-                {pacientes.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nombres} {p.apellidos} ({p.tipoDocumento} {p.numeroDocumento})
-                  </option>
-                ))}
+                <optgroup label="Pacientes Registrados">
+                  {pacientes.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombres} {p.apellidos} ({p.tipoDocumento} {p.numeroDocumento})
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Acciones">
+                  <option value="__NUEVO__">+ Registrar Paciente Nuevo...</option>
+                </optgroup>
               </select>
             </div>
+
+            {/* BOTÓN PROMINENTE: REGISTRAR PACIENTE NUEVO */}
+            <button
+              type="button"
+              onClick={() => setModalNuevoPacienteAbierto(true)}
+              className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold px-3 py-2 rounded-xl transition shadow-2xs whitespace-nowrap active:scale-95"
+              title="Registrar un nuevo paciente para atención clínica"
+            >
+              <UserPlus className="w-4 h-4 text-dentist-600" />
+              <span className="hidden sm:inline">+ Paciente Nuevo</span>
+            </button>
 
             {/* BOTÓN PROMINENTE: AÑADIR NUEVA EVOLUCIÓN */}
             <button
@@ -447,7 +472,10 @@ function HistoriasClinicasContenido() {
         {pestaña === 'nueva-evolucion' && (
           <FormularioRegistroDiagnosticoCita
             paciente={pacienteActivo}
+            pacientesDisponibles={pacientes}
             citaIdInicial={citaIdQuery || undefined}
+            onCambiarPaciente={(nuevoId) => setPacienteSeleccionadoId(nuevoId)}
+            onRegistrarNuevoPaciente={() => setModalNuevoPacienteAbierto(true)}
             onGuardarExito={handleDiagnosticoGuardado}
             onCancelar={() => setPestaña('historial')}
           />
@@ -821,6 +849,20 @@ function HistoriasClinicasContenido() {
           </div>
         </div>
       )}
+
+      {/* Modal de Registro Rápido de Paciente Nuevo */}
+      <ModalRegistroPacienteRapido
+        abierto={modalNuevoPacienteAbierto}
+        alCerrar={() => setModalNuevoPacienteAbierto(false)}
+        alRegistrarExitoso={(nuevoPaciente) => {
+          const listaActualizada = obtenerPacientesStorage();
+          setPacientes(listaActualizada);
+          setPacienteSeleccionadoId(nuevoPaciente.id);
+          setPestaña('nueva-evolucion');
+          setMensajeExito(`Paciente ${nuevoPaciente.nombres} ${nuevoPaciente.apellidos} registrado exitosamente. Listo para atención clínica.`);
+          setTimeout(() => setMensajeExito(null), 5000);
+        }}
+      />
     </div>
   );
 }

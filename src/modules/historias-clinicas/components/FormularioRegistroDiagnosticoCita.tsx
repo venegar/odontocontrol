@@ -22,7 +22,8 @@ import {
   ListChecks,
   Tag,
   Package,
-  FlaskConical
+  FlaskConical,
+  UserPlus
 } from 'lucide-react';
 import { 
   EvolucionClinica, 
@@ -40,7 +41,10 @@ import { Insumo } from '@/modules/inventario/types';
 
 interface FormularioRegistroDiagnosticoCitaProps {
   paciente: Paciente;
+  pacientesDisponibles?: Paciente[];
   citaIdInicial?: string;
+  onCambiarPaciente?: (pacienteId: string) => void;
+  onRegistrarNuevoPaciente?: () => void;
   onGuardarExito: (evolucion: EvolucionClinica, nuevoEstadoDiente?: EstadoDiente, dienteNumero?: number) => void;
   onCancelar?: () => void;
 }
@@ -62,7 +66,10 @@ const TIPOS_ANESTESIA = [
 
 export default function FormularioRegistroDiagnosticoCita({
   paciente,
+  pacientesDisponibles,
   citaIdInicial,
+  onCambiarPaciente,
+  onRegistrarNuevoPaciente,
   onGuardarExito,
   onCancelar,
 }: FormularioRegistroDiagnosticoCitaProps) {
@@ -343,10 +350,10 @@ export default function FormularioRegistroDiagnosticoCita({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 max-w-4xl mx-auto">
-      {/* Encabezado del Formulario */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200 mb-6">
+      {/* Encabezado del Formulario y Selección de Paciente */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-slate-200 mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-dentist-50 text-dentist-700 border border-dentist-200">
+          <div className="p-3 rounded-xl bg-dentist-50 text-dentist-700 border border-dentist-200 shrink-0">
             <Stethoscope className="w-6 h-6" />
           </div>
           <div>
@@ -359,10 +366,56 @@ export default function FormularioRegistroDiagnosticoCita({
           </div>
         </div>
 
-        {/* Ficha Resumida del Paciente */}
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 sm:text-right text-xs">
-          <span className="font-bold text-slate-900 block">{paciente.nombres} {paciente.apellidos}</span>
-          <span className="text-slate-500">{paciente.tipoDocumento} {paciente.numeroDocumento} • {paciente.eps || 'Particular'}</span>
+        {/* Ficha / Selector de Paciente y Botón de Alta Rápida */}
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <div className="text-xs">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+              Paciente en Atención:
+            </span>
+            {pacientesDisponibles && onCambiarPaciente ? (
+              <select
+                value={paciente.id}
+                onChange={(e) => {
+                  if (e.target.value === '__NUEVO__' && onRegistrarNuevoPaciente) {
+                    onRegistrarNuevoPaciente();
+                  } else if (onCambiarPaciente) {
+                    onCambiarPaciente(e.target.value);
+                  }
+                }}
+                className="mt-0.5 bg-white font-bold border border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 text-xs focus:ring-2 focus:ring-dentist-500 focus:outline-none max-w-[240px] truncate"
+              >
+                <optgroup label="Pacientes Registrados">
+                  {pacientesDisponibles.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombres} {p.apellidos} ({p.tipoDocumento} {p.numeroDocumento})
+                    </option>
+                  ))}
+                </optgroup>
+                {onRegistrarNuevoPaciente && (
+                  <optgroup label="Acciones">
+                    <option value="__NUEVO__">+ Registrar Paciente Nuevo...</option>
+                  </optgroup>
+                )}
+              </select>
+            ) : (
+              <div>
+                <span className="font-bold text-slate-900 block">{paciente.nombres} {paciente.apellidos}</span>
+                <span className="text-slate-500 text-[11px]">{paciente.tipoDocumento} {paciente.numeroDocumento} • {paciente.eps || 'Particular'}</span>
+              </div>
+            )}
+          </div>
+
+          {onRegistrarNuevoPaciente && (
+            <button
+              type="button"
+              onClick={onRegistrarNuevoPaciente}
+              className="inline-flex items-center gap-1.5 bg-dentist-600 hover:bg-dentist-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-2xs whitespace-nowrap active:scale-95 self-stretch sm:self-auto justify-center"
+              title="Registrar paciente nuevo que asiste por primera vez"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>+ Paciente Nuevo</span>
+            </button>
+          )}
         </div>
       </div>
 

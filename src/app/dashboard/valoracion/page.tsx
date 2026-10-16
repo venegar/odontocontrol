@@ -17,6 +17,12 @@ import OdontogramaVisual from '@/modules/historias-clinicas/components/Odontogra
 import { DienteInfo, EstadoDiente, crearOdontogramaInicial } from '@/modules/historias-clinicas/types';
 import { Paciente } from '@/modules/pacientes/types';
 import { PACIENTES_REGISTRADOS_BASE } from '@/modules/pacientes/datos';
+import { 
+  obtenerPacientesStorage, 
+  guardarPacientesStorage, 
+  registrarPacienteNuevoStorage, 
+  EVENTO_PACIENTES_ACTUALIZADOS 
+} from '@/modules/pacientes/storage';
 import { Presupuesto, ItemPresupuesto, ProcedimientoCatalogo, EstadoPresupuesto } from '@/modules/presupuestos/types';
 import { 
   CATALOGO_PROCEDIMIENTOS, 
@@ -105,6 +111,29 @@ export default function ValoracionInicialPresupuestoPage() {
   // Modal de formato membretado oficial
   const [modalImprimirAbierto, setModalImprimirAbierto] = useState<boolean>(false);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
+
+  // Cargar lista de pacientes desde el almacenamiento unificado
+  useEffect(() => {
+    const lista = obtenerPacientesStorage();
+    if (lista.length > 0) {
+      setPacientes(lista);
+      if (!lista.some(p => p.id === pacienteSeleccionadoId)) {
+        setPacienteSeleccionadoId(lista[0].id);
+      }
+    }
+
+    const handleActualizacion = (e: Event) => {
+      const customEvent = e as CustomEvent<Paciente[]>;
+      if (customEvent.detail) {
+        setPacientes(customEvent.detail);
+      } else {
+        setPacientes(obtenerPacientesStorage());
+      }
+    };
+
+    window.addEventListener(EVENTO_PACIENTES_ACTUALIZADOS, handleActualizacion);
+    return () => window.removeEventListener(EVENTO_PACIENTES_ACTUALIZADOS, handleActualizacion);
+  }, []);
 
   // Al cambiar el paciente activo, actualizar su odontograma y presupuesto
   useEffect(() => {
@@ -201,24 +230,19 @@ export default function ValoracionInicialPresupuestoPage() {
     e.preventDefault();
     if (!formNuevoPaciente.nombres || !formNuevoPaciente.numeroDocumento) return;
 
-    const nuevoId = `pac-${Date.now()}`;
-    const nuevo: Paciente = {
-      id: nuevoId,
-      tipoDocumento: formNuevoPaciente.tipoDocumento,
-      numeroDocumento: formNuevoPaciente.numeroDocumento,
+    const nuevo = registrarPacienteNuevoStorage({
       nombres: formNuevoPaciente.nombres,
       apellidos: formNuevoPaciente.apellidos,
-      eps: formNuevoPaciente.eps,
+      tipoDocumento: formNuevoPaciente.tipoDocumento,
+      numeroDocumento: formNuevoPaciente.numeroDocumento,
       telefono: formNuevoPaciente.telefono || '+57 300 000 0000',
       fechaNacimiento: new Date(new Date().getFullYear() - formNuevoPaciente.edad, 0, 1).toISOString().split('T')[0],
-      genero: 'No especificado',
-      creadoEn: new Date().toISOString().split('T')[0],
-      odontograma: crearOdontogramaInicial(),
-      presupuestos: [],
-    };
+      eps: formNuevoPaciente.eps,
+    });
 
-    setPacientes([nuevo, ...pacientes]);
-    setPacienteSeleccionadoId(nuevoId);
+    const lista = obtenerPacientesStorage();
+    setPacientes(lista);
+    setPacienteSeleccionadoId(nuevo.id);
     setModoNuevoPaciente(false);
     setMensajeExito(`Paciente ${nuevo.nombres} ${nuevo.apellidos} registrado para valoración.`);
     setTimeout(() => setMensajeExito(null), 4000);
@@ -249,8 +273,8 @@ export default function ValoracionInicialPresupuestoPage() {
       creadoEn: new Date().toISOString().split('T')[0],
     };
 
-    // Actualizar el paciente en el listado
-    setPacientes(prev => prev.map(p => {
+    // Actualizar el paciente en el listado y almacenamiento centralizado
+    const pacientesActualizados = pacientes.map(p => {
       if (p.id === pacienteActivo.id) {
         return {
           ...p,
@@ -259,7 +283,10 @@ export default function ValoracionInicialPresupuestoPage() {
         };
       }
       return p;
-    }));
+    });
+
+    setPacientes(pacientesActualizados);
+    guardarPacientesStorage(pacientesActualizados);
 
     setMensajeExito(`¡Valoración y Presupuesto ${presupuestoFinal.codigo} guardados exitosamente!`);
     setTimeout(() => setMensajeExito(null), 5000);
