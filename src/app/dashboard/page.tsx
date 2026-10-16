@@ -50,7 +50,8 @@ import {
   Copy,
   CheckCheck,
   Eye,
-  Mail
+  Mail,
+  Package
 } from 'lucide-react';
 import ModalCrearCitasPrueba, { CitaPruebaGenerada } from '@/modules/citas/components/ModalCrearCitasPrueba';
 import { 
@@ -1455,6 +1456,19 @@ export default function DashboardPrincipalPage() {
                 >
                   <BarChart2 className="w-4 h-4 text-slate-400" />
                   <span>Reportes e Ingresos</span>
+                </Link>
+
+                <Link
+                  href="/dashboard/inventario"
+                  className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Package className="w-4 h-4 text-teal-600" />
+                    <span>Inventario & FEFO</span>
+                  </div>
+                  <span className="bg-teal-50 text-teal-700 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                    Semáforo
+                  </span>
                 </Link>
 
                 <Link
