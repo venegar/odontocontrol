@@ -1,4 +1,4 @@
-export type RolUsuario = 'admin' | 'odontologo' | 'recepcionista' | 'paciente';
+export type RolUsuario = 'superadmin' | 'admin' | 'odontologo' | 'recepcionista' | 'paciente';
 
 export type PermisoCodigo = 
   | 'citas.ver'
@@ -12,6 +12,7 @@ export type PermisoCodigo =
   | 'historias.crear'
   | 'personal.ver'
   | 'personal.gestionar'
+  | 'personal.eliminar'
   | 'tratamientos.gestionar'
   | 'recordatorios.gestionar'
   | 'configuracion.editar';
@@ -37,7 +38,8 @@ export const CATALOGO_PERMISOS: PermisoInfo[] = [
   { codigo: 'historias.crear', nombre: 'Registrar Evolución Médica', modulo: 'Historias Clínicas', descripcion: 'Agregar notas de evolución clínica y odontogramas.' },
 
   { codigo: 'personal.ver', nombre: 'Ver Lista del Personal', modulo: 'Personal', descripcion: 'Ver la lista de doctores y personal auxiliar.' },
-  { codigo: 'personal.gestionar', nombre: 'Gestionar Permisos del Personal', modulo: 'Personal', descripcion: 'Crear usuarios internos y asignar permisos (Solo Admin).' },
+  { codigo: 'personal.gestionar', nombre: 'Gestionar Permisos del Personal', modulo: 'Personal', descripcion: 'Crear usuarios internos y asignar permisos individuales.' },
+  { codigo: 'personal.eliminar', nombre: 'Eliminar y Desvincular Colaboradores', modulo: 'Personal', descripcion: 'Permiso exclusivo de administrador para dar de baja o desvincular usuarios del consultorio.' },
 
   { codigo: 'tratamientos.gestionar', nombre: 'Administrar Catálogo de Tratamientos', modulo: 'Tratamientos', descripcion: 'Modificar tarifas, duración y lista de servicios.' },
   { codigo: 'configuracion.editar', nombre: 'Ajustes Generales del Consultorio', modulo: 'Configuración', descripcion: 'Cambiar modo de aprobación (Manual / Automático) y horarios.' }
