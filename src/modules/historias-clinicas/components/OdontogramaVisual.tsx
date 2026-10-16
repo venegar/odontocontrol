@@ -157,7 +157,7 @@ export default function OdontogramaVisual({ dientes, onActualizarDiente }: Odont
 
       {/* MODAL PARA ACTUALIZAR DIENTE SELECCIONADO */}
       {modalAbierto && dienteSeleccionado !== null && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-70 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-scale-up">
             <div className="flex items-center justify-between pb-3 border-b">
               <div>

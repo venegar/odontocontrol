@@ -25,13 +25,80 @@ export interface EvolucionClinica {
   piezaDental?: string;
   prescripcion?: string;
   indicaciones?: string;
+  estado?: 'completado' | 'en_evolucion' | 'control_pendiente';
 }
 
-export const ESTADOS_DIENTE_CONFIG: Record<EstadoDiente, { etiqueta: string; colorBg: string; colorTexto: string; colorBorde: string }> = {
-  sano: { etiqueta: 'Sano', colorBg: 'bg-white', colorTexto: 'text-slate-700', colorBorde: 'border-slate-300' },
-  caries: { etiqueta: 'Caries Activa', colorBg: 'bg-rose-500', colorTexto: 'text-white', colorBorde: 'border-rose-600' },
-  obturado: { etiqueta: 'Resina / Obturado', colorBg: 'bg-sky-500', colorTexto: 'text-white', colorBorde: 'border-sky-600' },
-  corona: { etiqueta: 'Corona / Prótesis', colorBg: 'bg-amber-400', colorTexto: 'text-slate-900', colorBorde: 'border-amber-500' },
-  endodoncia: { etiqueta: 'Trat. Conducto', colorBg: 'bg-purple-600', colorTexto: 'text-white', colorBorde: 'border-purple-700' },
-  ausente: { etiqueta: 'Ausente / Extraído', colorBg: 'bg-slate-300', colorTexto: 'text-slate-600', colorBorde: 'border-slate-400' },
+export const ESTADOS_DIENTE_CONFIG: Record<EstadoDiente, { etiqueta: string; colorBg: string; colorTexto: string; colorBorde: string; icono: string }> = {
+  sano: { etiqueta: 'Sano', colorBg: 'bg-white', colorTexto: 'text-slate-700', colorBorde: 'border-slate-300', icono: '⚪' },
+  caries: { etiqueta: 'Caries Activa', colorBg: 'bg-rose-500', colorTexto: 'text-white', colorBorde: 'border-rose-600', icono: '🔴' },
+  obturado: { etiqueta: 'Resina / Obturado', colorBg: 'bg-sky-500', colorTexto: 'text-white', colorBorde: 'border-sky-600', icono: '🔵' },
+  corona: { etiqueta: 'Corona / Prótesis', colorBg: 'bg-amber-400', colorTexto: 'text-slate-900', colorBorde: 'border-amber-500', icono: '🟡' },
+  endodoncia: { etiqueta: 'Trat. Conducto', colorBg: 'bg-purple-600', colorTexto: 'text-white', colorBorde: 'border-purple-700', icono: '🟣' },
+  ausente: { etiqueta: 'Ausente / Extraído', colorBg: 'bg-slate-300', colorTexto: 'text-slate-600', colorBorde: 'border-slate-400', icono: '❌' },
 };
+
+export const NOMBRES_PIEZAS_FDI: Record<number, string> = {
+  // Cuadrante 1: Superior Derecho
+  18: 'Tercer Molar Sup. Der.',
+  17: 'Segundo Molar Sup. Der.',
+  16: 'Primer Molar Sup. Der.',
+  15: 'Segundo Premolar Sup. Der.',
+  14: 'Primer Premolar Sup. Der.',
+  13: 'Canino Sup. Der.',
+  12: 'Incisivo Lateral Sup. Der.',
+  11: 'Incisivo Central Sup. Der.',
+
+  // Cuadrante 2: Superior Izquierdo
+  21: 'Incisivo Central Sup. Izq.',
+  22: 'Incisivo Lateral Sup. Izq.',
+  23: 'Canino Sup. Izq.',
+  24: 'Primer Premolar Sup. Izq.',
+  25: 'Segundo Premolar Sup. Izq.',
+  26: 'Primer Molar Sup. Izq.',
+  27: 'Segundo Molar Sup. Izq.',
+  28: 'Tercer Molar Sup. Izq.',
+
+  // Cuadrante 3: Inferior Izquierdo
+  31: 'Incisivo Central Inf. Izq.',
+  32: 'Incisivo Lateral Inf. Izq.',
+  33: 'Canino Inf. Izq.',
+  34: 'Primer Premolar Inf. Izq.',
+  35: 'Segundo Premolar Inf. Izq.',
+  36: 'Primer Molar Inf. Izq.',
+  37: 'Segundo Molar Inf. Izq.',
+  38: 'Tercer Molar Inf. Izq.',
+
+  // Cuadrante 4: Inferior Derecho
+  48: 'Tercer Molar Inf. Der.',
+  47: 'Segundo Molar Inf. Der.',
+  46: 'Primer Molar Inf. Der.',
+  45: 'Segundo Premolar Inf. Der.',
+  44: 'Primer Premolar Inf. Der.',
+  43: 'Canino Inf. Der.',
+  42: 'Incisivo Lateral Inf. Der.',
+  41: 'Incisivo Central Inf. Der.',
+};
+
+export function crearOdontogramaInicial(
+  personalizaciones?: Record<number, { estado: EstadoDiente; notas?: string }>
+): Record<number, DienteInfo> {
+  const resultado: Record<number, DienteInfo> = {};
+  const numeros = [
+    18, 17, 16, 15, 14, 13, 12, 11,
+    21, 22, 23, 24, 25, 26, 27, 28,
+    48, 47, 46, 45, 44, 43, 42, 41,
+    31, 32, 33, 34, 35, 36, 37, 38
+  ];
+
+  for (const num of numeros) {
+    const custom = personalizaciones ? personalizaciones[num] : undefined;
+    resultado[num] = {
+      numero: num,
+      nombre: NOMBRES_PIEZAS_FDI[num] || `Pieza ${num}`,
+      estado: custom?.estado || 'sano',
+      notas: custom?.notas || undefined,
+    };
+  }
+
+  return resultado;
+}

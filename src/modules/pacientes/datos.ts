@@ -4,6 +4,7 @@
 // ==============================================================================
 
 import { Paciente } from './types';
+import { crearOdontogramaInicial } from '@/modules/historias-clinicas/types';
 
 export const PACIENTES_REGISTRADOS_BASE: Paciente[] = [
   {
@@ -25,6 +26,8 @@ export const PACIENTES_REGISTRADOS_BASE: Paciente[] = [
     grupoSanguineo: 'O+',
     observaciones: 'Paciente preferencial titular.',
     creadoEn: '2026-01-05',
+    
+    // Estudios e imágenes diagnósticas
     imagenesDiagnosticas: [
       {
         id: 'img-diag-1',
@@ -47,6 +50,79 @@ export const PACIENTES_REGISTRADOS_BASE: Paciente[] = [
         notas: 'Planificación guiada para implantes en zona premolar.',
       },
     ],
+
+    // Citas registradas en el consultorio
+    citas: [
+      {
+        id: 'cita-jairo-1',
+        fecha: '2026-10-20',
+        hora: '11:00 AM',
+        doctorNombre: 'Dra. Yasmín Blanco',
+        tratamiento: 'Diseño de Sonrisa & Carillas',
+        estado: 'pendiente',
+        notas: 'Toma de impresión definitiva y ajuste de carillas cerámicas en sector anterosuperior.',
+      },
+      {
+        id: 'cita-jairo-2',
+        fecha: '2026-02-15',
+        hora: '09:00 AM',
+        doctorNombre: 'Dra. Yasmín Blanco',
+        tratamiento: 'Valoración Tomográfica 3D e Implantes',
+        estado: 'completada',
+        notas: 'Revisión volumétrica CBCT y plan quirúrgico aprobado.',
+      },
+      {
+        id: 'cita-jairo-3',
+        fecha: '2026-01-10',
+        hora: '10:30 AM',
+        doctorNombre: 'Dr. Carlos Ruiz',
+        tratamiento: 'Profilaxis y Detartraje Ultrasónico',
+        estado: 'completada',
+        notas: 'Limpieza profunda e higiene bucal con pulido coronario.',
+      },
+    ],
+
+    // Procedimientos y evolución clínica
+    evoluciones: [
+      {
+        id: 'evo-jairo-1',
+        pacienteId: 'pac-jairo-escobar',
+        pacienteNombre: 'Jairo Escobar Cárcamo',
+        doctorNombre: 'Dra. Yasmín Blanco',
+        fecha: '2026-02-15',
+        motivoConsulta: 'Planificación para colocación de implante en Pieza 16 y diseño estético',
+        diagnostico: 'Edentulismo parcial en sector posterosuperior derecho (Pieza 16 ausente)',
+        procedimiento: 'Estudio tomográfico computarizado 3D (CBCT) y escaneo digital intraoral',
+        piezaDental: 'Pieza 16 (Primer Molar Sup. Der.)',
+        prescripcion: 'Enjuague bucal con Clorhexidina al 0.12% 48 horas previas al procedimiento quirúrgico.',
+        indicaciones: 'Mantener higiene rigurosa. Dieta equilibrada y evitar masticación dura en la zona edéntula.',
+        estado: 'en_evolucion',
+      },
+      {
+        id: 'evo-jairo-2',
+        pacienteId: 'pac-jairo-escobar',
+        pacienteNombre: 'Jairo Escobar Cárcamo',
+        doctorNombre: 'Dr. Carlos Ruiz',
+        fecha: '2026-01-10',
+        motivoConsulta: 'Mantenimiento preventivo anual y control periodontal',
+        diagnostico: 'Gingivitis marginal inducida por biopelícula dental',
+        procedimiento: 'Detartraje supragingival con ultrasonido Cavitron y profilaxis con cepillo profiláctico',
+        piezaDental: 'Arcadas completa',
+        prescripcion: 'Crema dental fluorada de alta remineralización y seda dental encerada.',
+        indicaciones: 'Cepillado dental 3 veces al día con técnica de Bass modificada. Control en 6 meses.',
+        estado: 'completado',
+      },
+    ],
+
+    // Odontograma interactivo (FDI)
+    odontograma: crearOdontogramaInicial({
+      16: { estado: 'ausente', notas: 'Pérdida dental. Programada para implante osteointegrado' },
+      26: { estado: 'obturado', notas: 'Resina compuesta estética en cara oclusal' },
+      36: { estado: 'endodoncia', notas: 'Tratamiento de conductos radiculares finalizado' },
+      46: { estado: 'corona', notas: 'Corona cerámica estética en molar inferior' },
+      11: { estado: 'obturado', notas: 'Carilla estética en resina de alta definición' },
+      21: { estado: 'obturado', notas: 'Carilla estética en resina de alta definición' },
+    }),
   },
   {
     id: 'pac-1',
@@ -82,6 +158,46 @@ export const PACIENTES_REGISTRADOS_BASE: Paciente[] = [
         notas: 'Evaluación periapical incisivos centrales superiores.',
       },
     ],
+    citas: [
+      {
+        id: 'cita-mc-1',
+        fecha: '2026-10-20',
+        hora: '09:30 AM',
+        doctorNombre: 'Dr. Carlos Ruiz',
+        tratamiento: 'Profilaxis y Limpieza Profunda',
+        estado: 'confirmada',
+        notas: 'Control periodontal programado.',
+      },
+      {
+        id: 'cita-mc-2',
+        fecha: '2026-02-01',
+        hora: '02:00 PM',
+        doctorNombre: 'Dra. Yasmín Blanco',
+        tratamiento: 'Valoración estética e incisivos',
+        estado: 'completada',
+        notas: 'Toma radiográfica periapical sin dolor.',
+      },
+    ],
+    evoluciones: [
+      {
+        id: 'evo-mc-1',
+        pacienteId: 'pac-1',
+        pacienteNombre: 'María Camila Pérez Gómez',
+        doctorNombre: 'Dra. Yasmín Blanco',
+        fecha: '2026-02-01',
+        motivoConsulta: 'Dolor y sensibilidad en pieza 24 con alimentos fríos',
+        diagnostico: 'Caries de esmalte y dentina superficial en cara oclusomesial',
+        procedimiento: 'Eliminación de caries bajo anestesia tópica sin vasoconstrictor y resina nanohíbrida A2',
+        piezaDental: 'Pieza 24 (Primer Premolar Sup. Izq.)',
+        prescripcion: 'Acetaminofén 500mg si presenta molestia (NO Penicilina por alergia)',
+        indicaciones: 'Evitar alimentos muy fríos por 24 horas.',
+        estado: 'completado',
+      },
+    ],
+    odontograma: crearOdontogramaInicial({
+      24: { estado: 'obturado', notas: 'Resina compuesta fotocurada en Ocluso-Mesial' },
+      47: { estado: 'caries', notas: 'Caries en surco oclusal pendiente por restaurar' },
+    }),
   },
   {
     id: 'pac-2',
@@ -105,6 +221,47 @@ export const PACIENTES_REGISTRADOS_BASE: Paciente[] = [
     contactoEmergenciaParentesco: 'Esposa',
     observaciones: 'Tomar presión arterial antes de cualquier procedimiento invasivo.',
     creadoEn: '2026-02-14',
+    citas: [
+      {
+        id: 'cita-af-1',
+        fecha: '2026-10-21',
+        hora: '02:00 PM',
+        doctorNombre: 'Dra. Laura Vega',
+        tratamiento: 'Control de Ortodoncia',
+        estado: 'solicitada' as const,
+        notas: 'Revisión de bracket en arcada inferior.',
+      },
+      {
+        id: 'cita-af-2',
+        fecha: '2026-09-15',
+        hora: '03:00 PM',
+        doctorNombre: 'Dra. Laura Vega',
+        tratamiento: 'Ajuste de Arcos y Cambio de Módulos',
+        estado: 'completada',
+        notas: 'Evolución ortodóncica favorable, cierre de diastemas.',
+      },
+    ],
+    evoluciones: [
+      {
+        id: 'evo-af-1',
+        pacienteId: 'pac-2',
+        pacienteNombre: 'Andrés Felipe Gómez Salcedo',
+        doctorNombre: 'Dra. Laura Vega',
+        fecha: '2026-09-15',
+        motivoConsulta: 'Cita periódica de control de ortodoncia',
+        diagnostico: 'Maloclusión Clase I con apiñamiento leve anterior',
+        procedimiento: 'Cambio de arcos de Niti 0.016 a Acero 0.016x0.022. Ligaduras elásticas nuevas',
+        piezaDental: 'Ambas arcadas',
+        indicaciones: 'Cera de alivio en zona molar si hay roce. Higiene interproximal obligatoria.',
+        estado: 'en_evolucion',
+      },
+    ],
+    odontograma: crearOdontogramaInicial({
+      18: { estado: 'ausente', notas: 'Exodoncia preventiva realizada en 2025' },
+      28: { estado: 'ausente', notas: 'Exodoncia preventiva realizada en 2025' },
+      38: { estado: 'ausente', notas: 'Exodoncia preventiva realizada en 2025' },
+      48: { estado: 'ausente', notas: 'Exodoncia preventiva realizada en 2025' },
+    }),
   },
   {
     id: 'pac-3',
@@ -128,6 +285,37 @@ export const PACIENTES_REGISTRADOS_BASE: Paciente[] = [
     contactoEmergenciaParentesco: 'Madre',
     observaciones: 'Buena salud general. Tratamiento de ortodoncia en curso.',
     creadoEn: '2026-03-05',
+    citas: [
+      {
+        id: 'cita-lt-1',
+        fecha: '2026-10-14',
+        hora: '10:00 AM',
+        doctorNombre: 'Dr. Carlos Ruiz',
+        tratamiento: 'Resina Fotocurada (1 superficie)',
+        estado: 'completada',
+        notas: 'Restauración oclusal pieza 37 satisfactoria.',
+      },
+    ],
+    evoluciones: [
+      {
+        id: 'evo-lt-1',
+        pacienteId: 'pac-3',
+        pacienteNombre: 'Lucía Torres Mendoza',
+        doctorNombre: 'Dr. Carlos Ruiz',
+        fecha: '2026-10-14',
+        motivoConsulta: 'Filtración en amalgama antigua en molar inferior',
+        diagnostico: 'Restauración desajustada con caries recurrente en pieza 37',
+        procedimiento: 'Remoción de amalgama defectuosa, desinfección cavitaria y colocación de resina fotocurada A3',
+        piezaDental: 'Pieza 37 (Segundo Molar Inf. Izq.)',
+        prescripcion: 'Paracetamol 500mg si hay sensibilidad térmica (NO prescribir Aspirina ni AINEs)',
+        indicaciones: 'Control radiológico de mordida.',
+        estado: 'completado',
+      },
+    ],
+    odontograma: crearOdontogramaInicial({
+      37: { estado: 'obturado', notas: 'Resina estética recién colocada' },
+      14: { estado: 'obturado', notas: 'Resina distal' },
+    }),
   },
   {
     id: 'pac-4',
@@ -151,6 +339,38 @@ export const PACIENTES_REGISTRADOS_BASE: Paciente[] = [
     contactoEmergenciaParentesco: 'Madre',
     observaciones: 'Paciente menor de edad. Asiste siempre con acudiente.',
     creadoEn: '2026-04-18',
+    citas: [
+      {
+        id: 'cita-sm-1',
+        fecha: '2026-04-20',
+        hora: '04:00 PM',
+        doctorNombre: 'Dra. Yasmín Blanco',
+        tratamiento: 'Sellantes de fosas y fisuras',
+        estado: 'completada',
+        notas: 'Aplicación preventiva en los 4 primeros molares permanentes.',
+      },
+    ],
+    evoluciones: [
+      {
+        id: 'evo-sm-1',
+        pacienteId: 'pac-4',
+        pacienteNombre: 'Santiago Morales Silva',
+        doctorNombre: 'Dra. Yasmín Blanco',
+        fecha: '2026-04-20',
+        motivoConsulta: 'Control de prevención odontopediátrica',
+        diagnostico: 'Dientes permanentes jóvenes con fosas y fisuras profundas susceptibles a caries',
+        procedimiento: 'Profilaxis pediátrica y colocación de sellantes resinosos fotocurados en piezas 16, 26, 36 y 46',
+        piezaDental: 'Piezas 16, 26, 36, 46',
+        indicaciones: 'Cepillado supervisado por los padres y uso de hilo dental dental.',
+        estado: 'completado',
+      },
+    ],
+    odontograma: crearOdontogramaInicial({
+      16: { estado: 'obturado', notas: 'Sellante de fosas y fisuras fotocurado' },
+      26: { estado: 'obturado', notas: 'Sellante de fosas y fisuras fotocurado' },
+      36: { estado: 'obturado', notas: 'Sellante de fosas y fisuras fotocurado' },
+      46: { estado: 'obturado', notas: 'Sellante de fosas y fisuras fotocurado' },
+    }),
   },
   {
     id: 'pac-5',
@@ -170,6 +390,33 @@ export const PACIENTES_REGISTRADOS_BASE: Paciente[] = [
     medicamentosActuales: ['Losartán 50mg'],
     grupoSanguineo: 'O+',
     creadoEn: '2026-05-12',
+    citas: [
+      {
+        id: 'cita-jr-1',
+        fecha: '2026-10-14',
+        hora: '11:30 AM',
+        doctorNombre: 'Dra. Laura Vega',
+        tratamiento: 'Valoración Odontológica Inicial',
+        estado: 'completada',
+        notas: 'Examen clínico integral y plan de tratamiento entregado.',
+      },
+    ],
+    evoluciones: [
+      {
+        id: 'evo-jr-1',
+        pacienteId: 'pac-5',
+        pacienteNombre: 'Jorge Andrés Ramírez Díaz',
+        doctorNombre: 'Dra. Laura Vega',
+        fecha: '2026-10-14',
+        motivoConsulta: 'Revisión odontológica integral',
+        diagnostico: 'Dientes sanos con leve sarro subgingival anteroinferior',
+        procedimiento: 'Examen clínico, sondaje periodontal básico y recomendaciones preventivas',
+        piezaDental: 'General',
+        indicaciones: 'Realizar profilaxis periódica en la próxima sesión.',
+        estado: 'completado',
+      },
+    ],
+    odontograma: crearOdontogramaInicial(),
   },
   {
     id: 'pac-6',
@@ -189,6 +436,35 @@ export const PACIENTES_REGISTRADOS_BASE: Paciente[] = [
     medicamentosActuales: [],
     grupoSanguineo: 'A+',
     creadoEn: '2026-06-20',
+    citas: [
+      {
+        id: 'cita-dc-1',
+        fecha: '2026-10-20',
+        hora: '03:00 PM',
+        doctorNombre: 'Dr. Carlos Ruiz',
+        tratamiento: 'Blanqueamiento Dental LED',
+        estado: 'pendiente',
+        notas: 'Sesión de blanqueamiento estético en consultorio.',
+      },
+    ],
+    evoluciones: [
+      {
+        id: 'evo-dc-1',
+        pacienteId: 'pac-6',
+        pacienteNombre: 'David Alejandro Castro Méndez',
+        doctorNombre: 'Dr. Carlos Ruiz',
+        fecha: '2026-06-25',
+        motivoConsulta: 'Deseo de aclarar tono dental para evento',
+        diagnostico: 'Dientes sanos con tinción cromógena extrínseca por café',
+        procedimiento: 'Limpieza dental ultrasónica previa al blanqueamiento estético',
+        piezaDental: 'Sector anterior',
+        indicaciones: 'Dieta blanca: evitar café, vino y salsas oscuras 48h.',
+        estado: 'completado',
+      },
+    ],
+    odontograma: crearOdontogramaInicial({
+      25: { estado: 'obturado', notas: 'Resina oclusal' },
+    }),
   },
   {
     id: 'pac-7',
@@ -208,5 +484,8 @@ export const PACIENTES_REGISTRADOS_BASE: Paciente[] = [
     medicamentosActuales: [],
     grupoSanguineo: 'O+',
     creadoEn: '2026-07-01',
+    citas: [],
+    evoluciones: [],
+    odontograma: crearOdontogramaInicial(),
   },
 ];

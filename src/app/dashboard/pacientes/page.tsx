@@ -30,7 +30,15 @@ import {
   Download,
   Sparkles,
   Plus,
-  ZoomIn
+  ZoomIn,
+  Stethoscope,
+  ClipboardList,
+  Clock,
+  Activity,
+  Check,
+  CalendarCheck,
+  Smile,
+  FilePlus
 } from 'lucide-react';
 import { 
   Paciente, 
@@ -40,6 +48,15 @@ import {
   ImagenDiagnostica 
 } from '@/modules/pacientes/types';
 import { PACIENTES_REGISTRADOS_BASE } from '@/modules/pacientes/datos';
+import { 
+  EstadoDiente, 
+  DienteInfo, 
+  EvolucionClinica, 
+  ESTADOS_DIENTE_CONFIG, 
+  crearOdontogramaInicial, 
+  NOMBRES_PIEZAS_FDI 
+} from '@/modules/historias-clinicas/types';
+import OdontogramaVisual from '@/modules/historias-clinicas/components/OdontogramaVisual';
 
 const TIPOS_IMAGEN_DIAGNOSTICA: { id: TipoImagenDiagnostica; label: string; icon: string }[] = [
   { id: 'radiografia_panoramica', label: 'Radiografía Panorámica (Ortopantomografía)', icon: '🦷' },
@@ -62,6 +79,23 @@ export default function GestionPacientesPage() {
   const [modalNuevoPaciente, setModalNuevoPaciente] = useState<boolean>(false);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
   const [visorImagen, setVisorImagen] = useState<ImagenDiagnostica | null>(null);
+
+  // Pestaña activa dentro de la Ficha del Paciente
+  const [pestanaFicha, setPestanaFicha] = useState<'resumen' | 'odontograma' | 'evoluciones' | 'citas' | 'estudios'>('resumen');
+
+  // Modal para Registrar Nueva Evolución Clínica / Procedimiento
+  const [modalNuevaEvolucion, setModalNuevaEvolucion] = useState<boolean>(false);
+  const [formNuevaEvolucion, setFormNuevaEvolucion] = useState({
+    doctorNombre: 'Dra. Yasmín Blanco',
+    fecha: new Date().toISOString().split('T')[0],
+    motivoConsulta: '',
+    diagnostico: '',
+    procedimiento: '',
+    piezaDental: 'General',
+    prescripcion: '',
+    indicaciones: '',
+    estado: 'completado' as 'completado' | 'en_evolucion' | 'control_pendiente',
+  });
 
   // Estados de Imágenes Diagnósticas (Arrastrar y Soltar)
   const [imagenesNuevas, setImagenesNuevas] = useState<ImagenDiagnostica[]>([]);
@@ -290,6 +324,81 @@ export default function GestionPacientesPage() {
     });
   };
 
+  // Actualizar pieza dental en el Odontograma del paciente seleccionado
+  const handleActualizarDiente = (numero: number, nuevoEstado: EstadoDiente, notas?: string) => {
+    if (!pacienteSeleccionado) return;
+    
+    const odontogramaActual = pacienteSeleccionado.odontograma || crearOdontogramaInicial();
+    const dienteActualizado: DienteInfo = {
+      numero,
+      nombre: NOMBRES_PIEZAS_FDI[numero] || `Pieza ${numero}`,
+      estado: nuevoEstado,
+      notas: notas || undefined,
+    };
+
+    const nuevoOdontograma = {
+      ...odontogramaActual,
+      [numero]: dienteActualizado,
+    };
+
+    const pacienteActualizado: Paciente = {
+      ...pacienteSeleccionado,
+      odontograma: nuevoOdontograma,
+    };
+
+    setPacienteSeleccionado(pacienteActualizado);
+    setPacientes(prev => prev.map(p => p.id === pacienteActualizado.id ? pacienteActualizado : p));
+    setMensajeExito(`¡Pieza #${numero} (${NOMBRES_PIEZAS_FDI[numero] || 'Pieza ' + numero}) actualizada a "${ESTADOS_DIENTE_CONFIG[nuevoEstado].etiqueta}"!`);
+    setTimeout(() => setMensajeExito(null), 4000);
+  };
+
+  // Registrar nueva evolución clínica / procedimiento en la ficha
+  const handleGuardarNuevaEvolucion = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pacienteSeleccionado) return;
+    if (!formNuevaEvolucion.procedimiento.trim() || !formNuevaEvolucion.diagnostico.trim()) return;
+
+    const nuevaEvolucion: EvolucionClinica = {
+      id: `evo-${Date.now()}`,
+      pacienteId: pacienteSeleccionado.id,
+      pacienteNombre: `${pacienteSeleccionado.nombres} ${pacienteSeleccionado.apellidos}`,
+      doctorNombre: formNuevaEvolucion.doctorNombre,
+      fecha: formNuevaEvolucion.fecha || new Date().toISOString().split('T')[0],
+      motivoConsulta: formNuevaEvolucion.motivoConsulta || 'Consulta y procedimiento odontológico',
+      diagnostico: formNuevaEvolucion.diagnostico,
+      procedimiento: formNuevaEvolucion.procedimiento,
+      piezaDental: formNuevaEvolucion.piezaDental || 'General',
+      prescripcion: formNuevaEvolucion.prescripcion || undefined,
+      indicaciones: formNuevaEvolucion.indicaciones || undefined,
+      estado: formNuevaEvolucion.estado,
+    };
+
+    const evolucionesActualizadas = [nuevaEvolucion, ...(pacienteSeleccionado.evoluciones || [])];
+    const pacienteActualizado: Paciente = {
+      ...pacienteSeleccionado,
+      evoluciones: evolucionesActualizadas,
+    };
+
+    setPacienteSeleccionado(pacienteActualizado);
+    setPacientes(prev => prev.map(p => p.id === pacienteActualizado.id ? pacienteActualizado : p));
+    setModalNuevaEvolucion(false);
+    setMensajeExito(`¡Evolución clínica registrada exitosamente para ${pacienteSeleccionado.nombres} ${pacienteSeleccionado.apellidos}!`);
+    setTimeout(() => setMensajeExito(null), 5000);
+
+    // Reset formulario de evolución
+    setFormNuevaEvolucion({
+      doctorNombre: 'Dra. Yasmín Blanco',
+      fecha: new Date().toISOString().split('T')[0],
+      motivoConsulta: '',
+      diagnostico: '',
+      procedimiento: '',
+      piezaDental: 'General',
+      prescripcion: '',
+      indicaciones: '',
+      estado: 'completado',
+    });
+  };
+
   // Manejar creación de nuevo paciente
   const handleGuardarPaciente = (e: React.FormEvent) => {
     e.preventDefault();
@@ -320,6 +429,9 @@ export default function GestionPacientesPage() {
       contactoEmergenciaTelefono: nuevoForm.contactoEmergenciaTelefono,
       contactoEmergenciaParentesco: nuevoForm.contactoEmergenciaParentesco,
       imagenesDiagnosticas: imagenesNuevas.length > 0 ? imagenesNuevas : undefined,
+      citas: [],
+      evoluciones: [],
+      odontograma: crearOdontogramaInicial(),
       observaciones: nuevoForm.observaciones,
       creadoEn: new Date().toISOString().split('T')[0],
     };
@@ -602,16 +714,16 @@ export default function GestionPacientesPage() {
       {/* ============================================================== */}
       {pacienteSeleccionado && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto animate-scale-up">
+          <div className="bg-white rounded-2xl max-w-5xl w-full p-6 shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto animate-scale-up">
             
             {/* Cabecera de la ficha */}
             <div className="flex items-start justify-between pb-4 border-b border-slate-200">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-dentist-600 bg-dentist-50 px-2 py-0.5 rounded-md">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-dentist-600 bg-dentist-50 px-2.5 py-0.5 rounded-md border border-dentist-200">
                     Ficha Odontológica Oficial
                   </span>
-                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${
+                  <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-md border ${
                     pacienteSeleccionado.eps === 'Ecopetrol'
                       ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
                       : 'bg-slate-100 text-slate-700 border-slate-200'
@@ -619,262 +731,816 @@ export default function GestionPacientesPage() {
                     EPS: {pacienteSeleccionado.eps || 'Particular'}
                   </span>
                 </div>
-                <h3 className="font-bold text-xl text-slate-900 mt-1">
+                <h3 className="font-bold text-xl sm:text-2xl text-slate-900 mt-1.5">
                   {pacienteSeleccionado.nombres} {pacienteSeleccionado.apellidos}
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Identificación: <strong>{pacienteSeleccionado.tipoDocumento} {pacienteSeleccionado.numeroDocumento}</strong> • Registrado el {pacienteSeleccionado.creadoEn}
+                <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                  <span>Identificación: <strong>{pacienteSeleccionado.tipoDocumento} {pacienteSeleccionado.numeroDocumento}</strong></span>
+                  <span>•</span>
+                  <span>Registrado el {pacienteSeleccionado.creadoEn}</span>
+                  <span>•</span>
+                  <span>Edad: <strong>{calcularEdad(pacienteSeleccionado.fechaNacimiento)} años</strong></span>
                 </p>
               </div>
               <button 
                 onClick={() => setPacienteSeleccionado(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"
+                className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-100 transition"
+                title="Cerrar Ficha"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* SECCIÓN 1: ANTECEDENTES MÉDICOS CRÍTICOS */}
-            <div className="mt-5">
-              <h4 className="font-bold text-xs uppercase tracking-wider text-slate-800 mb-3 flex items-center gap-2">
-                <HeartPulse className="w-4 h-4 text-rose-600" />
-                <span>Antecedentes Médicos Relevantes para Odontología</span>
-              </h4>
+            {/* BARRA DE NAVEGACIÓN POR PESTAÑAS CLÍNICAS */}
+            <div className="flex items-center gap-1.5 border-b border-slate-200 mt-4 overflow-x-auto pb-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setPestanaFicha('resumen')}
+                className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-2 transition shrink-0 ${
+                  pestanaFicha === 'resumen'
+                    ? 'bg-dentist-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <ClipboardList className="w-4 h-4" />
+                <span>Resumen & Antecedentes</span>
+              </button>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {/* Alergias */}
-                <div className="p-3.5 rounded-xl bg-rose-50/70 border border-rose-200">
-                  <span className="text-xs font-bold text-rose-900 flex items-center gap-1.5 mb-1.5">
-                    <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
-                    Alergias a Medicamentos / Sustancias
-                  </span>
-                  {pacienteSeleccionado.alergias && pacienteSeleccionado.alergias.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {pacienteSeleccionado.alergias.map((a, i) => (
-                        <span key={i} className="bg-white text-rose-800 text-xs font-semibold px-2 py-0.5 rounded border border-rose-200">
-                          {a}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-500 italic">No reporta alergias conocidas.</p>
-                  )}
-                </div>
+              <button
+                type="button"
+                onClick={() => setPestanaFicha('odontograma')}
+                className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-2 transition shrink-0 ${
+                  pestanaFicha === 'odontograma'
+                    ? 'bg-dentist-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <span>🦷</span>
+                <span>Odontograma FDI</span>
+              </button>
 
-                {/* Enfermedades Sistémicas */}
-                <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200">
-                  <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5 mb-1.5">
-                    <HeartPulse className="w-3.5 h-3.5 text-amber-600" />
-                    Enfermedades Previas / Sistémicas
-                  </span>
-                  {pacienteSeleccionado.enfermedadesPrevias && pacienteSeleccionado.enfermedadesPrevias.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {pacienteSeleccionado.enfermedadesPrevias.map((e, i) => (
-                        <span key={i} className="bg-white text-amber-900 text-xs font-semibold px-2 py-0.5 rounded border border-amber-200">
-                          {e}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-500 italic">No reporta antecedentes patológicos.</p>
-                  )}
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setPestanaFicha('evoluciones')}
+                className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-2 transition shrink-0 ${
+                  pestanaFicha === 'evoluciones'
+                    ? 'bg-dentist-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <Stethoscope className="w-4 h-4" />
+                <span>Procedimientos & Evolución</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                  pestanaFicha === 'evoluciones' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {pacienteSeleccionado.evoluciones?.length || 0}
+                </span>
+              </button>
 
-              {/* Medicamentos en uso y Grupo sanguíneo */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-                  <span className="font-semibold text-slate-700 block mb-1 flex items-center gap-1">
-                    <Pill className="w-3.5 h-3.5 text-dentist-600" />
-                    Medicamentos que Consume Actualmente:
-                  </span>
-                  {pacienteSeleccionado.medicamentosActuales && pacienteSeleccionado.medicamentosActuales.length > 0 ? (
-                    <p className="text-slate-800 font-medium">{pacienteSeleccionado.medicamentosActuales.join(', ')}</p>
-                  ) : (
-                    <p className="text-slate-400 italic">Ninguno reportado</p>
-                  )}
-                </div>
+              <button
+                type="button"
+                onClick={() => setPestanaFicha('citas')}
+                className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-2 transition shrink-0 ${
+                  pestanaFicha === 'citas'
+                    ? 'bg-dentist-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <Calendar className="w-4 h-4" />
+                <span>Historial de Citas</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                  pestanaFicha === 'citas' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {pacienteSeleccionado.citas?.length || 0}
+                </span>
+              </button>
 
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-                  <span className="font-semibold text-slate-700 block mb-1">
-                    Grupo Sanguíneo y Factor RH:
-                  </span>
-                  <p className="text-slate-900 font-bold text-sm">{pacienteSeleccionado.grupoSanguineo || 'No especificado'}</p>
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setPestanaFicha('estudios')}
+                className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-2 transition shrink-0 ${
+                  pestanaFicha === 'estudios'
+                    ? 'bg-dentist-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <Film className="w-4 h-4" />
+                <span>Estudios Radiológicos</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                  pestanaFicha === 'estudios' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {pacienteSeleccionado.imagenesDiagnosticas?.length || 0}
+                </span>
+              </button>
             </div>
 
-            {/* SECCIÓN 2: DATOS PERSONALES Y DEMOGRÁFICOS */}
-            <div className="mt-6 pt-5 border-t border-slate-200">
-              <h4 className="font-bold text-xs uppercase tracking-wider text-slate-800 mb-3 flex items-center gap-2">
-                <Users className="w-4 h-4 text-dentist-600" />
-                <span>Datos Personales y Contacto</span>
-              </h4>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-slate-50/70 p-4 rounded-xl border border-slate-100">
+            {/* ============================================================== */}
+            {/* PESTAÑA 1: RESUMEN Y ANTECEDENTES */}
+            {/* ============================================================== */}
+            {pestanaFicha === 'resumen' && (
+              <div className="mt-5 space-y-6 animate-fade-in">
+                {/* Antecedentes Médicos */}
                 <div>
-                  <span className="text-slate-400 block text-[11px]">EPS / Cobertura</span>
-                  <span className={`font-bold ${pacienteSeleccionado.eps === 'Ecopetrol' ? 'text-emerald-700 font-extrabold' : 'text-slate-800'}`}>
-                    {pacienteSeleccionado.eps || 'Particular'}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[11px]">Teléfono Principal</span>
-                  <span className="font-semibold text-slate-800">{pacienteSeleccionado.telefono}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[11px]">Correo Electrónico</span>
-                  <span className="font-semibold text-slate-800">{pacienteSeleccionado.email || 'N/A'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[11px]">Fecha de Nacimiento</span>
-                  <span className="font-semibold text-slate-800">{pacienteSeleccionado.fechaNacimiento}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[11px]">Ciudad y Dirección</span>
-                  <span className="font-semibold text-slate-800">{pacienteSeleccionado.ciudad}, {pacienteSeleccionado.direccion || 'Sin dirección'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[11px]">Contacto de Emergencia</span>
-                  <span className="font-semibold text-slate-800">{pacienteSeleccionado.contactoEmergenciaNombre || 'N/A'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[11px]">Tel. Emergencia</span>
-                  <span className="font-semibold text-slate-800">{pacienteSeleccionado.contactoEmergenciaTelefono || 'N/A'}</span>
-                </div>
-              </div>
-
-              {pacienteSeleccionado.observaciones && (
-                <div className="mt-3 p-3 bg-sky-50/60 rounded-xl border border-sky-100 text-xs">
-                  <span className="font-bold text-sky-900 block mb-0.5">Observaciones Clínicas Especiales:</span>
-                  <p className="text-slate-700">{pacienteSeleccionado.observaciones}</p>
-                </div>
-              )}
-            </div>
-
-            {/* SECCIÓN 3: ESTUDIOS RADIOLÓGICOS E IMÁGENES DIAGNÓSTICAS */}
-            <div className="mt-6 pt-5 border-t border-slate-200">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                <div className="flex items-center gap-2">
-                  <Film className="w-4 h-4 text-dentist-600" />
-                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-800">
-                    Estudios Radiológicos e Imágenes Diagnósticas
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-800 mb-3 flex items-center gap-2">
+                    <HeartPulse className="w-4 h-4 text-rose-600" />
+                    <span>Antecedentes Médicos Relevantes para Odontología</span>
                   </h4>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-dentist-100 text-dentist-800 border border-dentist-200">
-                    {pacienteSeleccionado.imagenesDiagnosticas?.length || 0} disponibles
-                  </span>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Alergias */}
+                    <div className="p-3.5 rounded-xl bg-rose-50/70 border border-rose-200">
+                      <span className="text-xs font-bold text-rose-900 flex items-center gap-1.5 mb-1.5">
+                        <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+                        Alergias a Medicamentos / Sustancias
+                      </span>
+                      {pacienteSeleccionado.alergias && pacienteSeleccionado.alergias.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {pacienteSeleccionado.alergias.map((a, i) => (
+                            <span key={i} className="bg-white text-rose-800 text-xs font-semibold px-2 py-0.5 rounded border border-rose-200">
+                              {a}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-500 italic">No reporta alergias conocidas.</p>
+                      )}
+                    </div>
+
+                    {/* Enfermedades Sistémicas */}
+                    <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200">
+                      <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5 mb-1.5">
+                        <HeartPulse className="w-3.5 h-3.5 text-amber-600" />
+                        Enfermedades Previas / Sistémicas
+                      </span>
+                      {pacienteSeleccionado.enfermedadesPrevias && pacienteSeleccionado.enfermedadesPrevias.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {pacienteSeleccionado.enfermedadesPrevias.map((e, i) => (
+                            <span key={i} className="bg-white text-amber-900 text-xs font-semibold px-2 py-0.5 rounded border border-amber-200">
+                              {e}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-500 italic">No reporta antecedentes patológicos.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Medicamentos en uso y Grupo sanguíneo */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                      <span className="font-semibold text-slate-700 block mb-1 flex items-center gap-1">
+                        <Pill className="w-3.5 h-3.5 text-dentist-600" />
+                        Medicamentos que Consume Actualmente:
+                      </span>
+                      {pacienteSeleccionado.medicamentosActuales && pacienteSeleccionado.medicamentosActuales.length > 0 ? (
+                        <p className="text-slate-800 font-medium">{pacienteSeleccionado.medicamentosActuales.join(', ')}</p>
+                      ) : (
+                        <p className="text-slate-400 italic">Ninguno reportado</p>
+                      )}
+                    </div>
+
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                      <span className="font-semibold text-slate-700 block mb-1">
+                        Grupo Sanguíneo y Factor RH:
+                      </span>
+                      <p className="text-slate-900 font-bold text-sm">{pacienteSeleccionado.grupoSanguineo || 'No especificado'}</p>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Botón para adjuntar más imágenes a este paciente */}
-                <div>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*,.pdf,.dcm"
-                    id={`input-adjuntar-detalle-${pacienteSeleccionado.id}`}
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        handleAdjuntarImagenAPacienteSeleccionado(e.target.files);
-                      }
-                    }}
-                    className="hidden"
-                  />
-                  <label
-                    htmlFor={`input-adjuntar-detalle-${pacienteSeleccionado.id}`}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-dentist-700 hover:text-dentist-900 bg-dentist-50 hover:bg-dentist-100 border border-dentist-200 px-3 py-1.5 rounded-xl cursor-pointer transition shadow-2xs"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Adjuntar Nuevo Estudio</span>
-                  </label>
+                {/* Datos Personales y Demográficos */}
+                <div className="pt-5 border-t border-slate-200">
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-800 mb-3 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-dentist-600" />
+                    <span>Datos Personales y Contacto</span>
+                  </h4>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-slate-50/70 p-4 rounded-xl border border-slate-100">
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">EPS / Cobertura</span>
+                      <span className={`font-bold ${pacienteSeleccionado.eps === 'Ecopetrol' ? 'text-emerald-700 font-extrabold' : 'text-slate-800'}`}>
+                        {pacienteSeleccionado.eps || 'Particular'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">Teléfono Principal</span>
+                      <span className="font-semibold text-slate-800">{pacienteSeleccionado.telefono}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">Correo Electrónico</span>
+                      <span className="font-semibold text-slate-800">{pacienteSeleccionado.email || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">Fecha de Nacimiento</span>
+                      <span className="font-semibold text-slate-800">{pacienteSeleccionado.fechaNacimiento}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">Ciudad y Dirección</span>
+                      <span className="font-semibold text-slate-800">{pacienteSeleccionado.ciudad}, {pacienteSeleccionado.direccion || 'Sin dirección'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">Contacto de Emergencia</span>
+                      <span className="font-semibold text-slate-800">{pacienteSeleccionado.contactoEmergenciaNombre || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">Tel. Emergencia</span>
+                      <span className="font-semibold text-slate-800">{pacienteSeleccionado.contactoEmergenciaTelefono || 'N/A'}</span>
+                    </div>
+                  </div>
+
+                  {pacienteSeleccionado.observaciones && (
+                    <div className="mt-3 p-3 bg-sky-50/60 rounded-xl border border-sky-100 text-xs">
+                      <span className="font-bold text-sky-900 block mb-0.5">Observaciones Clínicas Especiales:</span>
+                      <p className="text-slate-700">{pacienteSeleccionado.observaciones}</p>
+                    </div>
+                  )}
                 </div>
               </div>
+            )}
 
-              {pacienteSeleccionado.imagenesDiagnosticas && pacienteSeleccionado.imagenesDiagnosticas.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-                  {pacienteSeleccionado.imagenesDiagnosticas.map((img) => (
-                    <div
-                      key={img.id}
-                      className="p-3 bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-sm flex gap-3 items-center group relative overflow-hidden"
-                    >
-                      {/* Miniatura con efecto negatoscopio */}
-                      <div
-                        onClick={() => setVisorImagen(img)}
-                        className="relative w-18 h-18 sm:w-20 sm:h-20 rounded-xl bg-black overflow-hidden shrink-0 cursor-pointer border border-slate-700"
-                        title="Clic para ampliar en Visor Radiológico de Alta Definición"
+            {/* ============================================================== */}
+            {/* PESTAÑA 2: ODONTOGRAMA DENTAL INTERACTIVO (FDI) */}
+            {/* ============================================================== */}
+            {pestanaFicha === 'odontograma' && (
+              <div className="mt-5 space-y-4 animate-fade-in">
+                <OdontogramaVisual 
+                  dientes={pacienteSeleccionado.odontograma || crearOdontogramaInicial()} 
+                  onActualizarDiente={handleActualizarDiente} 
+                />
+
+                {/* Resumen Estadístico de Piezas Dentales */}
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
+                  <h5 className="font-bold text-slate-800 mb-2.5 flex items-center gap-1.5">
+                    <Activity className="w-4 h-4 text-dentist-600" />
+                    <span>Balance Clínico del Odontograma</span>
+                  </h5>
+                  <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 text-center">
+                    {(() => {
+                      const odont = pacienteSeleccionado.odontograma || crearOdontogramaInicial();
+                      const valores = Object.values(odont);
+                      const conteo: Record<string, number> = {
+                        sano: 0,
+                        obturado: 0,
+                        caries: 0,
+                        endodoncia: 0,
+                        corona: 0,
+                        ausente: 0
+                      };
+                      valores.forEach(d => {
+                        conteo[d.estado] = (conteo[d.estado] || 0) + 1;
+                      });
+
+                      return (
+                        <>
+                          <div className="p-2 rounded-xl bg-white border border-slate-200">
+                            <span className="text-[11px] text-slate-500 block">Sanos</span>
+                            <span className="text-base font-bold text-slate-800">{conteo.sano}</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-sky-50 border border-sky-200">
+                            <span className="text-[11px] text-sky-700 block">Resinas</span>
+                            <span className="text-base font-bold text-sky-800">{conteo.obturado}</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-rose-50 border border-rose-200">
+                            <span className="text-[11px] text-rose-700 block">Caries</span>
+                            <span className="text-base font-bold text-rose-800">{conteo.caries}</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-purple-50 border border-purple-200">
+                            <span className="text-[11px] text-purple-700 block">Endodoncias</span>
+                            <span className="text-base font-bold text-purple-800">{conteo.endodoncia}</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-amber-50 border border-amber-200">
+                            <span className="text-[11px] text-amber-700 block">Coronas</span>
+                            <span className="text-base font-bold text-amber-800">{conteo.corona}</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-slate-200/70 border border-slate-300">
+                            <span className="text-[11px] text-slate-600 block">Ausentes</span>
+                            <span className="text-base font-bold text-slate-800">{conteo.ausente}</span>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ============================================================== */}
+            {/* PESTAÑA 3: PROCEDIMIENTOS REALIZADOS Y EVOLUCIÓN CLÍNICA */}
+            {/* ============================================================== */}
+            {pestanaFicha === 'evoluciones' && (
+              <div className="mt-5 space-y-4 animate-fade-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                      <Stethoscope className="w-4 h-4 text-dentist-600" />
+                      <span>Procedimientos Realizados y Evolución Clínica</span>
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      Historial cronológico de actos clínicos, intervenciones, diagnósticos y evolución médica
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setModalNuevaEvolucion(true)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-dentist-600 hover:bg-dentist-700 text-white text-xs font-semibold shadow-xs transition self-start sm:self-auto"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Registrar Nueva Evolución</span>
+                  </button>
+                </div>
+
+                {pacienteSeleccionado.evoluciones && pacienteSeleccionado.evoluciones.length > 0 ? (
+                  <div className="space-y-3">
+                    {pacienteSeleccionado.evoluciones.map((evo) => (
+                      <div 
+                        key={evo.id} 
+                        className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs hover:shadow-xs transition"
                       >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={img.url}
-                          alt={img.nombre}
-                          className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white">
-                          <ZoomIn className="w-5 h-5 text-dentist-400" />
+                        {/* Cabecera de la evolución */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg">
+                              <Calendar className="w-3.5 h-3.5 text-dentist-600" />
+                              {evo.fecha}
+                            </span>
+                            <span className="text-xs font-semibold text-dentist-800 bg-dentist-50 px-2.5 py-1 rounded-lg border border-dentist-200 flex items-center gap-1">
+                              <Stethoscope className="w-3 h-3 text-dentist-600" />
+                              {evo.doctorNombre}
+                            </span>
+                            {evo.piezaDental && (
+                              <span className="text-xs font-semibold text-sky-800 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
+                                🦷 {evo.piezaDental}
+                              </span>
+                            )}
+                          </div>
+
+                          <div>
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                              evo.estado === 'completado' 
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : 'bg-amber-100 text-amber-800 border border-amber-200'
+                            }`}>
+                              {evo.estado === 'completado' ? (
+                                <>
+                                  <Check className="w-3 h-3" />
+                                  <span>Procedimiento Concluido</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Activity className="w-3 h-3" />
+                                  <span>En Evolución / Control</span>
+                                </>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Contenido de la evolución */}
+                        <div className="mt-3 space-y-2 text-xs">
+                          <div>
+                            <span className="font-bold text-slate-700">Motivo de Consulta: </span>
+                            <span className="text-slate-600">{evo.motivoConsulta}</span>
+                          </div>
+
+                          <div>
+                            <span className="font-bold text-slate-900">Diagnóstico: </span>
+                            <span className="text-slate-800 font-semibold">{evo.diagnostico}</span>
+                          </div>
+
+                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                            <span className="font-bold text-dentist-900 block mb-1">Procedimiento Realizado:</span>
+                            <p className="text-slate-800 leading-relaxed font-medium">{evo.procedimiento}</p>
+                          </div>
+
+                          {evo.prescripcion && (
+                            <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 text-amber-900">
+                              <span className="font-bold flex items-center gap-1 mb-0.5">
+                                <Pill className="w-3.5 h-3.5 text-amber-600" />
+                                Prescripción Médica / Fórmulas:
+                              </span>
+                              <p className="text-slate-800">{evo.prescripcion}</p>
+                            </div>
+                          )}
+
+                          {evo.indicaciones && (
+                            <div className="p-2.5 rounded-xl bg-sky-50/70 border border-sky-200 text-sky-900">
+                              <span className="font-bold flex items-center gap-1 mb-0.5">
+                                <Sparkles className="w-3.5 h-3.5 text-sky-600" />
+                                Indicaciones y Recomendaciones al Paciente:
+                              </span>
+                              <p className="text-slate-800">{evo.indicaciones}</p>
+                            </div>
+                          )}
                         </div>
                       </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    <Stethoscope className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="font-semibold text-slate-700 text-sm">Sin evoluciones clínicas registradas</p>
+                    <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                      Puedes documentar los procedimientos odontológicos y la evolución clínica de este paciente con el botón superior.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setModalNuevaEvolucion(true)}
+                      className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-dentist-600 hover:bg-dentist-700 text-white text-xs font-semibold shadow-xs transition"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Registrar Primera Evolución</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
-                      {/* Detalles del estudio */}
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full bg-dentist-500/20 text-dentist-300 border border-dentist-500/40 truncate">
-                            {img.tipoLabel}
-                          </span>
-                        </div>
-                        <p className="text-xs font-bold text-white truncate" title={img.nombre}>
-                          {img.nombre}
-                        </p>
-                        <p className="text-[11px] text-slate-400">
-                          {img.fechaSubida} • {img.tamano}
-                        </p>
-                        {img.notas && (
-                          <p className="text-[11px] text-slate-300 italic truncate" title={img.notas}>
-                            &quot;{img.notas}&quot;
-                          </p>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setVisorImagen(img)}
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-dentist-400 hover:text-dentist-300 transition pt-0.5"
+            {/* ============================================================== */}
+            {/* PESTAÑA 4: HISTORIAL DE CITAS EN EL CONSULTORIO */}
+            {/* ============================================================== */}
+            {pestanaFicha === 'citas' && (
+              <div className="mt-5 space-y-4 animate-fade-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-dentist-600" />
+                      <span>Citas del Paciente en el Consultorio</span>
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      Listado de sesiones programadas, confirmadas, en atención o completadas
+                    </p>
+                  </div>
+                  <Link
+                    href="/dashboard/citas"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-dentist-600 hover:bg-dentist-700 text-white text-xs font-semibold shadow-xs transition self-start sm:self-auto"
+                  >
+                    <CalendarPlus className="w-4 h-4" />
+                    <span>Programar Nueva Cita</span>
+                  </Link>
+                </div>
+
+                {pacienteSeleccionado.citas && pacienteSeleccionado.citas.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {pacienteSeleccionado.citas.map((cita) => {
+                      const colorEstado = 
+                        cita.estado === 'completada' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                        cita.estado === 'confirmada' ? 'bg-sky-100 text-sky-800 border-sky-200' :
+                        cita.estado === 'pendiente' ? 'bg-amber-100 text-amber-800 border-amber-200' :
+                        cita.estado === 'cancelada' ? 'bg-rose-100 text-rose-800 border-rose-200' :
+                        'bg-slate-100 text-slate-800 border-slate-200';
+
+                      return (
+                        <div 
+                          key={cita.id} 
+                          className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs hover:shadow-xs transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
                         >
-                          <Maximize2 className="w-3 h-3" />
-                          <span>Ver en Negatoscopio</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-4 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-center text-xs text-slate-500">
-                  <Film className="w-6 h-6 text-slate-300 mx-auto mb-1" />
-                  <p className="font-semibold text-slate-700">Sin estudios diagnósticos adjuntos</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Puedes adjuntar radiografías periapicales, panorámicas o tomografías CBCT usando el botón superior.
-                  </p>
-                </div>
-              )}
-            </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-sm text-slate-900">
+                                {cita.tratamiento}
+                              </span>
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${colorEstado}`}>
+                                {cita.estado}
+                              </span>
+                            </div>
 
-            {/* Botones de acción */}
-            <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-between">
-              <span className="text-[11px] text-slate-400">
+                            <div className="flex items-center gap-3 text-slate-600 flex-wrap">
+                              <span className="flex items-center gap-1 font-semibold text-slate-800">
+                                <Calendar className="w-3.5 h-3.5 text-dentist-600" />
+                                {cita.fecha}
+                              </span>
+                              <span className="flex items-center gap-1 text-slate-700">
+                                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                {cita.hora}
+                              </span>
+                              <span className="flex items-center gap-1 text-dentist-700 font-medium">
+                                <Stethoscope className="w-3.5 h-3.5 text-dentist-600" />
+                                {cita.doctorNombre}
+                              </span>
+                            </div>
+
+                            {cita.notas && (
+                              <p className="text-[11px] text-slate-500 italic mt-0.5">
+                                Observaciones: &quot;{cita.notas}&quot;
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="shrink-0 flex items-center gap-2">
+                            <Link
+                              href="/dashboard/citas"
+                              className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition"
+                            >
+                              Ver en Agenda
+                            </Link>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="font-semibold text-slate-700 text-sm">Sin citas registradas</p>
+                    <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                      Este paciente aún no tiene citas activas ni historial de atenciones registradas.
+                    </p>
+                    <Link
+                      href="/dashboard/citas"
+                      className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-dentist-600 hover:bg-dentist-700 text-white text-xs font-semibold shadow-xs transition"
+                    >
+                      <CalendarPlus className="w-4 h-4" />
+                      <span>Agendar Cita Ahora</span>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ============================================================== */}
+            {/* PESTAÑA 5: ESTUDIOS RADIOLÓGICOS E IMÁGENES DIAGNÓSTICAS */}
+            {/* ============================================================== */}
+            {pestanaFicha === 'estudios' && (
+              <div className="mt-5 space-y-4 animate-fade-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                      <Film className="w-4 h-4 text-dentist-600" />
+                      <span>Estudios Radiológicos e Imágenes Diagnósticas</span>
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      Radiografías panorámicas, periapicales, tomografías 3D CBCT y registros fotográficos
+                    </p>
+                  </div>
+
+                  {/* Botón para adjuntar más imágenes a este paciente */}
+                  <div>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf,.dcm"
+                      id={`input-adjuntar-detalle-${pacienteSeleccionado.id}`}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          handleAdjuntarImagenAPacienteSeleccionado(e.target.files);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor={`input-adjuntar-detalle-${pacienteSeleccionado.id}`}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-dentist-700 hover:text-dentist-900 bg-dentist-50 hover:bg-dentist-100 border border-dentist-200 px-3 py-1.5 rounded-xl cursor-pointer transition shadow-2xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Adjuntar Nuevo Estudio</span>
+                    </label>
+                  </div>
+                </div>
+
+                {pacienteSeleccionado.imagenesDiagnosticas && pacienteSeleccionado.imagenesDiagnosticas.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                    {pacienteSeleccionado.imagenesDiagnosticas.map((img) => (
+                      <div
+                        key={img.id}
+                        className="p-3 bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-sm flex gap-3 items-center group relative overflow-hidden"
+                      >
+                        {/* Miniatura con efecto negatoscopio */}
+                        <div
+                          onClick={() => setVisorImagen(img)}
+                          className="relative w-18 h-18 sm:w-20 sm:h-20 rounded-xl bg-black overflow-hidden shrink-0 cursor-pointer border border-slate-700"
+                          title="Clic para ampliar en Visor Radiológico de Alta Definición"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={img.url}
+                            alt={img.nombre}
+                            className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white">
+                            <ZoomIn className="w-5 h-5 text-dentist-400" />
+                          </div>
+                        </div>
+
+                        {/* Detalles del estudio */}
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full bg-dentist-500/20 text-dentist-300 border border-dentist-500/40 truncate">
+                              {img.tipoLabel}
+                            </span>
+                          </div>
+                          <p className="text-xs font-bold text-white truncate" title={img.nombre}>
+                            {img.nombre}
+                          </p>
+                          <p className="text-[11px] text-slate-400">
+                            {img.fechaSubida} • {img.tamano}
+                          </p>
+                          {img.notas && (
+                            <p className="text-[11px] text-slate-300 italic truncate" title={img.notas}>
+                              &quot;{img.notas}&quot;
+                            </p>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setVisorImagen(img)}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-dentist-400 hover:text-dentist-300 transition pt-0.5"
+                          >
+                            <Maximize2 className="w-3 h-3" />
+                            <span>Ver en Negatoscopio</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center text-xs text-slate-500">
+                    <Film className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="font-semibold text-slate-700 text-sm">Sin estudios diagnósticos adjuntos</p>
+                    <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                      Puedes adjuntar radiografías periapicales, panorámicas o tomografías CBCT 3D usando el botón superior.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Botones de acción del pie */}
+            <div className="mt-6 pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <span className="text-[11px] text-slate-400 text-center sm:text-left">
                 Confidencialidad médica asegurada bajo la Ley de Protección de Datos en Salud.
               </span>
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-full sm:w-auto justify-end">
                 <button
+                  type="button"
                   onClick={() => setPacienteSeleccionado(null)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
                 >
-                  Cerrar
+                  Cerrar Ficha
                 </button>
                 <Link
                   href="/dashboard/citas"
-                  className="px-4 py-2 text-xs font-semibold bg-dentist-600 hover:bg-dentist-700 text-white rounded-xl shadow-sm transition flex items-center gap-1.5"
+                  className="px-4 py-2 text-xs font-semibold bg-dentist-600 hover:bg-dentist-700 text-white rounded-xl shadow-sm transition flex items-center justify-center gap-1.5"
                 >
                   <Calendar className="w-3.5 h-3.5" />
                   <span>Programar Cita</span>
                 </Link>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL: REGISTRAR NUEVA EVOLUCIÓN CLÍNICA / PROCEDIMIENTO */}
+      {/* ============================================================== */}
+      {modalNuevaEvolucion && pacienteSeleccionado && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-70 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto animate-scale-up">
+            <div className="flex items-center justify-between pb-3 border-b">
+              <div>
+                <h4 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                  <Stethoscope className="w-4 h-4 text-dentist-600" />
+                  <span>Nueva Evolución Clínica</span>
+                </h4>
+                <p className="text-xs text-slate-500">
+                  Paciente: <strong>{pacienteSeleccionado.nombres} {pacienteSeleccionado.apellidos}</strong> ({pacienteSeleccionado.tipoDocumento} {pacienteSeleccionado.numeroDocumento})
+                </p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setModalNuevaEvolucion(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleGuardarNuevaEvolucion} className="mt-4 space-y-3.5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Odontólogo Tratante *</label>
+                  <select
+                    value={formNuevaEvolucion.doctorNombre}
+                    onChange={(e) => setFormNuevaEvolucion({ ...formNuevaEvolucion, doctorNombre: e.target.value })}
+                    className="w-full py-2 px-3 rounded-xl border border-slate-300 bg-white focus:ring-1 focus:ring-dentist-500"
+                  >
+                    <option value="Dra. Yasmín Blanco">Dra. Yasmín Blanco (Especialista)</option>
+                    <option value="Dr. Carlos Ruiz">Dr. Carlos Ruiz (Cirugía & Rehabilitación)</option>
+                    <option value="Dra. Laura Vega">Dra. Laura Vega (Ortodoncia)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Fecha del Procedimiento *</label>
+                  <input
+                    type="date"
+                    required
+                    value={formNuevaEvolucion.fecha}
+                    onChange={(e) => setFormNuevaEvolucion({ ...formNuevaEvolucion, fecha: e.target.value })}
+                    className="w-full py-2 px-3 rounded-xl border border-slate-300 focus:ring-1 focus:ring-dentist-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Pieza Dental Intervenida</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Pieza 16, Arcadas completa, etc."
+                    value={formNuevaEvolucion.piezaDental}
+                    onChange={(e) => setFormNuevaEvolucion({ ...formNuevaEvolucion, piezaDental: e.target.value })}
+                    className="w-full py-2 px-3 rounded-xl border border-slate-300 focus:ring-1 focus:ring-dentist-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Estado de la Evolución</label>
+                  <select
+                    value={formNuevaEvolucion.estado}
+                    onChange={(e) => setFormNuevaEvolucion({ ...formNuevaEvolucion, estado: e.target.value as 'completado' | 'en_evolucion' | 'control_pendiente' })}
+                    className="w-full py-2 px-3 rounded-xl border border-slate-300 bg-white focus:ring-1 focus:ring-dentist-500"
+                  >
+                    <option value="completado">Procedimiento Concluido</option>
+                    <option value="en_evolucion">En Evolución Clínica</option>
+                    <option value="control_pendiente">Control Pendiente</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Motivo de Consulta</label>
+                <input
+                  type="text"
+                  placeholder="Ej. Dolor agudo al masticar, cambio de restauración..."
+                  value={formNuevaEvolucion.motivoConsulta}
+                  onChange={(e) => setFormNuevaEvolucion({ ...formNuevaEvolucion, motivoConsulta: e.target.value })}
+                  className="w-full py-2 px-3 rounded-xl border border-slate-300 focus:ring-1 focus:ring-dentist-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Diagnóstico Clínico *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej. Caries de dentina profunda, Gingivitis, Pulpitis..."
+                  value={formNuevaEvolucion.diagnostico}
+                  onChange={(e) => setFormNuevaEvolucion({ ...formNuevaEvolucion, diagnostico: e.target.value })}
+                  className="w-full py-2 px-3 rounded-xl border border-slate-300 focus:ring-1 focus:ring-dentist-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Procedimiento Realizado *</label>
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="Describe detalladamente el procedimiento, técnica, instrumental y materiales empleados..."
+                  value={formNuevaEvolucion.procedimiento}
+                  onChange={(e) => setFormNuevaEvolucion({ ...formNuevaEvolucion, procedimiento: e.target.value })}
+                  className="w-full py-2 px-3 rounded-xl border border-slate-300 focus:ring-1 focus:ring-dentist-500"
+                ></textarea>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Prescripción Médica / Medicamentos (Opcional)</label>
+                <input
+                  type="text"
+                  placeholder="Ej. Amoxicilina 500mg c/8h por 7 días, Ibuprofeno 400mg..."
+                  value={formNuevaEvolucion.prescripcion}
+                  onChange={(e) => setFormNuevaEvolucion({ ...formNuevaEvolucion, prescripcion: e.target.value })}
+                  className="w-full py-2 px-3 rounded-xl border border-slate-300 focus:ring-1 focus:ring-dentist-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Indicaciones Post-Atención al Paciente</label>
+                <input
+                  type="text"
+                  placeholder="Ej. No consumir alimentos calientes las primeras 2 horas, hielo local..."
+                  value={formNuevaEvolucion.indicaciones}
+                  onChange={(e) => setFormNuevaEvolucion({ ...formNuevaEvolucion, indicaciones: e.target.value })}
+                  className="w-full py-2 px-3 rounded-xl border border-slate-300 focus:ring-1 focus:ring-dentist-500"
+                />
+              </div>
+
+              <div className="pt-3 border-t flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setModalNuevaEvolucion(false)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-dentist-600 hover:bg-dentist-700 text-white rounded-xl font-semibold shadow-xs transition"
+                >
+                  Guardar Evolución
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

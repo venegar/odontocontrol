@@ -1,3 +1,5 @@
+import { DienteInfo, EvolucionClinica } from '@/modules/historias-clinicas/types';
+
 export type TipoDocumento = 'CC' | 'TI' | 'CE' | 'Pasaporte';
 export type TipoEps = 'Particular' | 'Ecopetrol';
 
@@ -18,6 +20,16 @@ export interface ImagenDiagnostica {
   url: string; // Base64 o URL directa
   tamano: string;
   fechaSubida: string;
+  notas?: string;
+}
+
+export interface CitaHistorialPaciente {
+  id: string;
+  fecha: string;
+  hora: string;
+  doctorNombre: string;
+  tratamiento: string;
+  estado: 'completada' | 'confirmada' | 'pendiente' | 'cancelada' | 'en_atencion';
   notas?: string;
 }
 
@@ -49,6 +61,15 @@ export interface Paciente {
   
   // Imágenes diagnósticas y estudios radiológicos
   imagenesDiagnosticas?: ImagenDiagnostica[];
+
+  // Citas registradas en el consultorio
+  citas?: CitaHistorialPaciente[];
+
+  // Procedimientos clínicos realizados y evolución
+  evoluciones?: EvolucionClinica[];
+
+  // Odontograma interactivo (32 piezas dentales permanentes FDI)
+  odontograma?: Record<number, DienteInfo>;
   
   observaciones?: string;
   creadoEn: string;
