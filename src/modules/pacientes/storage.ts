@@ -132,9 +132,42 @@ export function sanitizarPaciente(p: Partial<Paciente>): Paciente {
   };
 }
 
+let cachePacientesMemoria: Paciente[] | null = null;
+
+function safeLocalStorageGet(key: string): string | null {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(key);
+    }
+  } catch {
+    // Modo incógnito o cookies restringidas
+  }
+  return null;
+}
+
+function safeLocalStorageSet(key: string, value: string): void {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(key, value);
+    }
+  } catch {
+    // Modo incógnito o cookies restringidas
+  }
+}
+
+function safeLocalStorageRemove(key: string): void {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(key);
+    }
+  } catch {
+    // Modo incógnito o cookies restringidas
+  }
+}
+
 /**
  * Obtiene la lista actual de pacientes desde localStorage si está disponible,
- * o inicializa con los pacientes de referencia de la clínica.
+ * o inicializa con los pacientes de referencia de la clínica con soporte total de modo incógnito.
  */
 export function obtenerPacientesStorage(): Paciente[] {
   if (typeof window === 'undefined') {
@@ -142,11 +175,11 @@ export function obtenerPacientesStorage(): Paciente[] {
   }
 
   try {
-    const raw = localStorage.getItem(CLAVE_STORAGE);
+    const raw = safeLocalStorageGet(CLAVE_STORAGE);
 
     // Si no existe v2, intentar migrar desde v1 si existe y es válido
     if (!raw) {
-      const rawLegacy = localStorage.getItem(CLAVE_STORAGE_LEGACY);
+      const rawLegacy = safeLocalStorageGet(CLAVE_STORAGE_LEGACY);
       if (rawLegacy) {
         try {
           const parsedLegacy = JSON.parse(rawLegacy);
@@ -155,26 +188,36 @@ export function obtenerPacientesStorage(): Paciente[] {
               .filter((p): p is Partial<Paciente> => Boolean(p) && typeof p === 'object' && Boolean(p.id))
               .map(sanitizarPaciente);
             if (migradas.length > 0) {
-              localStorage.setItem(CLAVE_STORAGE, JSON.stringify(migradas));
-              localStorage.removeItem(CLAVE_STORAGE_LEGACY);
+              safeLocalStorageSet(CLAVE_STORAGE, JSON.stringify(migradas));
+              safeLocalStorageRemove(CLAVE_STORAGE_LEGACY);
+              cachePacientesMemoria = migradas;
               return migradas;
             }
           }
         } catch {
           // Descartar legacy si contiene datos dañados
         }
-        localStorage.removeItem(CLAVE_STORAGE_LEGACY);
+        safeLocalStorageRemove(CLAVE_STORAGE_LEGACY);
+      }
+
+      if (cachePacientesMemoria && cachePacientesMemoria.length > 0) {
+        return cachePacientesMemoria;
       }
 
       const baseSanitizada = PACIENTES_REGISTRADOS_BASE.map(sanitizarPaciente);
-      localStorage.setItem(CLAVE_STORAGE, JSON.stringify(baseSanitizada));
+      safeLocalStorageSet(CLAVE_STORAGE, JSON.stringify(baseSanitizada));
+      cachePacientesMemoria = baseSanitizada;
       return baseSanitizada;
     }
 
     const parsed: Partial<Paciente>[] = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) {
+      if (cachePacientesMemoria && cachePacientesMemoria.length > 0) {
+        return cachePacientesMemoria;
+      }
       const baseSanitizada = PACIENTES_REGISTRADOS_BASE.map(sanitizarPaciente);
-      localStorage.setItem(CLAVE_STORAGE, JSON.stringify(baseSanitizada));
+      safeLocalStorageSet(CLAVE_STORAGE, JSON.stringify(baseSanitizada));
+      cachePacientesMemoria = baseSanitizada;
       return baseSanitizada;
     }
 
@@ -183,36 +226,48 @@ export function obtenerPacientesStorage(): Paciente[] {
       .map(sanitizarPaciente);
 
     if (sanitizados.length === 0) {
+      if (cachePacientesMemoria && cachePacientesMemoria.length > 0) {
+        return cachePacientesMemoria;
+      }
       const baseSanitizada = PACIENTES_REGISTRADOS_BASE.map(sanitizarPaciente);
-      localStorage.setItem(CLAVE_STORAGE, JSON.stringify(baseSanitizada));
+      safeLocalStorageSet(CLAVE_STORAGE, JSON.stringify(baseSanitizada));
+      cachePacientesMemoria = baseSanitizada;
       return baseSanitizada;
     }
 
-    // Auto-reparar el storage guardando la versión sanitizada
-    localStorage.setItem(CLAVE_STORAGE, JSON.stringify(sanitizados));
+    safeLocalStorageSet(CLAVE_STORAGE, JSON.stringify(sanitizados));
+    cachePacientesMemoria = sanitizados;
     return sanitizados;
   } catch (error) {
-    console.warn('Auto-reparando almacenamiento de pacientes:', error);
+    console.warn('Auto-recuperando almacenamiento en memoria:', error);
+    if (cachePacientesMemoria && cachePacientesMemoria.length > 0) {
+      return cachePacientesMemoria;
+    }
     const baseSanitizada = PACIENTES_REGISTRADOS_BASE.map(sanitizarPaciente);
-    try {
-      localStorage.setItem(CLAVE_STORAGE, JSON.stringify(baseSanitizada));
-      localStorage.removeItem(CLAVE_STORAGE_LEGACY);
-    } catch {}
+    safeLocalStorageSet(CLAVE_STORAGE, JSON.stringify(baseSanitizada));
+    safeLocalStorageRemove(CLAVE_STORAGE_LEGACY);
+    cachePacientesMemoria = baseSanitizada;
     return baseSanitizada;
   }
 }
 
 /**
- * Guarda la lista de pacientes en localStorage y emite el evento de sincronización.
+ * Guarda la lista de pacientes en memoria y localStorage resiliente, emitiendo el evento de sincronización.
  */
 export function guardarPacientesStorage(pacientes: Paciente[]): void {
+  const sanitizados = (Array.isArray(pacientes) ? pacientes : [])
+    .filter((p): p is Paciente => Boolean(p) && typeof p === 'object' && Boolean(p.id))
+    .map(sanitizarPaciente);
+
+  cachePacientesMemoria = sanitizados;
+
   if (typeof window === 'undefined') return;
 
   try {
-    localStorage.setItem(CLAVE_STORAGE, JSON.stringify(pacientes));
-    window.dispatchEvent(new CustomEvent(EVENTO_PACIENTES_ACTUALIZADOS, { detail: pacientes }));
+    safeLocalStorageSet(CLAVE_STORAGE, JSON.stringify(sanitizados));
+    window.dispatchEvent(new CustomEvent(EVENTO_PACIENTES_ACTUALIZADOS, { detail: sanitizados }));
   } catch (error) {
-    console.error('Error al guardar pacientes en storage:', error);
+    console.warn('Error al guardar pacientes en storage:', error);
   }
 }
 

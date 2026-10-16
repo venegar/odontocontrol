@@ -422,7 +422,7 @@ function HistoriasClinicasContenido() {
                     title="Alergia confirmada en expediente"
                   >
                     <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
-                    Alérgico a: {al}
+                    Alérgico a: {String(al)}
                   </span>
                 ))
               ) : (
@@ -432,7 +432,7 @@ function HistoriasClinicasContenido() {
               {Array.isArray(pacienteActivo.enfermedadesPrevias) && pacienteActivo.enfermedadesPrevias.length > 0 && (
                 <span className="inline-flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-800 px-2.5 py-1 rounded-lg text-xs font-semibold">
                   <HeartPulse className="w-3.5 h-3.5 text-amber-600" />
-                  {pacienteActivo.enfermedadesPrevias.join(', ')}
+                  {pacienteActivo.enfermedadesPrevias.map(String).join(', ')}
                 </span>
               )}
             </div>
@@ -891,6 +891,7 @@ interface ErrorBoundaryProps {
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
+  reintentos: number;
 }
 
 class HistoriasErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -898,25 +899,26 @@ class HistoriasErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBo
 
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, reintentos: 0 };
   }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.warn('Auto-recuperando expediente clínico sin intervención del usuario:', error, errorInfo);
+    console.warn('Auto-recuperando expediente clínico:', error, errorInfo);
     if (typeof window !== 'undefined') {
       try {
-        localStorage.removeItem('consultorio_pacientes_v1');
-        localStorage.removeItem('consultorio_pacientes_v2');
+        window.localStorage?.removeItem('consultorio_pacientes_v1');
+        window.localStorage?.removeItem('consultorio_pacientes_v2');
       } catch {}
 
-      // Auto-reparar automáticamente tras 50ms sin que el usuario deba interactuar
-      this.retryTimer = setTimeout(() => {
-        this.setState({ hasError: false, error: null });
-      }, 50);
+      if (this.state.reintentos < 2) {
+        this.retryTimer = setTimeout(() => {
+          this.setState((prev) => ({ hasError: false, error: null, reintentos: prev.reintentos + 1 }));
+        }, 50);
+      }
     }
   }
 
@@ -927,7 +929,7 @@ class HistoriasErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBo
   }
 
   render() {
-    if (this.state.hasError) {
+    if (this.state.hasError && this.state.reintentos < 2) {
       return (
         <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-center">
           <div className="p-4 px-6 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center gap-3 animate-pulse">

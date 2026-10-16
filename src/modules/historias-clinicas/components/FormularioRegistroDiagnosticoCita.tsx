@@ -183,7 +183,7 @@ export default function FormularioRegistroDiagnosticoCita({
     } else {
       setAlertaMedicamento(null);
     }
-  }, [prescripcion, paciente.alergias]);
+  }, [prescripcion, paciente?.alergias]);
 
   // Selección rápida de diagnóstico clínico frecuente
   const handleSeleccionarDiagnosticoFrecuente = (item: DiagnosticoFrecuente) => {
@@ -312,10 +312,12 @@ export default function FormularioRegistroDiagnosticoCita({
       };
     });
 
+    const numeroDiente = piezaSeleccionada && piezaSeleccionada !== 'general' ? parseInt(piezaSeleccionada, 10) : undefined;
+
     const nuevaEvolucion: EvolucionClinica = {
       id: `evo-${Date.now()}`,
       pacienteId: paciente.id,
-      pacienteNombre: `${paciente.nombres} ${paciente.apellidos}`,
+      pacienteNombre: `${paciente.nombres || ''} ${paciente.apellidos || ''}`.trim(),
       doctorNombre,
       fecha,
       hora,
