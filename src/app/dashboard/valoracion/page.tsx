@@ -2,27 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { 
   ArrowLeft, 
-  FileSpreadsheet, 
-  User, 
-  Stethoscope, 
   Plus, 
   Trash2, 
   Printer, 
-  Share2, 
   Save, 
   CheckCircle2, 
-  AlertCircle, 
-  Calendar, 
   Phone, 
-  ShieldAlert, 
-  HeartPulse, 
-  Sparkles,
-  Search,
-  Eye,
-  Info
+  Eye
 } from 'lucide-react';
 
 import OdontogramaVisual from '@/modules/historias-clinicas/components/OdontogramaVisual';
@@ -33,7 +21,6 @@ import { Presupuesto, ItemPresupuesto, ProcedimientoCatalogo } from '@/modules/p
 import { 
   CATALOGO_PROCEDIMIENTOS, 
   DATOS_ESPECIALISTA_DEFECTO, 
-  PRESUPUESTOS_BASE, 
   formatearMonedaCOP 
 } from '@/modules/presupuestos/datos';
 import DocumentoPresupuestoMembretado from '@/modules/presupuestos/components/DocumentoPresupuestoMembretado';
@@ -42,7 +29,6 @@ export default function ValoracionInicialPresupuestoPage() {
   // Lista de pacientes disponibles
   const [pacientes, setPacientes] = useState<Paciente[]>(PACIENTES_REGISTRADOS_BASE);
   const [pacienteSeleccionadoId, setPacienteSeleccionadoId] = useState<string>('pac-danilsa-martinez');
-  const [busquedaPaciente, setBusquedaPaciente] = useState<string>('');
 
   // Modo nuevo paciente rápido
   const [modoNuevoPaciente, setModoNuevoPaciente] = useState<boolean>(false);

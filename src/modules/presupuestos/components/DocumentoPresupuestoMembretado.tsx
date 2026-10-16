@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { Printer, Download, Share2, X, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
+import { Printer, Share2, X, FileSpreadsheet } from 'lucide-react';
 import { Presupuesto } from '../types';
 import { formatearMonedaCOP } from '../datos';
 

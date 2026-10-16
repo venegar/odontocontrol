@@ -41,8 +41,7 @@ import {
   FilePlus,
   FileSpreadsheet,
   Printer,
-  Share2,
-  DollarSign
+  Share2
 } from 'lucide-react';
 import { 
   Paciente, 
