@@ -28,7 +28,8 @@ import BuscadorAutocompletadoPaciente from '@/modules/pacientes/components/Busca
 import { 
   CATALOGO_PROCEDIMIENTOS, 
   DATOS_ESPECIALISTA_DEFECTO, 
-  formatearMonedaCOP 
+  formatearMonedaCOP,
+  obtenerProcedimientosCatalogo
 } from '@/modules/presupuestos/datos';
 import DocumentoPresupuestoMembretado from '@/modules/presupuestos/components/DocumentoPresupuestoMembretado';
 
@@ -112,6 +113,18 @@ export default function ValoracionInicialPresupuestoPage() {
   // Modal de formato membretado oficial
   const [modalImprimirAbierto, setModalImprimirAbierto] = useState<boolean>(false);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
+
+  // Catálogo dinámico de tratamientos sincronizado con Datos de la Clínica
+  const [procedimientosCatalogo, setProcedimientosCatalogo] = useState<ProcedimientoCatalogo[]>(CATALOGO_PROCEDIMIENTOS);
+
+  useEffect(() => {
+    setProcedimientosCatalogo(obtenerProcedimientosCatalogo());
+    const handleTratamientosSync = () => {
+      setProcedimientosCatalogo(obtenerProcedimientosCatalogo());
+    };
+    window.addEventListener('consultorio_tratamientos_actualizados', handleTratamientosSync);
+    return () => window.removeEventListener('consultorio_tratamientos_actualizados', handleTratamientosSync);
+  }, []);
 
   // Cargar lista de pacientes desde el almacenamiento unificado
   useEffect(() => {
@@ -605,29 +618,29 @@ export default function ValoracionInicialPresupuestoPage() {
                 <div className="h-4 w-[1px] bg-dentist-200"></div>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => handleAgregarDelCatalogo(CATALOGO_PROCEDIMIENTOS[0], piezaSeleccionada)}
-                    className="text-[11px] font-bold bg-white hover:bg-dentist-600 hover:text-white text-dentist-800 border border-dentist-300 px-2 py-0.5 rounded transition"
+                    onClick={() => handleAgregarDelCatalogo(procedimientosCatalogo[0] || CATALOGO_PROCEDIMIENTOS[0], piezaSeleccionada)}
+                    className="text-[11px] font-bold bg-white hover:bg-dentist-600 hover:text-white text-dentist-800 border border-dentist-300 px-2 py-0.5 rounded transition cursor-pointer"
                     title="Añadir Provisional a este diente"
                   >
                     + Provisional
                   </button>
                   <button
-                    onClick={() => handleAgregarDelCatalogo(CATALOGO_PROCEDIMIENTOS[1], piezaSeleccionada)}
-                    className="text-[11px] font-bold bg-white hover:bg-dentist-600 hover:text-white text-dentist-800 border border-dentist-300 px-2 py-0.5 rounded transition"
+                    onClick={() => handleAgregarDelCatalogo(procedimientosCatalogo[1] || CATALOGO_PROCEDIMIENTOS[1], piezaSeleccionada)}
+                    className="text-[11px] font-bold bg-white hover:bg-dentist-600 hover:text-white text-dentist-800 border border-dentist-300 px-2 py-0.5 rounded transition cursor-pointer"
                     title="Añadir Núcleo a este diente"
                   >
                     + Núcleo
                   </button>
                   <button
-                    onClick={() => handleAgregarDelCatalogo(CATALOGO_PROCEDIMIENTOS[2], piezaSeleccionada)}
-                    className="text-[11px] font-bold bg-white hover:bg-dentist-600 hover:text-white text-dentist-800 border border-dentist-300 px-2 py-0.5 rounded transition"
+                    onClick={() => handleAgregarDelCatalogo(procedimientosCatalogo[2] || CATALOGO_PROCEDIMIENTOS[2], piezaSeleccionada)}
+                    className="text-[11px] font-bold bg-white hover:bg-dentist-600 hover:text-white text-dentist-800 border border-dentist-300 px-2 py-0.5 rounded transition cursor-pointer"
                     title="Añadir Corona Individual a este diente"
                   >
                     + Corona
                   </button>
                   <button
-                    onClick={() => handleAgregarDelCatalogo(CATALOGO_PROCEDIMIENTOS[7], piezaSeleccionada)}
-                    className="text-[11px] font-bold bg-white hover:bg-dentist-600 hover:text-white text-dentist-800 border border-dentist-300 px-2 py-0.5 rounded transition"
+                    onClick={() => handleAgregarDelCatalogo(procedimientosCatalogo[7] || CATALOGO_PROCEDIMIENTOS[7] || procedimientosCatalogo[0], piezaSeleccionada)}
+                    className="text-[11px] font-bold bg-white hover:bg-dentist-600 hover:text-white text-dentist-800 border border-dentist-300 px-2 py-0.5 rounded transition cursor-pointer"
                     title="Añadir Resina a este diente"
                   >
                     + Resina
@@ -663,7 +676,7 @@ export default function ValoracionInicialPresupuestoPage() {
               <select
                 onChange={(e) => {
                   if (e.target.value) {
-                    const proc = CATALOGO_PROCEDIMIENTOS.find(p => p.id === e.target.value);
+                    const proc = procedimientosCatalogo.find(p => p.id === e.target.value);
                     if (proc) {
                       handleAgregarDelCatalogo(proc);
                       e.target.value = '';
@@ -674,7 +687,7 @@ export default function ValoracionInicialPresupuestoPage() {
                 className="text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-700 font-semibold focus:outline-none focus:ring-2 focus:ring-dentist-500"
               >
                 <option value="" disabled>➕ Agregar del Catálogo Odontológico...</option>
-                {CATALOGO_PROCEDIMIENTOS.map(p => (
+                {procedimientosCatalogo.map(p => (
                   <option key={p.id} value={p.id}>
                     {p.nombre} ({formatearMonedaCOP(p.precioSugerido)})
                   </option>

@@ -51,7 +51,11 @@ import {
   CheckCheck,
   Eye,
   Mail,
-  Package
+  Package,
+  Pencil,
+  Trash2,
+  Tag,
+  Filter
 } from 'lucide-react';
 import ModalCrearCitasPrueba, { CitaPruebaGenerada } from '@/modules/citas/components/ModalCrearCitasPrueba';
 import { 
@@ -74,6 +78,18 @@ import {
   DatosConsultorio,
   DATOS_CONSULTORIO_DEFAULT,
 } from '@/modules/configuracion/consultorioService';
+import {
+  Tratamiento,
+  CategoriaTratamiento,
+  CATEGORIAS_TRATAMIENTOS
+} from '@/modules/tratamientos/types';
+import {
+  obtenerTratamientos,
+  guardarTratamiento,
+  eliminarTratamiento,
+  EVENTO_TRATAMIENTOS_ACTUALIZADOS
+} from '@/modules/tratamientos/storage';
+import { formatearMonedaCOP } from '@/modules/presupuestos/datos';
 
 // ============================================================================
 // TIPOS ESTRICTOS EN TYPESCRIPT
@@ -659,6 +675,44 @@ export default function DashboardPrincipalPage() {
   const [guardandoConsultorio, setGuardandoConsultorio] = useState<boolean>(false);
   const [mostrarConfigConsultorio, setMostrarConfigConsultorio] = useState<boolean>(false);
 
+  // Estados para gestión y edición de tratamientos odontológicos desde Datos de la Clínica
+  const [pestañaConfig, setPestañaConfig] = useState<'institucional' | 'tratamientos'>('institucional');
+  const [tratamientos, setTratamientos] = useState<Tratamiento[]>([]);
+  const [busquedaTratamiento, setBusquedaTratamiento] = useState<string>('');
+  const [filtroCategoriaTratamiento, setFiltroCategoriaTratamiento] = useState<string>('todas');
+  const [modalTratamientoAbierto, setModalTratamientoAbierto] = useState<boolean>(false);
+  const [tratamientoAEliminar, setTratamientoAEliminar] = useState<Tratamiento | null>(null);
+  const [alertaTratamiento, setAlertaTratamiento] = useState<{ tipo: 'exito' | 'error'; mensaje: string } | null>(null);
+  const [formTratamiento, setFormTratamiento] = useState<{
+    id?: string;
+    nombre: string;
+    categoria: CategoriaTratamiento;
+    precioSugerido: number;
+    duracionMinutos: number;
+    descripcion: string;
+    aplicaAOrganoDentario: boolean;
+    activo: boolean;
+  }>({
+    nombre: '',
+    categoria: 'Prostodoncia & Oclusión',
+    precioSugerido: 150000,
+    duracionMinutos: 45,
+    descripcion: '',
+    aplicaAOrganoDentario: false,
+    activo: true,
+  });
+
+  useEffect(() => {
+    setTratamientos(obtenerTratamientos());
+
+    const handleTratamientosActualizados = () => {
+      setTratamientos(obtenerTratamientos());
+    };
+
+    window.addEventListener(EVENTO_TRATAMIENTOS_ACTUALIZADOS, handleTratamientosActualizados);
+    return () => window.removeEventListener(EVENTO_TRATAMIENTOS_ACTUALIZADOS, handleTratamientosActualizados);
+  }, []);
+
   useEffect(() => {
     const d = obtenerDatosConsultorio();
     setDatosConsultorio(d);
@@ -812,6 +866,90 @@ export default function DashboardPrincipalPage() {
       setAlertaConsultorio(null);
     }, 5000);
   };
+
+  // Handlers para administración de tratamientos desde Datos de la Clínica
+  const handleAbrirNuevoTratamiento = () => {
+    setFormTratamiento({
+      nombre: '',
+      categoria: 'Prostodoncia & Oclusión',
+      precioSugerido: 150000,
+      duracionMinutos: 45,
+      descripcion: '',
+      aplicaAOrganoDentario: false,
+      activo: true,
+    });
+    setModalTratamientoAbierto(true);
+  };
+
+  const handleAbrirEditarTratamiento = (t: Tratamiento) => {
+    setFormTratamiento({
+      id: t.id,
+      nombre: t.nombre,
+      categoria: t.categoria,
+      precioSugerido: t.precioSugerido,
+      duracionMinutos: t.duracionMinutos,
+      descripcion: t.descripcion || '',
+      aplicaAOrganoDentario: t.aplicaAOrganoDentario,
+      activo: t.activo,
+    });
+    setModalTratamientoAbierto(true);
+  };
+
+  const handleGuardarTratamientoSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formTratamiento.nombre.trim()) {
+      setAlertaTratamiento({ tipo: 'error', mensaje: 'Debes indicar el nombre del tratamiento odontológico.' });
+      return;
+    }
+
+    const res = guardarTratamiento(formTratamiento);
+    if (res.exito) {
+      setTratamientos(res.tratamientos);
+      setModalTratamientoAbierto(false);
+      setAlertaTratamiento({ tipo: 'exito', mensaje: res.mensaje });
+    } else {
+      setAlertaTratamiento({ tipo: 'error', mensaje: res.mensaje });
+    }
+
+    setTimeout(() => setAlertaTratamiento(null), 4000);
+  };
+
+  const handleConfirmarEliminarTratamiento = () => {
+    if (!tratamientoAEliminar) return;
+    const res = eliminarTratamiento(tratamientoAEliminar.id);
+    if (res.exito) {
+      setTratamientos(res.tratamientos);
+      setAlertaTratamiento({ tipo: 'exito', mensaje: res.mensaje });
+    } else {
+      setAlertaTratamiento({ tipo: 'error', mensaje: res.mensaje });
+    }
+    setTratamientoAEliminar(null);
+    setTimeout(() => setAlertaTratamiento(null), 4000);
+  };
+
+  const handleToggleEstadoTratamiento = (t: Tratamiento) => {
+    const res = guardarTratamiento({
+      ...t,
+      activo: !t.activo,
+    });
+    if (res.exito) {
+      setTratamientos(res.tratamientos);
+      setAlertaTratamiento({
+        tipo: 'exito',
+        mensaje: `Tratamiento "${t.nombre}" ${!t.activo ? 'activado' : 'pausado'} con éxito.`,
+      });
+      setTimeout(() => setAlertaTratamiento(null), 3000);
+    }
+  };
+
+  const tratamientosFiltrados = tratamientos.filter((t) => {
+    const coincideCategoria =
+      filtroCategoriaTratamiento === 'todas' || t.categoria === filtroCategoriaTratamiento;
+    const coincideBusqueda =
+      t.nombre.toLowerCase().includes(busquedaTratamiento.toLowerCase()) ||
+      (t.descripcion && t.descripcion.toLowerCase().includes(busquedaTratamiento.toLowerCase()));
+    return coincideCategoria && coincideBusqueda;
+  });
 
   // Filtrado de pacientes por jornada
   const pacientesHoy = pacientes.filter(p => !p.fecha || p.fecha === fechaHoy);
@@ -1562,7 +1700,7 @@ export default function DashboardPrincipalPage() {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-base sm:text-lg font-bold text-slate-900">
-                        Datos Institucionales y Operativos del Consultorio
+                        Datos Institucionales, Operativos y Tratamientos
                       </h2>
                       {rolActivo === 'admin' ? (
                         <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-200">
@@ -1575,7 +1713,7 @@ export default function DashboardPrincipalPage() {
                       )}
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Información oficial sincronizada en la página de inicio, horarios de atención y mensajes de WhatsApp.
+                      Gestiona la información institucional, horarios de atención y el catálogo oficial de tratamientos y tarifas odontológicas.
                     </p>
                   </div>
                 </div>
@@ -1590,6 +1728,55 @@ export default function DashboardPrincipalPage() {
                   </button>
                 )}
               </div>
+
+              {/* Selector de Pestañas: Datos de Sede vs Tratamientos Odontológicos */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-2xl">
+                  <button
+                    type="button"
+                    onClick={() => setPestañaConfig('institucional')}
+                    className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                      pestañaConfig === 'institucional'
+                        ? 'bg-white text-dentist-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Building2 className="w-3.5 h-3.5 text-dentist-600" />
+                    <span>Datos de Sede & Horarios</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPestañaConfig('tratamientos')}
+                    className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                      pestañaConfig === 'tratamientos'
+                        ? 'bg-white text-dentist-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Stethoscope className="w-3.5 h-3.5 text-dentist-600" />
+                    <span>Tratamientos Odontológicos</span>
+                    <span className="bg-dentist-100 text-dentist-800 text-[10px] px-2 py-0.5 rounded-full font-extrabold">
+                      {tratamientos.length}
+                    </span>
+                  </button>
+                </div>
+
+                {pestañaConfig === 'tratamientos' && rolActivo === 'admin' && (
+                  <button
+                    type="button"
+                    onClick={handleAbrirNuevoTratamiento}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-dentist-600 hover:bg-dentist-700 text-white font-bold text-xs shadow-xs transition active:scale-95 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Nuevo Tratamiento</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Contenido Pestaña 1: Datos de Sede e Información Institucional */}
+              {pestañaConfig === 'institucional' && (
+                <div className="space-y-6">
 
               {/* Banner de Advertencia de Rol Restringido si no es admin */}
               {rolActivo !== 'admin' && (
@@ -1835,9 +2022,242 @@ export default function DashboardPrincipalPage() {
                   )}
                 </div>
               </form>
-
             </div>
           )}
+
+          {/* Contenido Pestaña 2: Catálogo y Edición de Tratamientos Odontológicos */}
+          {pestañaConfig === 'tratamientos' && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              {/* Encabezado descriptivo */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-slate-900">
+                      Catálogo Oficial de Tratamientos Odontológicos
+                    </h3>
+                    <span className="text-[10px] bg-dentist-100 text-dentist-800 font-bold px-2 py-0.5 rounded-full">
+                      {tratamientos.length} procedimientos
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Define tarifas en pesos colombianos ($ COP), especialidades y duración para citas, valoraciones y presupuestos.
+                  </p>
+                </div>
+
+                {rolActivo !== 'admin' && (
+                  <span className="text-xs text-slate-500 bg-white border border-slate-200 px-3 py-1.5 rounded-xl font-medium flex items-center gap-1.5 self-start sm:self-auto">
+                    <Lock className="w-3.5 h-3.5 text-slate-400" /> Solo Lectura (Admin puede editar)
+                  </span>
+                )}
+              </div>
+
+              {/* Banner si el rol no es admin */}
+              {rolActivo !== 'admin' && (
+                <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 flex items-start gap-3 text-xs text-amber-900">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block">Tarifas y catálogo protegidos:</span>
+                    <span>
+                      Tu rol actual es <strong>{rolActivo === 'odontologo' ? 'Odontólogo Titular' : 'Recepcionista'}</strong>. Puedes consultar precios y tiempos, pero la creación, edición o eliminación de tratamientos está restringida a la <strong>Dirección Médica y Administración</strong>.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Alerta de Éxito o Error tras Guardar Tratamiento */}
+              {alertaTratamiento && (
+                <div className={`p-4 rounded-2xl flex items-center gap-3 text-xs font-semibold border ${
+                  alertaTratamiento.tipo === 'exito'
+                    ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                    : 'bg-rose-50 text-rose-900 border-rose-200'
+                }`}>
+                  {alertaTratamiento.tipo === 'exito' ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  )}
+                  <span>{alertaTratamiento.mensaje}</span>
+                </div>
+              )}
+
+              {/* Barra de Búsqueda y Filtro por Especialidad */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <input
+                    type="text"
+                    value={busquedaTratamiento}
+                    onChange={(e) => setBusquedaTratamiento(e.target.value)}
+                    placeholder="Buscar por nombre o descripción del tratamiento..."
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-dentist-500 font-medium"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <Filter className="w-4 h-4 text-slate-400" />
+                  <select
+                    value={filtroCategoriaTratamiento}
+                    onChange={(e) => setFiltroCategoriaTratamiento(e.target.value)}
+                    className="text-xs px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:outline-none focus:ring-2 focus:ring-dentist-500"
+                  >
+                    <option value="todas">Todas las Especialidades ({tratamientos.length})</option>
+                    {CATEGORIAS_TRATAMIENTOS.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.label} ({tratamientos.filter(t => t.categoria === cat.id).length})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Rejilla de Tarjetas de Tratamientos */}
+              {tratamientosFiltrados.length === 0 ? (
+                <div className="p-10 text-center bg-slate-50/60 rounded-3xl border border-dashed border-slate-200">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                    <Stethoscope className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-800">No se encontraron tratamientos</h4>
+                  <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                    No hay procedimientos registrados que coincidan con los criterios de búsqueda.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { setBusquedaTratamiento(''); setFiltroCategoriaTratamiento('todas'); }}
+                    className="mt-3 text-xs font-semibold text-dentist-600 hover:text-dentist-700 cursor-pointer"
+                  >
+                    Limpiar filtros de búsqueda
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {tratamientosFiltrados.map((t) => {
+                    const catMeta = CATEGORIAS_TRATAMIENTOS.find((c) => c.id === t.categoria);
+                    return (
+                      <div
+                        key={t.id}
+                        className={`rounded-2xl border transition-all p-4 flex flex-col justify-between bg-white shadow-2xs hover:shadow-xs group ${
+                          t.activo ? 'border-slate-200/90 hover:border-dentist-300' : 'border-slate-200/60 opacity-60 bg-slate-50/50'
+                        }`}
+                      >
+                        <div className="space-y-2.5">
+                          {/* Categoría y Estado */}
+                          <div className="flex items-start justify-between gap-2">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                              catMeta?.color === 'indigo'
+                                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                : catMeta?.color === 'cyan'
+                                ? 'bg-cyan-50 text-cyan-700 border border-cyan-200'
+                                : catMeta?.color === 'purple'
+                                ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                : catMeta?.color === 'emerald'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : catMeta?.color === 'rose'
+                                ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                : catMeta?.color === 'amber'
+                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                : 'bg-sky-50 text-sky-700 border border-sky-200'
+                            }`}>
+                              {t.categoria}
+                            </span>
+
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                              t.activo
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : 'bg-slate-100 text-slate-500 border border-slate-200'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${t.activo ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                              <span>{t.activo ? 'Activo' : 'Pausado'}</span>
+                            </span>
+                          </div>
+
+                          {/* Nombre y Descripción */}
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-900 group-hover:text-dentist-700 transition leading-snug">
+                              {t.nombre}
+                            </h4>
+                            {t.descripcion && (
+                              <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                                {t.descripcion}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Tarifa y Duración */}
+                          <div className="pt-2 border-t border-slate-100 flex items-baseline justify-between gap-2">
+                            <div>
+                              <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                                Tarifa Sugerida
+                              </span>
+                              <span className="text-base font-black text-dentist-700">
+                                {formatearMonedaCOP(t.precioSugerido)}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                                Duración
+                              </span>
+                              <span className="text-xs font-semibold text-slate-700 inline-flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-slate-400" />
+                                <span>{t.duracionMinutos} min</span>
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                            <span className="font-semibold text-slate-700">
+                              {t.aplicaAOrganoDentario ? '🦷 Aplica a órgano dentario (FDI)' : '🌐 Procedimiento general'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Acciones */}
+                        {rolActivo === 'admin' ? (
+                          <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleAbrirEditarTratamiento(t)}
+                              className="inline-flex items-center gap-1 text-xs font-bold text-dentist-600 hover:text-dentist-800 px-2 py-1 hover:bg-dentist-50 rounded-lg transition cursor-pointer"
+                              title="Editar tratamiento y tarifa"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              <span>Editar</span>
+                            </button>
+
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleEstadoTratamiento(t)}
+                                className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 px-2 py-1 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                                title={t.activo ? 'Pausar temporalmente' : 'Reactivar tratamiento'}
+                              >
+                                {t.activo ? 'Pausar' : 'Activar'}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setTratamientoAEliminar(t)}
+                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                                title="Eliminar tratamiento"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="pt-2 mt-2 border-t border-slate-100 text-[11px] text-slate-400 italic">
+                            Tarifa oficial autorizada por Dirección Médica
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+      )}
           {rolActivo === 'recepcionista' && (
             <div className="space-y-6">
               
@@ -3338,6 +3758,219 @@ export default function DashboardPrincipalPage() {
                   Cerrar
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal para Crear / Editar Tratamiento Odontológico */}
+      {modalTratamientoAbierto && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-slate-100 my-8 animate-in fade-in zoom-in-95">
+            <div className="flex items-start justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-dentist-50 text-dentist-600 flex items-center justify-center border border-dentist-200">
+                  <Stethoscope className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">
+                    {formTratamiento.id ? 'Editar Tratamiento Odontológico' : 'Registrar Nuevo Tratamiento'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {formTratamiento.id ? 'Modifica tarifas, tiempos y especificaciones del procedimiento' : 'Añade un nuevo servicio al catálogo oficial de la clínica'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalTratamientoAbierto(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleGuardarTratamientoSubmit} className="space-y-4 pt-4">
+              {/* Nombre del Tratamiento */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nombre Comercial del Tratamiento *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej. Blanqueamiento Dental Fotoactivado en Consultorio"
+                  value={formTratamiento.nombre}
+                  onChange={(e) => setFormTratamiento({ ...formTratamiento, nombre: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-dentist-500 font-semibold"
+                />
+              </div>
+
+              {/* Categoría y Tarifa */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Especialidad / Área *
+                  </label>
+                  <select
+                    value={formTratamiento.categoria}
+                    onChange={(e) => setFormTratamiento({ ...formTratamiento, categoria: e.target.value as CategoriaTratamiento })}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-dentist-500 bg-white"
+                  >
+                    {CATEGORIAS_TRATAMIENTOS.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Tarifa Sugerida (COP) *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">$</span>
+                    <input
+                      type="number"
+                      required
+                      min={0}
+                      step={5000}
+                      value={formTratamiento.precioSugerido}
+                      onChange={(e) => setFormTratamiento({ ...formTratamiento, precioSugerido: Number(e.target.value) })}
+                      className="w-full pl-7 pr-3 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-dentist-500 font-bold"
+                    />
+                  </div>
+                  <span className="block text-[11px] text-dentist-700 font-bold mt-1">
+                    Vista previa: {formatearMonedaCOP(formTratamiento.precioSugerido || 0)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Duración y Aplicación a Órgano Dentario */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Duración Estimada de Cita *
+                  </label>
+                  <select
+                    value={formTratamiento.duracionMinutos}
+                    onChange={(e) => setFormTratamiento({ ...formTratamiento, duracionMinutos: Number(e.target.value) })}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-dentist-500 bg-white"
+                  >
+                    <option value={15}>15 minutos (Control rápido)</option>
+                    <option value={30}>30 minutos (Control regular / Diagnóstico)</option>
+                    <option value={45}>45 minutos (Profilaxis / Obturación simple)</option>
+                    <option value={60}>60 minutos (Endodoncia / Corona / Cirugía)</option>
+                    <option value={75}>75 minutos (Endodoncia birradicular)</option>
+                    <option value={90}>90 minutos (Cirugía compleja / Carillas)</option>
+                    <option value={120}>120 minutos (Rehabilitación total / Implantes)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    ¿Aplica a pieza dental específica?
+                  </label>
+                  <select
+                    value={formTratamiento.aplicaAOrganoDentario ? 'si' : 'no'}
+                    onChange={(e) => setFormTratamiento({ ...formTratamiento, aplicaAOrganoDentario: e.target.value === 'si' })}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-dentist-500 bg-white"
+                  >
+                    <option value="si">🦷 Sí (Requiere indicar diente FDI: ej. 15, 26, 44)</option>
+                    <option value="no">🌐 No (Procedimiento general / Arcada completa)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Descripción Clínica */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Descripción Clínica / Especificaciones del Procedimiento
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Detalles sobre materiales (resina, zirconia, porcelana), técnica empleada o instrucciones postoperatorias..."
+                  value={formTratamiento.descripcion}
+                  onChange={(e) => setFormTratamiento({ ...formTratamiento, descripcion: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-dentist-500"
+                />
+              </div>
+
+              {/* Estado Activo / Pausado */}
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+                <div>
+                  <span className="block text-xs font-bold text-slate-900">Estado del Tratamiento</span>
+                  <span className="block text-[11px] text-slate-500">
+                    Los tratamientos activos están disponibles en agenda, presupuestos y portal del paciente.
+                  </span>
+                </div>
+                <label className="inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formTratamiento.activo}
+                    onChange={(e) => setFormTratamiento({ ...formTratamiento, activo: e.target.checked })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-dentist-600"></div>
+                </label>
+              </div>
+
+              {/* Botones de Acción */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setModalTratamientoAbierto(false)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-dentist-600 hover:bg-dentist-700 text-white font-bold text-xs shadow-md shadow-dentist-600/20 transition active:scale-95 cursor-pointer"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{formTratamiento.id ? 'Guardar Cambios' : 'Registrar Tratamiento'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación para Eliminar Tratamiento */}
+      {tratamientoAEliminar && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 border border-rose-200">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-slate-900">¿Eliminar tratamiento del catálogo?</h3>
+                <p className="text-xs text-slate-600 mt-1">
+                  Estás a punto de eliminar <strong>&quot;{tratamientoAEliminar.nombre}&quot;</strong> ({formatearMonedaCOP(tratamientoAEliminar.precioSugerido)}).
+                </p>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Esta acción retirará el tratamiento de la oferta clínica actual, pero los presupuestos e historias clínicas emitidos previamente permanecerán inalterados por trazabilidad.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setTratamientoAEliminar(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmarEliminarTratamiento}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md shadow-rose-600/20 transition active:scale-95 cursor-pointer"
+              >
+                Eliminar Tratamiento
+              </button>
             </div>
           </div>
         </div>

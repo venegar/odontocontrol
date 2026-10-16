@@ -272,3 +272,34 @@ export function formatearMonedaCOP(valor: number): string {
     maximumFractionDigits: 0,
   }).format(valor);
 }
+
+/**
+ * Obtiene el catálogo de procedimientos odontológicos dinámicamente desde el almacenamiento local
+ * si existen tratamientos editados por el consultorio, o el catálogo base por defecto.
+ */
+export function obtenerProcedimientosCatalogo(): ProcedimientoCatalogo[] {
+  if (typeof window === 'undefined') {
+    return CATALOGO_PROCEDIMIENTOS;
+  }
+
+  try {
+    const raw = localStorage.getItem('consultorio_tratamientos_v2');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.filter((t: any) => t.activo).map((t: any) => ({
+          id: t.id,
+          nombre: t.nombre.toUpperCase(),
+          categoria: t.categoria,
+          precioSugerido: t.precioSugerido,
+          aplicaAOrganoDentario: t.aplicaAOrganoDentario,
+          formatoPlantilla: t.formatoPlantilla || (t.aplicaAOrganoDentario ? `${t.nombre.toUpperCase()} A NIVEL DE ORGANO DENTARIO {diente}` : t.nombre.toUpperCase()),
+        }));
+      }
+    }
+  } catch (e) {
+    console.error('Error al obtener procedimientos dinámicos:', e);
+  }
+
+  return CATALOGO_PROCEDIMIENTOS;
+}
