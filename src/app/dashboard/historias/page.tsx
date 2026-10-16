@@ -315,7 +315,6 @@ function HistoriasClinicasContenido() {
               className="inline-flex items-center gap-1.5 bg-dentist-600 hover:bg-dentist-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition shadow-xs whitespace-nowrap cursor-pointer relative z-10 active:scale-95"
               title="Registrar evolución clínica, diagnóstico y tratamiento de la cita del paciente"
             >
-              <Stethoscope className="w-4 h-4" />
               <span className="hidden sm:inline">+ Registrar Evolución de Cita</span>
               <span className="sm:hidden">+ Evolución</span>
             </button>
