@@ -1459,7 +1459,7 @@ export default function DashboardPrincipalPage() {
                 </Link>
 
                 <Link
-                  href="/dashboard/inventario"
+                  href="/inventario"
                   className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition"
                 >
                   <div className="flex items-center gap-2.5">

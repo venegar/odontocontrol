@@ -1,6 +1,7 @@
 /**
  * Utilidades y algoritmos de semaforización y FEFO para el inventario odontológico.
  * Consultorio Odontológico Virtual
+ * Zona horaria oficial: America/Bogota (UTC-5)
  */
 
 import { 
@@ -12,12 +13,28 @@ import {
 } from './types';
 
 /**
- * Normaliza una fecha a medianoche (00:00:00.000) en tiempo local
- * para realizar cálculos de diferencia de días exactos y sin desfasajes de horas.
+ * Obtiene la fecha actual en la zona horaria oficial del consultorio ('America/Bogota').
+ * Asegura que los cálculos de vencimiento sean exactos a la medianoche colombiana.
+ */
+export function obtenerFechaHoyColombia(): Date {
+  const ahora = new Date();
+  const formatoBogota = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(ahora); // Retorna 'YYYY-MM-DD'
+
+  const [anio, mes, dia] = formatoBogota.split('-').map((n) => parseInt(n, 10));
+  return new Date(anio, mes - 1, dia, 0, 0, 0, 0);
+}
+
+/**
+ * Normaliza cualquier fecha a medianoche (00:00:00.000) interpretada
+ * bajo la zona horaria del consultorio para cálculo exacto de días.
  */
 function normalizarFechaAMedianoche(fecha: string | Date): Date {
   if (typeof fecha === 'string') {
-    // Si viene en formato YYYY-MM-DD
     const partes = fecha.split('T')[0].split('-');
     if (partes.length === 3) {
       const anio = parseInt(partes[0], 10);
@@ -40,19 +57,19 @@ function normalizarFechaAMedianoche(fecha: string | Date): Date {
  * - 🟢 Verde: Vencimiento mayor a 90 días.
  *
  * @param fechaVencimiento Fecha de expiración del lote (string ISO o Date)
- * @param hoy Fecha de corte actual (por defecto la fecha y hora de la consulta)
+ * @param hoy Fecha de corte actual (por defecto la fecha oficial de Colombia)
  * @param umbrales Umbrales configurables (por defecto 30 y 90 días)
  */
 export function calcularSemaforo(
   fechaVencimiento: string | Date,
-  hoy: string | Date = new Date(),
+  hoy: string | Date = obtenerFechaHoyColombia(),
   umbrales = {
     rojoDias: UMBRAL_SEMAFORO_ROJO_DIAS,
     amarilloDias: UMBRAL_SEMAFORO_AMARILLO_DIAS,
   }
 ): ResultadoSemaforo {
   const fVenc = normalizarFechaAMedianoche(fechaVencimiento);
-  const fHoy = normalizarFechaAMedianoche(hoy);
+  const fHoy = typeof hoy === 'string' ? normalizarFechaAMedianoche(hoy) : hoy;
 
   const diferenciaMs = fVenc.getTime() - fHoy.getTime();
   const diasRestantes = Math.round(diferenciaMs / (1000 * 60 * 60 * 24));
@@ -113,7 +130,7 @@ export function ordenarLotesPorFEFO<T extends { fecha_vencimiento: string }>(lot
  */
 export function enriquecerLotesConSemaforo(
   lotes: LoteConInsumo[], 
-  hoy: string | Date = new Date()
+  hoy: string | Date = obtenerFechaHoyColombia()
 ): LoteConInsumo[] {
   return lotes.map((lote) => ({
     ...lote,
