@@ -33,6 +33,7 @@ import {
 import OdontogramaVisual from '@/modules/historias-clinicas/components/OdontogramaVisual';
 import FormularioRegistroDiagnosticoCita from '@/modules/historias-clinicas/components/FormularioRegistroDiagnosticoCita';
 import ModalRegistroPacienteRapido from '@/modules/pacientes/components/ModalRegistroPacienteRapido';
+import BuscadorAutocompletadoPaciente from '@/modules/pacientes/components/BuscadorAutocompletadoPaciente';
 import { 
   DienteInfo, 
   EstadoDiente, 
@@ -253,10 +254,20 @@ function HistoriasClinicasContenido() {
             </div>
           </div>
 
-          {/* Selector de Paciente Activo y Botones de Acción */}
+          {/* Buscador Autocompletador y Selector de Paciente Activo */}
           <div className="flex items-center gap-2">
+            <div className="hidden md:block w-64 lg:w-72">
+              <BuscadorAutocompletadoPaciente
+                pacientes={pacientes}
+                pacienteSeleccionadoId={pacienteSeleccionadoId}
+                onSeleccionarPaciente={(p) => setPacienteSeleccionadoId(p.id)}
+                onCrearNuevoPaciente={() => setModalNuevoPacienteAbierto(true)}
+                placeholder="Autocompletar paciente..."
+              />
+            </div>
+
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-semibold text-slate-600 hidden md:inline">Paciente Activo:</span>
+              <span className="text-xs font-semibold text-slate-600 hidden lg:inline">O escoger:</span>
               <select
                 value={pacienteSeleccionadoId}
                 onChange={(e) => {
@@ -266,7 +277,7 @@ function HistoriasClinicasContenido() {
                     setPacienteSeleccionadoId(e.target.value);
                   }
                 }}
-                className="text-xs bg-slate-100 font-bold border border-slate-300 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-dentist-500 max-w-[200px] sm:max-w-[260px] truncate"
+                className="text-xs bg-slate-100 font-bold border border-slate-300 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-dentist-500 max-w-[170px] sm:max-w-[220px] truncate"
               >
                 <optgroup label="Pacientes Registrados">
                   {pacientes.map((p) => (
