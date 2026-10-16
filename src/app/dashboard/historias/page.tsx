@@ -282,45 +282,19 @@ function HistoriasClinicasContenido() {
             </div>
           </div>
 
-          {/* Buscador Autocompletador y Selector de Paciente Activo */}
+          {/* Buscador de Pacientes ya Registrados y Botón de Nuevo Paciente */}
           <div className="flex items-center gap-2">
-            <div className="hidden md:block w-64 lg:w-72">
+            <div className="w-48 sm:w-64 lg:w-72">
               <BuscadorAutocompletadoPaciente
                 pacientes={pacientesSeguros}
                 pacienteSeleccionadoId={pacienteSeleccionadoId}
                 onSeleccionarPaciente={(p) => setPacienteSeleccionadoId(p.id)}
                 onCrearNuevoPaciente={() => setModalNuevoPacienteAbierto(true)}
-                placeholder="Autocompletar paciente..."
+                placeholder="Buscar paciente registrado..."
               />
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-semibold text-slate-600 hidden lg:inline">O escoger:</span>
-              <select
-                value={pacienteSeleccionadoId}
-                onChange={(e) => {
-                  if (e.target.value === '__NUEVO__') {
-                    setModalNuevoPacienteAbierto(true);
-                  } else {
-                    setPacienteSeleccionadoId(e.target.value);
-                  }
-                }}
-                className="text-xs bg-slate-100 font-bold border border-slate-300 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-dentist-500 max-w-[170px] sm:max-w-[220px] truncate"
-              >
-                <optgroup label="Pacientes Registrados">
-                  {pacientesSeguros.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombres || ''} {p.apellidos || ''} ({p.tipoDocumento || 'CC'} {p.numeroDocumento || ''})
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Acciones">
-                  <option value="__NUEVO__">+ Registrar Paciente Nuevo...</option>
-                </optgroup>
-              </select>
-            </div>
-
-            {/* BOTÓN PROMINENTE: REGISTRAR PACIENTE NUEVO */}
+            {/* BOTÓN ÚNICO: REGISTRAR PACIENTE NUEVO */}
             <button
               type="button"
               onClick={() => setModalNuevoPacienteAbierto(true)}
@@ -328,7 +302,8 @@ function HistoriasClinicasContenido() {
               title="Registrar un nuevo paciente para atención clínica"
             >
               <UserPlus className="w-4 h-4 text-dentist-600" />
-              <span className="hidden sm:inline">+ Paciente Nuevo</span>
+              <span className="hidden sm:inline">+ Nuevo Paciente</span>
+              <span className="sm:hidden">+ Nuevo</span>
             </button>
 
             {/* BOTÓN PROMINENTE: REGISTRAR EVOLUCIÓN DE CITA */}
@@ -339,12 +314,13 @@ function HistoriasClinicasContenido() {
               title="Registrar evolución clínica, diagnóstico y tratamiento de la cita del paciente"
             >
               <Stethoscope className="w-4 h-4" />
-              <span>+ Registrar Evolución de Cita</span>
+              <span className="hidden sm:inline">+ Registrar Evolución de Cita</span>
+              <span className="sm:hidden">+ Evolución</span>
             </button>
 
             <Link
               href="/dashboard/valoracion"
-              className="hidden lg:inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition shadow-xs whitespace-nowrap"
+              className="hidden xl:inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition shadow-xs whitespace-nowrap"
               title="Realizar consulta inicial de valoración con odontograma y presupuesto oficial"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />

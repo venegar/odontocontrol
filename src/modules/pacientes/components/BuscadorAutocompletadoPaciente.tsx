@@ -108,9 +108,9 @@ export default function BuscadorAutocompletadoPaciente({
   };
 
   return (
-    <div ref={contenedorRef} className={`relative flex items-center gap-2 ${className}`}>
+    <div ref={contenedorRef} className={`relative ${className}`}>
       {/* Campo de búsqueda con autocompletado */}
-      <div className="relative flex-1 min-w-[260px] sm:min-w-[320px]">
+      <div className="relative w-full">
         <div className="relative flex items-center">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
           
@@ -260,19 +260,6 @@ export default function BuscadorAutocompletadoPaciente({
           </div>
         )}
       </div>
-
-      {/* Botón directo de Nuevo Paciente */}
-      {onCrearNuevoPaciente && (
-        <button
-          type="button"
-          onClick={onCrearNuevoPaciente}
-          className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold px-3 py-2.5 rounded-xl transition shadow-2xs whitespace-nowrap active:scale-95 shrink-0"
-          title="Registrar paciente nuevo"
-        >
-          <UserPlus className="w-3.5 h-3.5 text-dentist-600" />
-          <span>+ Nuevo Paciente</span>
-        </button>
-      )}
     </div>
   );
 }
