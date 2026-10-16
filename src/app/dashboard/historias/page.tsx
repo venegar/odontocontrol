@@ -265,7 +265,7 @@ function HistoriasClinicasContenido() {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* BARRA SUPERIOR INSTITUCIONAL */}
       <header className="bg-white border-b sticky top-0 z-40 shadow-2xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 min-h-16 py-2.5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
             <Link 
               href="/dashboard" 
@@ -283,8 +283,8 @@ function HistoriasClinicasContenido() {
           </div>
 
           {/* Buscador de Pacientes ya Registrados y Botón de Nuevo Paciente */}
-          <div className="flex items-center gap-2">
-            <div className="w-48 sm:w-64 lg:w-72">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="w-48 sm:w-60 lg:w-68">
               <BuscadorAutocompletadoPaciente
                 pacientes={pacientesSeguros}
                 pacienteSeleccionadoId={pacienteSeleccionadoId}
@@ -298,7 +298,7 @@ function HistoriasClinicasContenido() {
             <button
               type="button"
               onClick={() => setModalNuevoPacienteAbierto(true)}
-              className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold px-3 py-2 rounded-xl transition shadow-2xs whitespace-nowrap active:scale-95"
+              className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold px-3 py-2 rounded-xl transition shadow-2xs whitespace-nowrap cursor-pointer relative z-10 active:scale-95"
               title="Registrar un nuevo paciente para atención clínica"
             >
               <UserPlus className="w-4 h-4 text-dentist-600" />
@@ -309,8 +309,10 @@ function HistoriasClinicasContenido() {
             {/* BOTÓN PROMINENTE: REGISTRAR EVOLUCIÓN DE CITA */}
             <button
               type="button"
-              onClick={() => setModalEvolucionAbierto(true)}
-              className="inline-flex items-center gap-1.5 bg-dentist-600 hover:bg-dentist-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition shadow-xs whitespace-nowrap active:scale-95"
+              onClick={() => {
+                setModalEvolucionAbierto(true);
+              }}
+              className="inline-flex items-center gap-1.5 bg-dentist-600 hover:bg-dentist-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition shadow-xs whitespace-nowrap cursor-pointer relative z-10 active:scale-95"
               title="Registrar evolución clínica, diagnóstico y tratamiento de la cita del paciente"
             >
               <Stethoscope className="w-4 h-4" />
@@ -318,13 +320,15 @@ function HistoriasClinicasContenido() {
               <span className="sm:hidden">+ Evolución</span>
             </button>
 
+            {/* BOTÓN VALORACIÓN Y PRESUPUESTO */}
             <Link
-              href="/dashboard/valoracion"
-              className="hidden xl:inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition shadow-xs whitespace-nowrap"
+              href={`/dashboard/valoracion${pacienteActivo?.id ? `?pacienteId=${pacienteActivo.id}` : ''}`}
+              className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition shadow-xs whitespace-nowrap cursor-pointer relative z-10 active:scale-95"
               title="Realizar consulta inicial de valoración con odontograma y presupuesto oficial"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
-              <span>Valoración & Presupuesto</span>
+              <span className="hidden lg:inline">Valoración & Presupuesto</span>
+              <span className="lg:hidden">Presupuesto</span>
             </Link>
           </div>
         </div>
@@ -882,18 +886,11 @@ class HistoriasErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBo
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.warn('Auto-recuperando expediente clínico:', error, errorInfo);
-    if (typeof window !== 'undefined') {
-      try {
-        window.localStorage?.removeItem('consultorio_pacientes_v1');
-        window.localStorage?.removeItem('consultorio_pacientes_v2');
-      } catch {}
-
-      if (this.state.reintentos < 2) {
-        this.retryTimer = setTimeout(() => {
-          this.setState((prev) => ({ hasError: false, error: null, reintentos: prev.reintentos + 1 }));
-        }, 50);
-      }
+    console.error('Error capturado en expediente clínico:', error, errorInfo);
+    if (typeof window !== 'undefined' && this.state.reintentos < 2) {
+      this.retryTimer = setTimeout(() => {
+        this.setState((prev) => ({ hasError: false, error: null, reintentos: prev.reintentos + 1 }));
+      }, 50);
     }
   }
 

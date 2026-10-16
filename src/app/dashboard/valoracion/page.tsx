@@ -118,9 +118,18 @@ export default function ValoracionInicialPresupuestoPage() {
     const lista = obtenerPacientesStorage();
     if (lista.length > 0) {
       setPacientes(lista);
-      if (!lista.some(p => p.id === pacienteSeleccionadoId)) {
-        setPacienteSeleccionadoId(lista[0].id);
+      let idInicial = pacienteSeleccionadoId;
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const queryId = params.get('pacienteId') || params.get('paciente');
+        if (queryId && lista.some(p => p.id === queryId)) {
+          idInicial = queryId;
+        }
       }
+      if (!lista.some(p => p.id === idInicial)) {
+        idInicial = lista[0].id;
+      }
+      setPacienteSeleccionadoId(idInicial);
     }
 
     const handleActualizacion = (e: Event) => {

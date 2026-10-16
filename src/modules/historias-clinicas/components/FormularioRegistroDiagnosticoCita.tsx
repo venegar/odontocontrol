@@ -257,6 +257,16 @@ export default function FormularioRegistroDiagnosticoCita({
     );
   };
 
+  // Agregar otro procedimiento personalizado
+  const handleAgregarOtroProcedimiento = () => {
+    if (!otroProcedimiento.trim()) return;
+    const procLimpio = otroProcedimiento.trim();
+    if (!procedimientosSeleccionados.includes(procLimpio)) {
+      setProcedimientosSeleccionados((prev) => [...prev, procLimpio]);
+    }
+    setOtroProcedimiento('');
+  };
+
   const handleAgregarInsumoUso = () => {
     if (!insumoSeleccionadoId || cantidadInsumoUso <= 0) return;
     setInsumosUsados((prev) => {
