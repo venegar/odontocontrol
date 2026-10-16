@@ -33,11 +33,38 @@ export default function LoginPage() {
     setError(null);
     setCargando(true);
 
+    const emailLimpio = email.trim().toLowerCase();
+    const passLimpio = password.trim();
+
+    // Acceso administrativo directo para Jairo Cárcamo / Escobar
+    if (
+      (emailLimpio === 'jairo.carcamo@odontocontrol.com' || emailLimpio === 'jairo.escobar@odontocontrol.com') &&
+      passLimpio === '7574242Jc'
+    ) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(
+          'consultorio_usuario_activo',
+          JSON.stringify({
+            email: emailLimpio,
+            nombres: 'Jairo',
+            apellidos: emailLimpio.includes('carcamo') ? 'Cárcamo' : 'Escobar',
+            rol: 'admin',
+          })
+        );
+        document.cookie = 'sb-demo-auth-token=admin; path=/; max-age=604800; SameSite=Lax';
+      }
+      setTimeout(() => {
+        setCargando(false);
+        router.push('/dashboard');
+      }, 300);
+      return;
+    }
+
     try {
       // 1. Intentar autenticación real en Supabase Auth
       const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password: password.trim(),
+        email: emailLimpio,
+        password: passLimpio,
       });
 
       if (authError) {
@@ -79,9 +106,21 @@ export default function LoginPage() {
     }
   };
 
-  // Accesos rápidos para probar
+  // Accesos rápidos de demostración (1 Clic) habilitados exactamente como estaban antes
   const loginDemo = (tipo: 'paciente' | 'admin' | 'recepcionista') => {
     setCargando(true);
+    setError(null);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(
+        'consultorio_usuario_activo',
+        JSON.stringify({
+          email: tipo === 'paciente' ? 'paciente.demo@odontocontrol.com' : 'admin.demo@odontocontrol.com',
+          nombres: tipo === 'paciente' ? 'Paciente Demo' : 'Administrador Demo',
+          rol: tipo,
+        })
+      );
+      document.cookie = `sb-demo-auth-token=${tipo}; path=/; max-age=604800; SameSite=Lax`;
+    }
     setTimeout(() => {
       setCargando(false);
       if (tipo === 'paciente') {
@@ -89,7 +128,7 @@ export default function LoginPage() {
       } else {
         router.push('/dashboard');
       }
-    }, 500);
+    }, 250);
   };
 
   return (
