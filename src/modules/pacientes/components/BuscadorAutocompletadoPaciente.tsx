@@ -37,12 +37,16 @@ export default function BuscadorAutocompletadoPaciente({
   const contenedorRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Pacientes seguros y normalizados
+  const pacientesSeguros = Array.isArray(pacientes)
+    ? pacientes.filter((p): p is Paciente => Boolean(p) && typeof p === 'object' && Boolean(p.id))
+    : [];
+
   // Paciente actualmente seleccionado
-  const pacienteActivo = pacientes.find((p) => p.id === pacienteSeleccionadoId);
+  const pacienteActivo = pacientesSeguros.find((p) => p.id === pacienteSeleccionadoId);
 
   // Filtrado de pacientes en tiempo real
-  const pacientesFiltrados = pacientes.filter((p) => {
-    if (!p) return false;
+  const pacientesFiltrados = pacientesSeguros.filter((p) => {
     if (!terminoBusqueda.trim()) return true;
     const q = terminoBusqueda.toLowerCase().trim();
     const nombreCompleto = `${p.nombres || ''} ${p.apellidos || ''}`.toLowerCase();

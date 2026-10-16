@@ -7,7 +7,8 @@ import { Paciente, ImagenDiagnostica } from './types';
 import { PACIENTES_REGISTRADOS_BASE } from './datos';
 import { EvolucionClinica, EstadoDiente, DienteInfo, NOMBRES_PIEZAS_FDI, crearOdontogramaInicial } from '@/modules/historias-clinicas/types';
 
-const CLAVE_STORAGE = 'consultorio_pacientes_v1';
+const CLAVE_STORAGE = 'consultorio_pacientes_v2';
+const CLAVE_STORAGE_LEGACY = 'consultorio_pacientes_v1';
 export const EVENTO_PACIENTES_ACTUALIZADOS = 'consultorio:pacientes-actualizados';
 
 /**
@@ -142,26 +143,60 @@ export function obtenerPacientesStorage(): Paciente[] {
 
   try {
     const raw = localStorage.getItem(CLAVE_STORAGE);
+
+    // Si no existe v2, intentar migrar desde v1 si existe y es válido
     if (!raw) {
+      const rawLegacy = localStorage.getItem(CLAVE_STORAGE_LEGACY);
+      if (rawLegacy) {
+        try {
+          const parsedLegacy = JSON.parse(rawLegacy);
+          if (Array.isArray(parsedLegacy) && parsedLegacy.length > 0) {
+            const migradas = parsedLegacy
+              .filter((p): p is Partial<Paciente> => Boolean(p) && typeof p === 'object' && Boolean(p.id))
+              .map(sanitizarPaciente);
+            if (migradas.length > 0) {
+              localStorage.setItem(CLAVE_STORAGE, JSON.stringify(migradas));
+              localStorage.removeItem(CLAVE_STORAGE_LEGACY);
+              return migradas;
+            }
+          }
+        } catch {
+          // Descartar legacy si contiene datos dañados
+        }
+        localStorage.removeItem(CLAVE_STORAGE_LEGACY);
+      }
+
       const baseSanitizada = PACIENTES_REGISTRADOS_BASE.map(sanitizarPaciente);
       localStorage.setItem(CLAVE_STORAGE, JSON.stringify(baseSanitizada));
       return baseSanitizada;
     }
+
     const parsed: Partial<Paciente>[] = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) {
       const baseSanitizada = PACIENTES_REGISTRADOS_BASE.map(sanitizarPaciente);
       localStorage.setItem(CLAVE_STORAGE, JSON.stringify(baseSanitizada));
       return baseSanitizada;
     }
-    const sanitizados = parsed.filter((p): p is Partial<Paciente> => Boolean(p) && typeof p === 'object').map(sanitizarPaciente);
+
+    const sanitizados = parsed
+      .filter((p): p is Partial<Paciente> => Boolean(p) && typeof p === 'object' && Boolean(p.id))
+      .map(sanitizarPaciente);
+
+    if (sanitizados.length === 0) {
+      const baseSanitizada = PACIENTES_REGISTRADOS_BASE.map(sanitizarPaciente);
+      localStorage.setItem(CLAVE_STORAGE, JSON.stringify(baseSanitizada));
+      return baseSanitizada;
+    }
+
     // Auto-reparar el storage guardando la versión sanitizada
     localStorage.setItem(CLAVE_STORAGE, JSON.stringify(sanitizados));
     return sanitizados;
   } catch (error) {
-    console.error('Error al parsear storage, restableciendo a base sanitizada:', error);
+    console.warn('Auto-reparando almacenamiento de pacientes:', error);
     const baseSanitizada = PACIENTES_REGISTRADOS_BASE.map(sanitizarPaciente);
     try {
       localStorage.setItem(CLAVE_STORAGE, JSON.stringify(baseSanitizada));
+      localStorage.removeItem(CLAVE_STORAGE_LEGACY);
     } catch {}
     return baseSanitizada;
   }
@@ -186,7 +221,7 @@ export function guardarPacientesStorage(pacientes: Paciente[]): void {
  */
 export function obtenerPacientePorIdStorage(pacienteId: string): Paciente | undefined {
   const lista = obtenerPacientesStorage();
-  return lista.find((p) => p.id === pacienteId);
+  return lista.find((p) => p && p.id === pacienteId);
 }
 
 export interface RegistrarDiagnosticoParams {
@@ -210,7 +245,7 @@ export function registrarDiagnosticoCitaStorage(params: RegistrarDiagnosticoPara
   pacienteActualizado?: Paciente;
 } {
   const lista = obtenerPacientesStorage();
-  const index = lista.findIndex((p) => p.id === params.pacienteId);
+  const index = lista.findIndex((p) => p && p.id === params.pacienteId);
 
   if (index === -1) {
     return { exito: false };
@@ -291,7 +326,7 @@ export function actualizarDienteOdontogramaStorage(
   notas?: string
 ): Paciente | undefined {
   const lista = obtenerPacientesStorage();
-  const index = lista.findIndex((p) => p.id === pacienteId);
+  const index = lista.findIndex((p) => p && p.id === pacienteId);
 
   if (index === -1) return undefined;
 

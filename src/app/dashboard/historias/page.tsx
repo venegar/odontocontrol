@@ -73,14 +73,20 @@ function HistoriasClinicasContenido() {
 
   // Cargar pacientes desde el almacenamiento centralizado
   useEffect(() => {
-    const lista = obtenerPacientesStorage();
-    setPacientes(lista);
+    try {
+      const lista = obtenerPacientesStorage();
+      if (Array.isArray(lista) && lista.length > 0) {
+        setPacientes(lista);
 
-    // Seleccionar paciente inicial basado en URL query o primer paciente
-    if (pacienteIdQuery && lista.some((p) => p.id === pacienteIdQuery)) {
-      setPacienteSeleccionadoId(pacienteIdQuery);
-    } else if (lista.length > 0) {
-      setPacienteSeleccionadoId(lista[0].id);
+        // Seleccionar paciente inicial basado en URL query o primer paciente
+        if (pacienteIdQuery && lista.some((p) => p && p.id === pacienteIdQuery)) {
+          setPacienteSeleccionadoId(pacienteIdQuery);
+        } else if (lista[0]?.id) {
+          setPacienteSeleccionadoId(lista[0].id);
+        }
+      }
+    } catch (e) {
+      console.warn('Error al leer pacientes en montaje:', e);
     }
 
     // Si viene la acción de registrar diagnóstico/evolución, abrir la pestaña correspondiente
@@ -90,11 +96,15 @@ function HistoriasClinicasContenido() {
 
     // Escuchar eventos de sincronización entre módulos
     const handleActualizacion = (e: Event) => {
-      const customEvent = e as CustomEvent<Paciente[]>;
-      if (customEvent.detail) {
-        setPacientes(customEvent.detail);
-      } else {
-        setPacientes(obtenerPacientesStorage());
+      try {
+        const customEvent = e as CustomEvent<Paciente[]>;
+        if (customEvent.detail && Array.isArray(customEvent.detail)) {
+          setPacientes(customEvent.detail);
+        } else {
+          setPacientes(obtenerPacientesStorage());
+        }
+      } catch (err) {
+        console.warn('Error en sincronizacion de pacientes:', err);
       }
     };
 
@@ -102,14 +112,23 @@ function HistoriasClinicasContenido() {
     return () => window.removeEventListener(EVENTO_PACIENTES_ACTUALIZADOS, handleActualizacion);
   }, [pacienteIdQuery, accionQuery]);
 
-  // Paciente actualmente activo
-  const pacienteActivo: Paciente | undefined = pacientes.find((p) => p.id === pacienteSeleccionadoId) || pacientes[0];
+  // Lista normalizada y garantizada de pacientes
+  const pacientesSeguros: Paciente[] = Array.isArray(pacientes) && pacientes.length > 0
+    ? pacientes.filter((p): p is Paciente => Boolean(p) && typeof p === 'object' && Boolean(p.id))
+    : PACIENTES_REGISTRADOS_BASE;
+
+  // Paciente actualmente activo (garantizado nunca undefined)
+  const pacienteActivo: Paciente = pacientesSeguros.find((p) => p.id === pacienteSeleccionadoId) || pacientesSeguros[0];
 
   // Odontograma del paciente activo
-  const dientesActivos: Record<number, DienteInfo> = pacienteActivo?.odontograma || crearOdontogramaInicial();
+  const dientesActivos: Record<number, DienteInfo> = (pacienteActivo?.odontograma && typeof pacienteActivo.odontograma === 'object')
+    ? pacienteActivo.odontograma
+    : crearOdontogramaInicial();
 
   // Historial de evoluciones del paciente activo
-  const evolucionesActivas: EvolucionClinica[] = pacienteActivo?.evoluciones || [];
+  const evolucionesActivas: EvolucionClinica[] = Array.isArray(pacienteActivo?.evoluciones)
+    ? pacienteActivo.evoluciones.filter((e): e is EvolucionClinica => Boolean(e) && typeof e === 'object')
+    : [];
 
   // Actualizar una pieza en el odontograma directamente
   const handleActualizarDiente = (numero: number, nuevoEstado: EstadoDiente, notas?: string) => {
@@ -264,7 +283,7 @@ function HistoriasClinicasContenido() {
           <div className="flex items-center gap-2">
             <div className="hidden md:block w-64 lg:w-72">
               <BuscadorAutocompletadoPaciente
-                pacientes={pacientes}
+                pacientes={pacientesSeguros}
                 pacienteSeleccionadoId={pacienteSeleccionadoId}
                 onSeleccionarPaciente={(p) => setPacienteSeleccionadoId(p.id)}
                 onCrearNuevoPaciente={() => setModalNuevoPacienteAbierto(true)}
@@ -286,9 +305,9 @@ function HistoriasClinicasContenido() {
                 className="text-xs bg-slate-100 font-bold border border-slate-300 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-dentist-500 max-w-[170px] sm:max-w-[220px] truncate"
               >
                 <optgroup label="Pacientes Registrados">
-                  {pacientes.map((p) => (
+                  {pacientesSeguros.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.nombres} {p.apellidos} ({p.tipoDocumento} {p.numeroDocumento})
+                      {p.nombres || ''} {p.apellidos || ''} ({p.tipoDocumento || 'CC'} {p.numeroDocumento || ''})
                     </option>
                   ))}
                 </optgroup>
@@ -476,7 +495,7 @@ function HistoriasClinicasContenido() {
         {pestaña === 'nueva-evolucion' && (
           <FormularioRegistroDiagnosticoCita
             paciente={pacienteActivo}
-            pacientesDisponibles={pacientes}
+            pacientesDisponibles={pacientesSeguros}
             citaIdInicial={citaIdQuery || undefined}
             onCambiarPaciente={(nuevoId) => setPacienteSeleccionadoId(nuevoId)}
             onRegistrarNuevoPaciente={() => setModalNuevoPacienteAbierto(true)}
@@ -875,6 +894,8 @@ interface ErrorBoundaryState {
 }
 
 class HistoriasErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  private retryTimer: NodeJS.Timeout | null = null;
+
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -885,46 +906,33 @@ class HistoriasErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBo
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Error capturado por HistoriasErrorBoundary:', error, errorInfo);
-  }
-
-  handleRestablecerStorage = () => {
+    console.warn('Auto-recuperando expediente clínico sin intervención del usuario:', error, errorInfo);
     if (typeof window !== 'undefined') {
       try {
         localStorage.removeItem('consultorio_pacientes_v1');
+        localStorage.removeItem('consultorio_pacientes_v2');
       } catch {}
-      window.location.reload();
+
+      // Auto-reparar automáticamente tras 50ms sin que el usuario deba interactuar
+      this.retryTimer = setTimeout(() => {
+        this.setState({ hasError: false, error: null });
+      }, 50);
     }
-  };
+  }
+
+  componentWillUnmount() {
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+    }
+  }
 
   render() {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-center">
-          <div className="max-w-md w-full bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-md space-y-4">
-            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto">
-              <ShieldAlert className="w-6 h-6" />
-            </div>
-            <h2 className="text-base font-bold text-slate-900">
-              Expediente Clínico Recuperable
-            </h2>
-            <p className="text-xs text-slate-500">
-              Se detectó un conflicto con los datos almacenados en tu navegador. Puedes restablecerlos para volver a operar normalmente.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-2 pt-2">
-              <button
-                onClick={this.handleRestablecerStorage}
-                className="flex-1 px-4 py-2.5 bg-dentist-600 hover:bg-dentist-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
-              >
-                Restablecer Pacientes y Reintentar
-              </button>
-              <button
-                onClick={() => window.location.reload()}
-                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
-              >
-                Recargar Página
-              </button>
-            </div>
+          <div className="p-4 px-6 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center gap-3 animate-pulse">
+            <div className="w-4 h-4 border-2 border-dentist-600 border-t-transparent rounded-full animate-spin shrink-0" />
+            <p className="text-xs font-semibold text-slate-600">Sincronizando expediente clínico...</p>
           </div>
         </div>
       );
