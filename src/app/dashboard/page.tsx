@@ -516,6 +516,96 @@ export default function DashboardPrincipalPage() {
   } | null>(null);
   const [copiadoExito, setCopiadoExito] = useState(false);
 
+  // Usuario autenticado en el sistema
+  const [usuarioAutenticado, setUsuarioAutenticado] = useState<{
+    nombre: string;
+    rol: RolDashboard;
+    email?: string;
+  } | null>(null);
+
+  // Detección automática del personal clínico que inició sesión
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const guardado = localStorage.getItem('consultorio_usuario_activo');
+        if (guardado) {
+          const parsed = JSON.parse(guardado);
+          const rolValido: RolDashboard = 
+            parsed.rol === 'odontologo' ? 'odontologo' :
+            parsed.rol === 'admin' ? 'admin' : 'recepcionista';
+
+          const nombreCompleto = parsed.nombres 
+            ? `${parsed.nombres} ${parsed.apellidos || ''}`.trim()
+            : parsed.email || 'Personal Clínico';
+
+          setUsuarioAutenticado({
+            nombre: nombreCompleto,
+            rol: rolValido,
+            email: parsed.email,
+          });
+
+          // Ajustar la vista predeterminada según el personal que ingresó
+          setRolActivo(rolValido);
+        }
+      } catch (e) {
+        console.error('Error al leer sesión de usuario activo:', e);
+      }
+    }
+
+    // Comprobar también sesión en Supabase Auth
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        const metadata = user.user_metadata || {};
+        const rolSupabase: RolDashboard = 
+          metadata.rol === 'odontologo' ? 'odontologo' :
+          metadata.rol === 'admin' ? 'admin' : 'recepcionista';
+
+        const nombreSupabase = metadata.nombres 
+          ? `${metadata.nombres} ${metadata.apellidos || ''}`.trim() 
+          : user.email?.split('@')[0] || 'Personal Clínico';
+
+        setUsuarioAutenticado((prev) => prev || {
+          nombre: nombreSupabase,
+          rol: rolSupabase,
+          email: user.email,
+        });
+
+        setRolActivo((prev) => prev || rolSupabase);
+      }
+    }).catch(() => {});
+  }, []);
+
+  // Lista de personal clínico para el Modo de Visualización con Nombre y Rol en el consultorio
+  const personalVisualizacion = [
+    {
+      id: 'recepcionista' as RolDashboard,
+      icono: '📋',
+      nombre: usuarioAutenticado && usuarioAutenticado.rol === 'recepcionista'
+        ? usuarioAutenticado.nombre
+        : 'Marcela Sánchez',
+      rol: 'Recepcionista',
+      detalleRol: 'Atención y Agenda',
+    },
+    {
+      id: 'odontologo' as RolDashboard,
+      icono: '🩺',
+      nombre: usuarioAutenticado && usuarioAutenticado.rol === 'odontologo'
+        ? usuarioAutenticado.nombre
+        : 'Dr. Carlos Ruiz',
+      rol: 'Odontólogo General',
+      detalleRol: 'Sillón Principal 1',
+    },
+    {
+      id: 'admin' as RolDashboard,
+      icono: '👑',
+      nombre: usuarioAutenticado && usuarioAutenticado.rol === 'admin' && !usuarioAutenticado.nombre.toLowerCase().includes('demo')
+        ? usuarioAutenticado.nombre
+        : 'Dra. Yasmín Blanco',
+      rol: 'Directora Médica',
+      detalleRol: 'Administrador Total',
+    },
+  ];
+
   const fechaHoy = obtenerFechaHoy();
   const fechaManana = obtenerFechaManana();
 
@@ -1095,49 +1185,31 @@ export default function DashboardPrincipalPage() {
 
           {/* SELECTOR INTERACTIVO DE ROL (CENTRAL / DESTACADO) */}
           <div className="hidden lg:flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200">
-            <button
-              type="button"
-              onClick={() => setRolActivo('recepcionista')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                rolActivo === 'recepcionista'
-                  ? 'bg-white text-dentist-700 shadow-xs border border-slate-200/80'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <span>📋</span>
-              <span>Recepcionista (Atención y Agenda)</span>
-              {totalPendientesNotificacion > 0 && (
-                <span className="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded-full font-extrabold">
-                  {totalPendientesNotificacion}
-                </span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setRolActivo('odontologo')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                rolActivo === 'odontologo'
-                  ? 'bg-white text-dentist-700 shadow-xs border border-slate-200/80'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <span>🩺</span>
-              <span>Odontólogo (Dr. Carlos Ruiz)</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setRolActivo('admin')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                rolActivo === 'admin'
-                  ? 'bg-white text-dentist-700 shadow-xs border border-slate-200/80'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <span>👑</span>
-              <span>Directora Médica (Dra. Yasmín Blanco)</span>
-            </button>
+            {personalVisualizacion.map((p) => {
+              const estaActivo = rolActivo === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setRolActivo(p.id)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    estaActivo
+                      ? 'bg-white text-dentist-700 shadow-xs border border-slate-200/80'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title={`${p.nombre} - ${p.rol} (${p.detalleRol})`}
+                >
+                  <span>{p.icono}</span>
+                  <span>{p.nombre}</span>
+                  <span className="text-[10px] font-semibold text-slate-500">({p.rol})</span>
+                  {p.id === 'recepcionista' && totalPendientesNotificacion > 0 && (
+                    <span className="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ml-1">
+                      {totalPendientesNotificacion}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {/* Acciones de la derecha */}
@@ -1182,19 +1254,19 @@ export default function DashboardPrincipalPage() {
 
             {/* Perfil Mini */}
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-dentist-100 text-dentist-700 font-bold text-xs flex items-center justify-center border border-dentist-200">
-                {rolActivo === 'recepcionista' ? 'RC' : rolActivo === 'odontologo' ? 'CR' : 'YB'}
+              <div className="w-8 h-8 rounded-full bg-dentist-100 text-dentist-700 font-bold text-xs flex items-center justify-center border border-dentist-200 shrink-0">
+                {rolActivo === 'recepcionista' ? 'MS' : rolActivo === 'odontologo' ? 'CR' : (usuarioAutenticado && usuarioAutenticado.rol === 'admin' && !usuarioAutenticado.nombre.toLowerCase().includes('demo') ? usuarioAutenticado.nombre.substring(0, 2).toUpperCase() : 'YB')}
               </div>
               <div className="hidden xl:block text-left text-xs">
                 <span className="block font-bold text-slate-900 leading-tight">
                   {rolActivo === 'recepcionista' && 'Marcela Sánchez'}
                   {rolActivo === 'odontologo' && 'Dr. Carlos Ruiz'}
-                  {rolActivo === 'admin' && 'Dra. Yasmín Blanco'}
+                  {rolActivo === 'admin' && (usuarioAutenticado && usuarioAutenticado.rol === 'admin' && !usuarioAutenticado.nombre.toLowerCase().includes('demo') ? usuarioAutenticado.nombre : 'Dra. Yasmín Blanco')}
                 </span>
                 <span className="block text-[11px] text-slate-500 font-medium">
-                  {rolActivo === 'recepcionista' && 'Recepción Clínica'}
-                  {rolActivo === 'odontologo' && 'Odontólogo Titular'}
-                  {rolActivo === 'admin' && 'Directora Médica'}
+                  {rolActivo === 'recepcionista' && 'Recepcionista • Atención y Citas'}
+                  {rolActivo === 'odontologo' && 'Odontólogo General • Sillón 1'}
+                  {rolActivo === 'admin' && 'Directora Médica • Administrador'}
                 </span>
               </div>
             </div>
@@ -1203,39 +1275,25 @@ export default function DashboardPrincipalPage() {
 
         {/* SELECTOR DE ROL MÓVIL / PANTALLAS PEQUEÑAS */}
         <div className="lg:hidden flex items-center justify-around bg-slate-50 p-2 border-t border-slate-200 text-xs">
-          <button
-            type="button"
-            onClick={() => setRolActivo('recepcionista')}
-            className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 ${
-              rolActivo === 'recepcionista'
-                ? 'bg-dentist-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            <span>📋</span> Recepción
-          </button>
-          <button
-            type="button"
-            onClick={() => setRolActivo('odontologo')}
-            className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 ${
-              rolActivo === 'odontologo'
-                ? 'bg-dentist-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            <span>🩺</span> Odontólogo
-          </button>
-          <button
-            type="button"
-            onClick={() => setRolActivo('admin')}
-            className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 ${
-              rolActivo === 'admin'
-                ? 'bg-dentist-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            <span>👑</span> Admin
-          </button>
+          {personalVisualizacion.map((p) => {
+            const estaActivo = rolActivo === p.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setRolActivo(p.id)}
+                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 transition ${
+                  estaActivo
+                    ? 'bg-dentist-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-200'
+                }`}
+                title={`${p.nombre} - ${p.rol}`}
+              >
+                <span>{p.icono}</span>
+                <span>{p.nombre.split(' ')[0]} ({p.rol.substring(0, 5)})</span>
+              </button>
+            );
+          })}
         </div>
       </header>
 
@@ -1318,56 +1376,37 @@ export default function DashboardPrincipalPage() {
                 Modo de Visualización
               </span>
               <div className="space-y-1">
-                <button
-                  type="button"
-                  onClick={() => setRolActivo('recepcionista')}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-left transition ${
-                    rolActivo === 'recepcionista'
-                      ? 'bg-slate-100 text-slate-900 font-bold border border-slate-200'
-                      : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <span>📋</span> Recepcionista
-                  </span>
-                  {rolActivo === 'recepcionista' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-dentist-600" />
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setRolActivo('odontologo')}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-left transition ${
-                    rolActivo === 'odontologo'
-                      ? 'bg-slate-100 text-slate-900 font-bold border border-slate-200'
-                      : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <span>🩺</span> Dr. Carlos Ruiz
-                  </span>
-                  {rolActivo === 'odontologo' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-dentist-600" />
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setRolActivo('admin')}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-left transition ${
-                    rolActivo === 'admin'
-                      ? 'bg-slate-100 text-slate-900 font-bold border border-slate-200'
-                      : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <span>👑</span> Dra. Yasmín Blanco (Dirección)
-                  </span>
-                  {rolActivo === 'admin' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-dentist-600" />
-                  )}
-                </button>
+                {personalVisualizacion.map((personal) => {
+                  const estaActivo = rolActivo === personal.id;
+                  return (
+                    <button
+                      key={personal.id}
+                      type="button"
+                      onClick={() => setRolActivo(personal.id)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition ${
+                        estaActivo
+                          ? 'bg-dentist-50 text-slate-900 font-bold border border-dentist-200 shadow-2xs'
+                          : 'text-slate-600 hover:bg-slate-50 border border-transparent'
+                      }`}
+                      title={`${personal.nombre} - ${personal.rol} (${personal.detalleRol})`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="text-base shrink-0">{personal.icono}</span>
+                        <div className="min-w-0">
+                          <span className={`block text-xs leading-tight truncate ${estaActivo ? 'font-bold text-slate-900' : 'font-semibold text-slate-800'}`}>
+                            {personal.nombre}
+                          </span>
+                          <span className="block text-[10px] text-slate-500 font-medium truncate">
+                            {personal.rol} • <span className="text-slate-400">{personal.detalleRol}</span>
+                          </span>
+                        </div>
+                      </div>
+                      {estaActivo && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-dentist-600 shrink-0 ml-1.5" />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -1527,24 +1566,24 @@ export default function DashboardPrincipalPage() {
           {/* Tarjeta de Usuario Activo en el Sidebar */}
           <div className="pt-4 mt-6 border-t border-slate-200">
             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-dentist-600 text-white font-bold text-xs flex items-center justify-center">
-                  {rolActivo === 'recepcionista' ? 'RC' : rolActivo === 'odontologo' ? 'CR' : 'YB'}
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-dentist-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                  {rolActivo === 'recepcionista' ? 'MS' : rolActivo === 'odontologo' ? 'CR' : (usuarioAutenticado && usuarioAutenticado.rol === 'admin' && !usuarioAutenticado.nombre.toLowerCase().includes('demo') ? usuarioAutenticado.nombre.substring(0, 2).toUpperCase() : 'YB')}
                 </div>
-                <div>
-                  <span className="block text-xs font-bold text-slate-900 leading-tight">
+                <div className="min-w-0">
+                  <span className="block text-xs font-bold text-slate-900 leading-tight truncate">
                     {rolActivo === 'recepcionista' && 'Marcela Sánchez'}
                     {rolActivo === 'odontologo' && 'Dr. Carlos Ruiz'}
-                    {rolActivo === 'admin' && 'Dra. Yasmín Blanco'}
+                    {rolActivo === 'admin' && (usuarioAutenticado && usuarioAutenticado.rol === 'admin' && !usuarioAutenticado.nombre.toLowerCase().includes('demo') ? usuarioAutenticado.nombre : 'Dra. Yasmín Blanco')}
                   </span>
-                  <span className="block text-[10px] text-slate-500 font-medium">
-                    {rolActivo === 'recepcionista' && 'Turno Mañana/Tarde'}
-                    {rolActivo === 'odontologo' && 'Sillón Principal 1'}
-                    {rolActivo === 'admin' && 'Administración'}
+                  <span className="block text-[10px] text-slate-500 font-medium truncate">
+                    {rolActivo === 'recepcionista' && 'Recepcionista • Turno Hoy'}
+                    {rolActivo === 'odontologo' && 'Odontólogo General • Sillón 1'}
+                    {rolActivo === 'admin' && 'Directora Médica • Admin'}
                   </span>
                 </div>
               </div>
-              <Link href="/" title="Cerrar y salir a la web" className="text-slate-400 hover:text-slate-700 p-1">
+              <Link href="/" title="Cerrar y salir a la web" className="text-slate-400 hover:text-slate-700 p-1 shrink-0">
                 <LogOut className="w-4 h-4" />
               </Link>
             </div>
