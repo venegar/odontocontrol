@@ -47,6 +47,15 @@ El código se estructurará por dominios funcionales para garantizar escalabilid
 
 ## 7. Historial de Cambios y Estado Actual
 
+### [2026-10-16] - Vinculación Exitosa con GitHub y Vercel
+- **Módulos / Archivos:** Repositorio remoto GitHub (`venegar/odontocontrol`), Vercel CLI (`jairocarcamo-3220`).
+- **Descripción:** 
+  - Autenticación exitosa en GitHub CLI con la cuenta `venegar`.
+  - Configuración del remoto `https://github.com/venegar/odontocontrol.git`.
+  - Sincronización del historial remoto y push exitoso del código y la bitácora hacia la rama `main`.
+  - Autenticación exitosa en Vercel CLI con la cuenta `jairocarcamo-3220`.
+  - Supabase CLI instalada y preparada, a la espera del token de acceso para vinculación remota.
+
 ### [2026-10-16] - Configuración de Entorno de Despliegue y CLIs (Node.js, Vercel y Supabase)
 - **Módulos / Archivos:** Entorno local (`Node.js v24`, `npm v11`, `vercel v64`, `supabase v2.121`).
 - **Descripción:** 
