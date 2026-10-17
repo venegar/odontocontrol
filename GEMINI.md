@@ -36,3 +36,37 @@ El código se estructurará por dominios funcionales para garantizar escalabilid
 - Mantener tipado estricto en TypeScript sin uso de `any`.
 - Modularidad: cada nueva funcionalidad debe crearse en su respectivo módulo sin acoplarse excesivamente a otros.
 - Seguridad en datos médicos: garantizar la privacidad y confidencialidad de los datos de los pacientes.
+
+## 6. Registro Continuo de Cambios (Bitácora Obligatoria)
+- **Regla:** Cada vez que se realice un cambio, nueva característica, corrección o refactorización en la aplicación, se debe documentar inmediatamente en la sección **Historial de Cambios** de este archivo (`GEMINI.md`).
+- **Formato del registro:**
+  - Fecha del cambio.
+  - Módulos o archivos modificados/creados.
+  - Descripción clara del cambio y su propósito.
+  - Estado del entregable o pasos pendientes si aplica.
+
+## 7. Historial de Cambios y Estado Actual
+
+### [2026-10-16] - Configuración de Entorno de Despliegue y CLIs (Node.js, Vercel y Supabase)
+- **Módulos / Archivos:** Entorno local (`Node.js v24`, `npm v11`, `vercel v64`, `supabase v2.121`).
+- **Descripción:** 
+  - Instalación de Node.js LTS y npm para habilitar ejecución y dependencias del proyecto.
+  - Instalación y verificación global de **Vercel CLI** y **Supabase CLI**.
+  - Inicio del proceso de vinculación y autenticación de cuentas para despliegue y base de datos.
+
+### [2026-10-16] - Inicialización de Control de Versiones (Git y GitHub)
+- **Módulos / Archivos:** Repositorio Git local (`.git/`), `.gitignore`, identidad Git configurada.
+- **Descripción:** 
+  - Instalación de Git y GitHub CLI en el entorno.
+  - Configuración global de identidad Git: `Jairo Carcamo` (`jairocarcamo@gmail.com`) y rama predeterminada `main`.
+  - Inicialización del repositorio local y generación del commit inicial con los 90 archivos del proyecto.
+  - Preparación de vinculación y push hacia GitHub.
+
+### [2026-10-16] - Carga Inicial y Configuración de Bitácora
+- **Módulos / Archivos:** Estructura completa del proyecto (`src/app/`, `src/modules/`, `supabase/`, `public/`).
+- **Descripción:** 
+  - Carga y verificación del repositorio con arquitectura modular: portal público (Dra. Yasmín Blanco), portal del paciente, panel administrativo/clínico (citas, pacientes, historias clínicas, inventario, personal, recordatorios, valoraciones, blog y patrocinadores).
+  - Verificación del esquema de base de datos Supabase con RLS, triggers y migraciones.
+  - Establecimiento de la regla de bitácora continua en `GEMINI.md` para persistencia de contexto entre estaciones de trabajo.
+
+
