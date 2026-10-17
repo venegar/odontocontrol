@@ -47,6 +47,12 @@ El código se estructurará por dominios funcionales para garantizar escalabilid
 
 ## 7. Historial de Cambios y Estado Actual
 
+### [2026-10-16] - Eliminación de Scripts con Credenciales de Administrador (Seguridad)
+- **Módulos / Archivos:** Eliminados `supabase/crear_admin_jairo_carcamo.sql` y `supabase/crear_admin_jairo_escobar.sql`.
+- **Descripción:** 
+  - Eliminación segura de scripts SQL manuales que exponían contraseñas de administradores en texto plano dentro del repositorio.
+  - Verificación de dependencias: se confirmó que ningún módulo ni proceso de build/migración dependía de estos archivos, garantizando cero impacto en la plataforma.
+
 ### [2026-10-16] - Integración Total y Vinculación (GitHub, Vercel y Supabase)
 - **Módulos / Archivos:** Repositorio GitHub (`venegar/odontocontrol`), Proyecto Vercel (`consultorio25/odontocontrol`), Proyecto Supabase (`terrqwwmcarwahkgrkmm`).
 - **Descripción:** 
